@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Siege - Clear Horizons (UK vs Germany Edition)</title>
+<title>Siege - Clear Horizons (Blue vs Dark Edition)</title>
 <style>
  body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Courier New', Courier, monospace; cursor: crosshair; user-select: none; }
  #ui { position: absolute; top: 15px; left: 15px; color: white; background: rgba(15, 15, 20, 0.95); padding: 15px; border-radius: 8px; border: 2px solid #ffd700; width: 380px; z-index: 101; box-shadow: 0 0 30px rgba(0,0,0,0.7); }
@@ -35,7 +35,7 @@
 <div id="selection-box"></div>
 <div id="minimap-container"><div id="minimap-selection-box"></div><canvas id="minimap"></canvas></div>
 <div id="ui">
-  <span class="ca">MISSION INTELLIGENCE: UK VS GERMANY</span>
+  <span class="ca">MISSION INTELLIGENCE: BLUE VS DARK</span>
   <hr>
   <div class="info-grid">
     <div class="info-column">
@@ -78,7 +78,7 @@ let matchOver = false;
 socket.on('assigned_role', (data) => {
     myPlayerIndex = data.playerIndex;
     currentRoomId = data.roomId;
-    const roleText = myPlayerIndex === 1 ? "UK FORCES (South Keep)" : "GERMAN FORCES (North Keep)";
+    const roleText = myPlayerIndex === 1 ? "BLUE FORCES (South Keep)" : "DARK FORCES (North Keep)";
     document.getElementById('role-display').innerText = roleText;
     if (myPlayerIndex === 2) {
         camera.position.set(0, 3, -135);
@@ -112,7 +112,7 @@ socket.on('trigger_game_over', (data) => {
     title.innerText = didIWin ? "VICTORY ACHIEVED!" : "DEFEAT";
     title.style.color = didIWin ? "#00ff00" : "#ff4444";
     subtitle.innerText = didIWin ? "Your forces successfully secured the keep." : "Your forces have been completely eliminated.";
-    statWinner.innerText = data.winnerIndex === 1 ? "UK Forces (South Keep)" : "German Forces (North Keep)";
+    statWinner.innerText = data.winnerIndex === 1 ? "Blue Forces (South Keep)" : "Dark Forces (North Keep)";
     statMyUnits.innerText = myPlayerIndex === 1 ? data.p1Count : data.p2Count;
     statEnemyUnits.innerText = myPlayerIndex === 1 ? data.p2Count : data.p1Count;
     modal.style.display = 'flex';
@@ -288,11 +288,11 @@ function createCannon(x, z, mainColor, isOpp = false, customId = null) {
 
 setTimeout(() => {
     if (myPlayerIndex === 1) {
-        for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), 120, 0x012169, false, `uk_${i}`);
-        for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), -120, 0x222222, true, `ger_${i}`);
+        for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), 120, 0x012169, false, `blue_${i}`);
+        for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), -120, 0x222222, true, `dark_${i}`);
     } else {
-        for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), -120, 0x222222, false, `ger_${i}`);
-        for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), 120, 0x012169, true, `uk_${i}`);
+        for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), -120, 0x222222, false, `dark_${i}`);
+        for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), 120, 0x012169, true, `blue_${i}`);
     }
 }, 300);
 
