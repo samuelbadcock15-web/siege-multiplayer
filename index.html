@@ -5,31 +5,31 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Siege - Clear Horizons (Blue vs Dark Edition)</title>
 <style>
-  body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Courier New', Courier, monospace; cursor: crosshair; user-select: none; }
-  #ui { position: absolute; top: 15px; left: 15px; color: white; background: rgba(15, 15, 20, 0.95); padding: 20px; border-radius: 8px; border: 2px solid #ffd700; width: 420px; z-index: 101; box-shadow: 0 0 30px rgba(0,0,0,0.7); }
-  #minimap-container { position: absolute; top: 15px; right: 15px; width: 200px; height: 200px; background: rgba(0, 0, 0, 0.7); border: 2px solid #ffcc00; border-radius: 4px; z-index: 100; overflow: hidden; }
-  #minimap { width: 100%; height: 100%; cursor: crosshair; }
-  .ca { color: #ffd700; font-weight: bold; letter-spacing: 2px; }
-  .sys { color: #00ff00; font-size: 12px; margin-top: 15px; display: block; text-align: center; border-top: 1px dashed #444; padding-top: 10px; }
-  hr { border: 0; border-top: 1px solid #ffd700; margin: 10px 0; }
-  .info-grid { display: flex; gap: 15px; text-align: left; margin-top: 10px; }
-  .info-column { flex: 1; font-size: 11px; }
-  .info-column h3 { margin: 0 0 5px 0; color: #ffd700; font-size: 13px; }
-  #selection-box { border: 1px solid #00ff00; background-color: rgba(0, 255, 0, 0.1); position: fixed; pointer-events: none; z-index: 99; display: none; }
-  #minimap-selection-box { border: 1px solid #00ff00; background-color: rgba(0, 255, 0, 0.2); position: absolute; pointer-events: none; z-index: 101; display: none; }
-  #build-menu { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.9); border: 2px solid #ffcc00; border-radius: 10px; display: flex; padding: 10px; gap: 15px; z-index: 200; align-items: center; }
-  .build-opt { width: 70px; height: 60px; border: 1px solid #666; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 10px; cursor: pointer; transition: 0.2s; background: #222; }
-  .build-opt:hover { border-color: #ffcc00; background: #333; }
-  .build-opt.active { background: #00ff00; color: black; border-color: white; }
-  .icon { width: 30px; height: 30px; background: #555; margin-bottom: 5px; border: 1px solid #888; }
-  
-  /* Game Over Screen Overlay */
-  #game-over-modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 1000; font-family: 'Courier New', Courier, monospace; }
-  .modal-content { background: #111; border: 3px solid #ffd700; padding: 30px; border-radius: 12px; text-align: center; width: 450px; box-shadow: 0 0 50px rgba(255,215,0,0.4); color: white; }
-  .modal-content h1 { font-size: 28px; margin-top: 0; letter-spacing: 3px; }
-  .stats-box { background: #222; border: 1px solid #444; padding: 15px; margin: 20px 0; text-align: left; font-size: 13px; line-height: 1.6; }
-  #restart-btn { background: #ffd700; color: black; border: none; padding: 12px 25px; font-size: 15px; font-weight: bold; cursor: pointer; border-radius: 6px; letter-spacing: 1px; transition: 0.2s; }
-  #restart-btn:hover { background: #fff; box-shadow: 0 0 15px #ffd700; }
+ body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Courier New', Courier, monospace; cursor: crosshair; user-select: none; }
+ #ui { position: absolute; top: 15px; left: 15px; color: white; background: rgba(15, 15, 20, 0.95); padding: 20px; border-radius: 8px; border: 2px solid #ffd700; width: 420px; z-index: 101; box-shadow: 0 0 30px rgba(0,0,0,0.7); }
+ #minimap-container { position: absolute; top: 15px; right: 15px; width: 200px; height: 200px; background: rgba(0, 0, 0, 0.7); border: 2px solid #ffcc00; border-radius: 4px; z-index: 100; overflow: hidden; }
+ #minimap { width: 100%; height: 100%; cursor: crosshair; }
+ .ca { color: #ffd700; font-weight: bold; letter-spacing: 2px; }
+ .sys { color: #00ff00; font-size: 12px; margin-top: 15px; display: block; text-align: center; border-top: 1px dashed #444; padding-top: 10px; }
+ hr { border: 0; border-top: 1px solid #ffd700; margin: 10px 0; }
+ .info-grid { display: flex; gap: 15px; text-align: left; margin-top: 10px; }
+ .info-column { flex: 1; font-size: 11px; }
+ .info-column h3 { margin: 0 0 5px 0; color: #ffd700; font-size: 13px; }
+ #selection-box { border: 1px solid #00ff00; background-color: rgba(0, 255, 0, 0.1); position: fixed; pointer-events: none; z-index: 99; display: none; }
+ #minimap-selection-box { border: 1px solid #00ff00; background-color: rgba(0, 255, 0, 0.2); position: absolute; pointer-events: none; z-index: 101; display: none; }
+ #build-menu { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.9); border: 2px solid #ffcc00; border-radius: 10px; display: flex; padding: 10px; gap: 15px; z-index: 200; align-items: center; }
+ .build-opt { width: 70px; height: 60px; border: 1px solid #666; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 10px; cursor: pointer; transition: 0.2s; background: #222; }
+ .build-opt:hover { border-color: #ffcc00; background: #333; }
+ .build-opt.active { background: #00ff00; color: black; border-color: white; }
+ .icon { width: 30px; height: 30px; background: #555; margin-bottom: 5px; border: 1px solid #888; }
+ 
+ /* Game Over Screen Overlay */
+ #game-over-modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 1000; font-family: 'Courier New', Courier, monospace; }
+ .modal-content { background: #111; border: 3px solid #ffd700; padding: 30px; border-radius: 12px; text-align: center; width: 450px; box-shadow: 0 0 50px rgba(255,215,0,0.4); color: white; }
+ .modal-content h1 { font-size: 28px; margin-top: 0; letter-spacing: 3px; }
+ .stats-box { background: #222; border: 1px solid #444; padding: 15px; margin: 20px 0; text-align: left; font-size: 13px; line-height: 1.6; }
+ #restart-btn { background: #ffd700; color: black; border: none; padding: 12px 25px; font-size: 15px; font-weight: bold; cursor: pointer; border-radius: 6px; letter-spacing: 1px; transition: 0.2s; }
+ #restart-btn:hover { background: #fff; box-shadow: 0 0 15px #ffd700; }
 </style>
 <script src="/socket.io/socket.io.js"></script>
 </head>
@@ -37,41 +37,41 @@
 <div id="selection-box"></div>
 <div id="minimap-container"><div id="minimap-selection-box"></div><canvas id="minimap"></canvas></div>
 <div id="ui">
-  <span class="ca">MISSION INTELLIGENCE: BLUE VS DARK</span>
-  <hr>
-  <div class="info-grid">
-    <div class="info-column">
-      <h3>COMMAND ROLE</h3>
-      <p style="font-weight: bold; margin: 0 0 5px 0; color: #ffd700;" id="role-display">CONNECTING...</p>
-    </div>
-  </div>
-  <div style="font-size: 10px; margin-top: 15px; color: #888; border-top: 1px solid #333; padding-top: 8px;">
+ <span class="ca">MISSION INTELLIGENCE: BLUE VS DARK</span>
+ <hr>
+ <div class="info-grid">
+   <div class="info-column">
+     <h3>COMMAND ROLE</h3>
+     <p style="font-weight: bold; margin: 0 0 5px 0; color: #ffd700;" id="role-display">CONNECTING...</p>
+   </div>
+ </div>
+ <div style="font-size: 10px; margin-top: 15px; color: #888; border-top: 1px solid #333; padding-top: 8px;">
     [W,S,A,D] Move/Rotate | [Q,E] Strafe<br>
     [Scroll] Zoom | [LMB Drag] Select / Move Units<br>
     [RMB] Attack / Target | [Click Panel] Build Mode
-  </div>
-  <span id="status" class="sys">STATUS: STANDBY</span>
+ </div>
+ <span id="status" class="sys">STATUS: STANDBY</span>
 </div>
 
 <div id="build-menu">
-  <div class="build-opt" data-type="wall_f"><div class="icon" style="width:30px; height:6px;"></div>FRONT</div>
-  <div class="build-opt" data-type="wall_s"><div class="icon" style="width:6px; height:30px;"></div>SIDE</div>
-  <div class="build-opt" data-type="roof"><div class="icon" style="width:25px; height:25px;"></div>ROOF</div>
-  <div style="color: #666; font-size: 9px; padding: 5px;">SELECT TO BUILD</div>
+ <div class="build-opt" data-type="wall_f"><div class="icon" style="width:30px; height:6px;"></div>FRONT</div>
+ <div class="build-opt" data-type="wall_s"><div class="icon" style="width:6px; height:30px;"></div>SIDE</div>
+ <div class="build-opt" data-type="roof"><div class="icon" style="width:25px; height:25px;"></div>ROOF</div>
+ <div style="color: #666; font-size: 9px; padding: 5px;">SELECT TO BUILD</div>
 </div>
 
 <!-- Game Over Modal Overlay -->
 <div id="game-over-modal">
-  <div class="modal-content">
-    <h1 id="modal-title" style="color: #ffd700;">BATTLE CONCLUDED</h1>
-    <p id="modal-subtitle" style="font-size: 14px; color: #aaa; margin: 5px 0 15px 0;"></p>
-    <div class="stats-box">
-      <div><strong>Winner:</strong> <span id="stat-winner" style="color: #00ff00;">-</span></div>
-      <div><strong>Your Surviving Units:</strong> <span id="stat-my-units">-</span></div>
-      <div><strong>Enemy Surviving Units:</strong> <span id="stat-enemy-units">-</span></div>
-    </div>
-    <button id="restart-btn">RESTART BATTLE</button>
-  </div>
+ <div class="modal-content">
+   <h1 id="modal-title" style="color: #ffd700;">BATTLE CONCLUDED</h1>
+   <p id="modal-subtitle" style="font-size: 14px; color: #aaa; margin: 5px 0 15px 0;"></p>
+   <div class="stats-box">
+     <div><strong>Winner:</strong> <span id="stat-winner" style="color: #00ff00;">-</span></div>
+     <div><strong>Your Surviving Units:</strong> <span id="stat-my-units">-</span></div>
+     <div><strong>Enemy Surviving Units:</strong> <span id="stat-enemy-units">-</span></div>
+   </div>
+   <button id="restart-btn">RESTART BATTLE</button>
+ </div>
 </div>
 
 <script type="importmap">{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" }}</script>
@@ -82,6 +82,7 @@ const socket = io();
 let myPlayerIndex = null;
 let currentRoomId = null;
 let matchOver = false;
+let gameInitialized = false;
 
 socket.on('assigned_role', (data) => {
     myPlayerIndex = data.playerIndex;
@@ -92,6 +93,18 @@ socket.on('assigned_role', (data) => {
     if (myPlayerIndex === 2) {
         camera.position.set(0, 3, -135);
         camera.rotation.y = Math.PI;
+    }
+
+    // Synchronize unit generation precisely with the assigned role
+    if (!gameInitialized) {
+        gameInitialized = true;
+        if (myPlayerIndex === 1) {
+            for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), 120, 0x012169, false, `blue_${i}`);
+            for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), -120, 0x222222, true, `dark_${i}`);
+        } else {
+            for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), -120, 0x222222, false, `dark_${i}`);
+            for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), 120, 0x012169, true, `blue_${i}`);
+        }
     }
 });
 
@@ -341,16 +354,6 @@ function createCannon(x, z, mainColor, isOpp = false, customId = null) {
         cannons.push(cGroup);
     }
 }
-
-setTimeout(() => {
-    if (myPlayerIndex === 1) {
-        for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), 120, 0x012169, false, `blue_${i}`);
-        for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), -120, 0x222222, true, `dark_${i}`);
-    } else {
-        for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), -120, 0x222222, false, `dark_${i}`);
-        for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), 120, 0x012169, true, `blue_${i}`);
-    }
-}, 300);
 
 socket.on('opponent_move', (data) => {
     opponentCannons.forEach(can => {
