@@ -6,17 +6,15 @@
 <title>Siege - Clear Horizons (UK vs Germany Edition)</title>
 <style>
  body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Courier New', Courier, monospace; cursor: crosshair; user-select: none; }
- #info-btn { position: absolute; top: 15px; left: 15px; width: 40px; height: 40px; background: rgba(0,0,0,0.8); color: #ffcc00; border: 2px solid #ffcc00; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold; cursor: pointer; z-index: 100; }
- #ui { position: absolute; top: 15px; left: 15px; color: white; background: rgba(15, 15, 20, 0.95); padding: 20px; border-radius: 8px; border: 2px solid #ffd700; width: 420px; display: none; z-index: 101; box-shadow: 0 0 30px rgba(0,0,0,0.7); }
+ #ui { position: absolute; top: 15px; left: 15px; color: white; background: rgba(15, 15, 20, 0.95); padding: 15px; border-radius: 8px; border: 2px solid #ffd700; width: 380px; z-index: 101; box-shadow: 0 0 30px rgba(0,0,0,0.7); }
  #minimap-container { position: absolute; top: 15px; right: 15px; width: 200px; height: 200px; background: rgba(0, 0, 0, 0.7); border: 2px solid #ffcc00; border-radius: 4px; z-index: 100; overflow: hidden; }
  #minimap { width: 100%; height: 100%; cursor: crosshair; }
- #close-btn { float: right; cursor: pointer; color: #ff4444; font-weight: bold; font-size: 14px; }
- .ca { color: #ffd700; font-weight: bold; letter-spacing: 2px; }
- .sys { color: #00ff00; font-size: 12px; margin-top: 15px; display: block; text-align: center; border-top: 1px dashed #444; padding-top: 10px; }
- hr { border: 0; border-top: 1px solid #ffd700; margin: 10px 0; }
- .info-grid { display: flex; gap: 15px; text-align: left; margin-top: 10px; }
+ .ca { color: #ffd700; font-weight: bold; letter-spacing: 2px; font-size: 12px; }
+ .sys { color: #00ff00; font-size: 12px; margin-top: 10px; display: block; text-align: center; border-top: 1px dashed #444; padding-top: 8px; }
+ hr { border: 0; border-top: 1px solid #ffd700; margin: 8px 0; }
+ .info-grid { display: flex; gap: 15px; text-align: left; margin-top: 5px; }
  .info-column { flex: 1; font-size: 11px; }
- .info-column h3 { margin: 0 0 5px 0; color: #ffd700; font-size: 13px; }
+ .info-column h3 { margin: 0 0 3px 0; color: #ffd700; font-size: 12px; }
  #selection-box { border: 1px solid #00ff00; background-color: rgba(0, 255, 0, 0.1); position: fixed; pointer-events: none; z-index: 99; display: none; }
  #minimap-selection-box { border: 1px solid #00ff00; background-color: rgba(0, 255, 0, 0.2); position: absolute; pointer-events: none; z-index: 101; display: none; }
  #build-menu { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.9); border: 2px solid #ffcc00; border-radius: 10px; display: flex; padding: 10px; gap: 15px; z-index: 200; align-items: center; }
@@ -36,23 +34,20 @@
 <body>
 <div id="selection-box"></div>
 <div id="minimap-container"><div id="minimap-selection-box"></div><canvas id="minimap"></canvas></div>
-<div id="info-btn">i</div>
 <div id="ui">
-  <span id="close-btn">[X]</span>
   <span class="ca">MISSION INTELLIGENCE: UK VS GERMANY</span>
   <hr>
   <div class="info-grid">
     <div class="info-column">
       <h3>COMMAND ROLE</h3>
-      <p style="font-weight: bold; margin: 0 0 5px 0; color: #ffd700;" id="role-display">CONNECTING...</p>
+      <p style="font-weight: bold; margin: 0; color: #ffd700;" id="role-display">CONNECTING...</p>
     </div>
   </div>
-  <div style="font-size: 10px; margin-top: 15px; color: #888; border-top: 1px solid #333; padding-top: 8px;">
-     [W,S,A,D] Move/Rotate | [Q,E] Strafe<br>
-     [Scroll] Zoom | [LMB Drag] Select / Move Units<br>
-     [RMB] Attack / Target | [Click Panel] Build Mode
+  <div style="font-size: 9px; margin-top: 10px; color: #888; border-top: 1px solid #333; padding-top: 6px;">
+     [W,S,A,D] Move | [Q,E] Strafe | [Scroll] Zoom<br>
+     [LMB Drag] Select/Move | [RMB] Attack | [Panel] Build
   </div>
-  <span id="status" class="sys">STATUS: WAITING FOR OPPONENT</span>
+  <span id="status" class="sys">STATUS: STANDBY</span>
 </div>
 <div id="build-menu">
   <div class="build-opt" data-type="wall_f"><div class="icon" style="width:30px; height:6px;"></div>FRONT</div>
@@ -75,7 +70,7 @@
 <script type="importmap">{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" }}</script>
 <script type="module">
 import * as THREE from 'three';
-const socket = io(); // Automatically connects to the current host URL (localhost or Render)
+const socket = io();
 let myPlayerIndex = null;
 let currentRoomId = null;
 let matchOver = false;
@@ -131,8 +126,6 @@ document.getElementById('restart-btn').onclick = () => {
     socket.emit('request_restart', { roomId: currentRoomId });
 };
 
-const ui = document.getElementById('ui');
-const infoBtn = document.getElementById('info-btn');
 const statusText = document.getElementById('status');
 const selectionBox = document.getElementById('selection-box');
 const miniSelectionBox = document.getElementById('minimap-selection-box');
@@ -140,9 +133,6 @@ const minimapCanvas = document.getElementById('minimap');
 const ctx = minimapCanvas.getContext('2d');
 minimapCanvas.width = 200;
 minimapCanvas.height = 200;
-
-infoBtn.onclick = (e) => { e.stopPropagation(); ui.style.display = 'block'; infoBtn.style.display = 'none'; };
-document.getElementById('close-btn').onclick = (e) => { e.stopPropagation(); ui.style.display = 'none'; infoBtn.style.display = 'flex'; };
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87CEEB);
@@ -360,7 +350,7 @@ function isTooCloseToCannon(pt) {
 }
 
 window.onmousedown = (e) => {
-    if (matchOver || e.target.closest('#ui') || e.target.closest('#info-btn') || e.target.closest('#build-menu')) return;
+    if (matchOver || e.target.closest('#ui') || e.target.closest('#build-menu')) return;
     if (selectedPanelType && e.button === 0) {
         raycaster.setFromCamera(mouse, camera);
         const hits = raycaster.intersectObject(ground);
@@ -482,7 +472,7 @@ function animate() {
             const p = activeProjectiles[i];
             p.mesh.position.add(p.velocity); p.velocity.y += p.gravity; p.life++;
             if (p.life > p.maxLife || p.mesh.position.y < 0.1) {
-                scene.add(p.mesh); // keep logic safe
+                scene.add(p.mesh);
                 scene.remove(p.mesh); activeProjectiles.splice(i, 1);
             }
         }
