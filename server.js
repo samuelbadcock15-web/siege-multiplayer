@@ -34,7 +34,7 @@ io.on('connection', (socket) => {
             p2: socket.id
         };
 
-        // Assign roles (Player 1 = UK / South, Player 2 = Germany / North)
+        // Assign roles (Player 1 = Blue / South, Player 2 = Dark / North)
         io.to(waitingPlayer.id).emit('assigned_role', { playerIndex: 1, roomId });
         io.to(socket.id).emit('assigned_role', { playerIndex: 2, roomId });
 
@@ -72,6 +72,14 @@ io.on('connection', (socket) => {
     // Restart game request
     socket.on('request_restart', (data) => {
         io.to(data.roomId).emit('restart_game');
+    });
+
+    // Live chat feature synchronization
+    socket.on('send_chat', (data) => {
+        io.to(data.roomId).emit('receive_chat', {
+            sender: data.sender,
+            message: data.message
+        });
     });
 
     // Handle disconnects
