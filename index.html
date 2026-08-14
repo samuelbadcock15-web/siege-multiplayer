@@ -17,9 +17,6 @@
   .info-grid { display: flex; gap: 15px; text-align: left; margin-top: 10px; }
   .info-column { flex: 1; font-size: 11px; }
   .info-column h3 { margin: 0 0 5px 0; color: #ffd700; font-size: 13px; }
-  .info-column ul { list-style: none; padding: 0; margin: 5px 0; }
-  .info-column li { color: #fff; margin-bottom: 2px; font-size: 11px; }
-  .germany-box { background: rgba(206, 17, 11, 0.15); padding: 8px; border-left: 3px solid #ce110b; margin-top: 5px; }
   #selection-box { border: 1px solid #00ff00; background-color: rgba(0, 255, 0, 0.1); position: fixed; pointer-events: none; z-index: 99; display: none; }
   #minimap-selection-box { border: 1px solid #00ff00; background-color: rgba(0, 255, 0, 0.2); position: absolute; pointer-events: none; z-index: 101; display: none; }
   #build-menu { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.9); border: 2px solid #ffcc00; border-radius: 10px; display: flex; padding: 10px; gap: 15px; z-index: 200; align-items: center; }
@@ -27,6 +24,14 @@
   .build-opt:hover { border-color: #ffcc00; background: #333; }
   .build-opt.active { background: #00ff00; color: black; border-color: white; }
   .icon { width: 30px; height: 30px; background: #555; margin-bottom: 5px; border: 1px solid #888; }
+  
+  /* Game Over Screen Overlay */
+  #game-over-modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 1000; font-family: 'Courier New', Courier, monospace; }
+  .modal-content { background: #111; border: 3px solid #ffd700; padding: 30px; border-radius: 12px; text-align: center; width: 450px; box-shadow: 0 0 50px rgba(255,215,0,0.4); color: white; }
+  .modal-content h1 { font-size: 28px; margin-top: 0; letter-spacing: 3px; }
+  .stats-box { background: #222; border: 1px solid #444; padding: 15px; margin: 20px 0; text-align: left; font-size: 13px; line-height: 1.6; }
+  #restart-btn { background: #ffd700; color: black; border: none; padding: 12px 25px; font-size: 15px; font-weight: bold; cursor: pointer; border-radius: 6px; letter-spacing: 1px; transition: 0.2s; }
+  #restart-btn:hover { background: #fff; box-shadow: 0 0 15px #ffd700; }
 </style>
 <script src="/socket.io/socket.io.js"></script>
 </head>
@@ -59,6 +64,20 @@
   <div style="color: #666; font-size: 9px; padding: 5px;">SELECT TO BUILD</div>
 </div>
 
+<!-- Game Over Modal Overlay -->
+<div id="game-over-modal">
+  <div class="modal-content">
+    <h1 id="modal-title" style="color: #ffd700;">BATTLE CONCLUDED</h1>
+    <p id="modal-subtitle" style="font-size: 14px; color: #aaa; margin: 5px 0 15px 0;"></p>
+    <div class="stats-box">
+      <div><strong>Winner:</strong> <span id="stat-winner" style="color: #00ff00;">-</span></div>
+      <div><strong>Your Surviving Units:</strong> <span id="stat-my-units">-</span></div>
+      <div><strong>Enemy Surviving Units:</strong> <span id="stat-enemy-units">-</span></div>
+    </div>
+    <button id="restart-btn">RESTART BATTLE</button>
+  </div>
+</div>
+
 <script type="importmap">{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" }}</script>
 <script type="module">
 import * as THREE from 'three';
@@ -66,6 +85,7 @@ import * as THREE from 'three';
 const socket = io();
 let myPlayerIndex = null;
 let currentRoomId = null;
+let matchOver = false;
 
 socket.on('assigned_role', (data) => {
     myPlayerIndex = data.playerIndex;
@@ -91,6 +111,35 @@ socket.on('opponent_disconnected', () => {
     alert("Opponent disconnected!");
     location.reload();
 });
+
+socket.on('trigger_game_over', (data) => {
+    matchOver = true;
+    const modal = document.getElementById('game-over-modal');
+    const title = document.getElementById('modal-title');
+    const subtitle = document.getElementById('modal-subtitle');
+    const statWinner = document.getElementById('stat-winner');
+    const statMyUnits = document.getElementById('stat-my-units');
+    const statEnemyUnits = document.getElementById('stat-enemy-units');
+
+    const didIWin = data.winnerIndex === myPlayerIndex;
+    title.innerText = didIWin ? "VICTORY ACHIEVED!" : "DEFEAT";
+    title.style.color = didIWin ? "#00ff00" : "#ff4444";
+    subtitle.innerText = didIWin ? "Your forces successfully secured the keep." : "Your forces have been completely eliminated.";
+    
+    statWinner.innerText = data.winnerIndex === 1 ? "UK Forces (South Keep)" : "German Forces (North Keep)";
+    statMyUnits.innerText = myPlayerIndex === 1 ? data.p1Count : data.p2Count;
+    statEnemyUnits.innerText = myPlayerIndex === 1 ? data.p2Count : data.p1Count;
+
+    modal.style.display = 'flex';
+});
+
+socket.on('restart_game', () => {
+    location.reload();
+});
+
+document.getElementById('restart-btn').onclick = () => {
+    socket.emit('request_restart', { roomId: currentRoomId });
+};
 
 const ui = document.getElementById('ui');
 const infoBtn = document.getElementById('info-btn');
@@ -150,47 +199,86 @@ function createCloudTexture() {
     ctx.clearRect(0, 0, 256, 128);
     ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
     ctx.beginPath();
-    ctx.arc(64, 80, 30, 0, Math.PI * 2);
-    ctx.arc(110, 65, 42, 0, Math.PI * 2);
-    ctx.arc(160, 75, 35, 0, Math.PI * 2);
-    ctx.arc(195, 85, 25, 0, Math.PI * 2);
+    ctx.arc(64, 80, 32, 0, Math.PI * 2);
+    ctx.arc(110, 65, 45, 0, Math.PI * 2);
+    ctx.arc(160, 75, 38, 0, Math.PI * 2);
+    ctx.arc(195, 85, 28, 0, Math.PI * 2);
     ctx.fill();
     return new THREE.CanvasTexture(canvas);
 }
-const cloudMat = new THREE.MeshBasicMaterial({ map: createCloudTexture(), transparent: true, opacity: 0.65, depthWrite: false });
-function spawnCloud(fixedX = null) {
-    const cloudGeo = new THREE.PlaneGeometry(70 + Math.random() * 40, 35 + Math.random() * 20);
+const cloudMat = new THREE.MeshBasicMaterial({ map: createCloudTexture(), transparent: true, opacity: 0.7, depthWrite: false, side: THREE.DoubleSide });
+function spawnCloud() {
+    const cloudGeo = new THREE.PlaneGeometry(120 + Math.random() * 80, 60 + Math.random() * 40);
     const cloud = new THREE.Mesh(cloudGeo, cloudMat);
-    const x = fixedX !== null ? fixedX : (Math.random() * 800 - 400);
-    const y = 90 + Math.random() * 40;
-    const z = -350 - Math.random() * 150;
+    const x = Math.random() * 1200 - 600;
+    const y = 110 + Math.random() * 60;
+    const z = Math.random() * 1200 - 600;
     cloud.position.set(x, y, z);
     scene.add(cloud);
-    clouds.push({ mesh: cloud, speed: 0.15 + Math.random() * 0.15 });
+    clouds.push({ mesh: cloud, speed: 0.1 + Math.random() * 0.15 });
 }
-for (let i = 0; i < 12; i++) { spawnCloud(Math.random() * 800 - 400); }
+for (let i = 0; i < 70; i++) { spawnCloud(); }
 
 const wallHeight = 40;
 const wallThickness = 10;
 const halfBoard = boardSize / 2;
+
 function createCastleStoneTex() {
     const canvas = document.createElement('canvas');
     canvas.width = 512; canvas.height = 512;
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = '#6b7280';
     ctx.fillRect(0, 0, 512, 512);
+    const rows = 16; const cols = 8;
+    const rh = 512 / rows; const cw = 512 / cols;
+    for (let r = 0; r < rows; r++) {
+        const offset = (r % 2) * (cw / 2);
+        for (let c = -1; c < cols + 1; c++) {
+            let x = c * cw + offset; let y = r * rh;
+            let shade = Math.floor(Math.random() * 40) - 20;
+            ctx.fillStyle = `rgb(${107 + shade}, ${114 + shade}, ${128 + shade})`;
+            ctx.fillRect(x + 2, y + 2, cw - 4, rh - 4);
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+            for (let s = 0; s < 5; s++) {
+                ctx.fillRect(x + Math.random() * (cw - 4), y + Math.random() * (rh - 4), 3, 3);
+            }
+        }
+    }
+    ctx.strokeStyle = '#374151'; ctx.lineWidth = 4;
+    for (let r = 0; r <= rows; r++) {
+        ctx.beginPath(); ctx.moveTo(0, r * rh); ctx.lineTo(512, r * rh); ctx.stroke();
+    }
     return new THREE.CanvasTexture(canvas);
 }
+
 const castleMat = new THREE.MeshStandardMaterial({ map: createCastleStoneTex(), roughness: 0.85, metalness: 0.1 });
 const gameWalls = [];
+
 function createCastleWall(length, isZAxis) {
     const wallGroup = new THREE.Group();
     const mainBoxGeo = isZAxis ? new THREE.BoxGeometry(wallThickness, wallHeight, length) : new THREE.BoxGeometry(length, wallHeight, wallThickness);
     const mainMesh = new THREE.Mesh(mainBoxGeo, castleMat);
     mainMesh.position.y = wallHeight / 2;
     wallGroup.add(mainMesh);
+    
+    const merlonWidth = 10; const merlonHeight = 6; const gapWidth = 8;
+    const step = merlonWidth + gapWidth;
+    const numMerlons = Math.floor(length / step);
+    const startOffset = -length / 2 + merlonWidth / 2;
+    for (let i = 0; i < numMerlons; i++) {
+        const mGeo = isZAxis ? new THREE.BoxGeometry(wallThickness + 1, merlonHeight, merlonWidth) : new THREE.BoxGeometry(merlonWidth, merlonHeight, wallThickness + 1);
+        const mMesh = new THREE.Mesh(mGeo, castleMat);
+        const posCoord = startOffset + i * step;
+        if (isZAxis) {
+            mMesh.position.set(0, wallHeight + merlonHeight / 2, posCoord);
+        } else {
+            mMesh.position.set(posCoord, wallHeight + merlonHeight / 2, 0);
+        }
+        wallGroup.add(mMesh);
+    }
     return wallGroup;
 }
+
 const northWall = createCastleWall(boardSize, false); northWall.position.set(0, 0, -halfBoard); scene.add(northWall); gameWalls.push(northWall);
 const southWall = createCastleWall(boardSize, false); southWall.position.set(0, 0, halfBoard); scene.add(southWall); gameWalls.push(southWall);
 const eastWall = createCastleWall(boardSize, true); eastWall.position.set(halfBoard, 0, 0); scene.add(eastWall); gameWalls.push(eastWall);
@@ -222,8 +310,8 @@ function createPirateFlagTex(bgColor, fgColor) {
     return new THREE.CanvasTexture(canvas);
 }
 
-let cannons = [];          // My units
-let opponentCannons = [];  // Other human player's units
+let cannons = [];          
+let opponentCannons = [];  
 
 function createCannon(x, z, mainColor, isOpp = false, customId = null) {
     const cGroup = new THREE.Group();
@@ -243,7 +331,9 @@ function createCannon(x, z, mainColor, isOpp = false, customId = null) {
     cFlag.position.set(0.8, 2, -0.2);
     cGroup.add(barrelPivot, wheels, cFlag);
     cGroup.position.set(x, 0.8, z);
-    cGroup.rotation.y = isOpp ? 0 : Math.PI;
+    
+    // Fixed initial facing: South cannons face North (0), North cannons face South (Math.PI)
+    cGroup.rotation.y = (z < 0) ? 0 : Math.PI;
     
     cGroup.userData = {
         selected: false,
@@ -262,7 +352,6 @@ function createCannon(x, z, mainColor, isOpp = false, customId = null) {
     }
 }
 
-// Populate teams based on assigned player role
 setTimeout(() => {
     if (myPlayerIndex === 1) {
         for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), 120, 0x012169, false, `uk_${i}`);
@@ -273,7 +362,6 @@ setTimeout(() => {
     }
 }, 300);
 
-// Socket sync listeners
 socket.on('opponent_move', (data) => {
     opponentCannons.forEach(can => {
         if (can.userData.id === data.id) {
@@ -305,9 +393,21 @@ socket.on('opponent_destroy', (data) => {
             cannons = cannons.filter(c => c.userData.id !== data.id);
             opponentCannons = opponentCannons.filter(c => c.userData.id !== data.id);
             updateStatusUI();
+            checkWinCondition();
         }
     });
 });
+
+function checkWinCondition() {
+    if (matchOver) return;
+    let myCount = cannons.length;
+    let oppCount = opponentCannons.length;
+
+    if (myCount === 0 || oppCount === 0) {
+        let winnerIdx = myCount > 0 ? myPlayerIndex : (myPlayerIndex === 1 ? 2 : 1);
+        socket.emit('check_game_over', { roomId: currentRoomId, winnerIndex: winnerIdx, p1Count: myPlayerIndex === 1 ? myCount : oppCount, p2Count: myPlayerIndex === 2 ? myCount : oppCount });
+    }
+}
 
 function toMap(x, z) { return { x: MAP_CENTER.x + x * MAP_SCALE, y: MAP_CENTER.y + z * MAP_SCALE }; }
 function fromMap(mx, my) { return { x: (mx - MAP_CENTER.x) / MAP_SCALE, z: (my - MAP_CENTER.y) / MAP_SCALE }; }
@@ -363,14 +463,36 @@ function checkEdgeWallCollision(newPos) {
     return (Math.abs(newPos.x) > edgeLimit || Math.abs(newPos.z) > edgeLimit);
 }
 
+function isTooCloseToCannon(pt) {
+    let tooClose = false;
+    [...cannons, ...opponentCannons].forEach(can => {
+        const horizontalDist = new THREE.Vector2(can.position.x, can.position.z).distanceTo(new THREE.Vector2(pt.x, pt.z));
+        if (horizontalDist < 15) {
+            tooClose = true;
+        }
+    });
+    return tooClose;
+}
+
 window.onmousedown = (e) => {
+    if (matchOver) return;
     if (e.target.closest('#ui') || e.target.closest('#info-btn') || e.target.closest('#build-menu')) return;
     if (selectedPanelType && e.button === 0) {
-        const newPanel = ghostPanel.clone();
-        newPanel.material = new THREE.MeshStandardMaterial({color: 0x777777, roughness: 0.8});
-        scene.add(newPanel);
-        worldPanels.push(newPanel);
-        socket.emit('place_panel', { roomId: currentRoomId, type: selectedPanelType, x: newPanel.position.x, y: newPanel.position.y, z: newPanel.position.z });
+        raycaster.setFromCamera(mouse, camera);
+        const hits = raycaster.intersectObject(ground);
+        if (hits.length > 0) {
+            const pt = hits[0].point;
+            
+            if (isTooCloseToCannon(pt)) {
+                return;
+            }
+
+            const newPanel = ghostPanel.clone();
+            newPanel.material = new THREE.MeshStandardMaterial({color: 0x777777, roughness: 0.8});
+            scene.add(newPanel);
+            worldPanels.push(newPanel);
+            socket.emit('place_panel', { roomId: currentRoomId, type: selectedPanelType, x: newPanel.position.x, y: newPanel.position.y, z: newPanel.position.z });
+        }
         return;
     }
     const now = Date.now();
@@ -415,6 +537,7 @@ window.onmousemove = (e) => {
 };
 
 window.onmouseup = (e) => {
+    if (matchOver) return;
     if (e.button === 0 && isDragging) {
         isDragging = false;
         selectionBox.style.display = 'none';
@@ -497,6 +620,7 @@ function updateStatusUI() {
 }
 
 function spawnProjectile(sourceCan, target, isRemote = false) {
+    if (matchOver) return;
     const obj = new THREE.Mesh(new THREE.SphereGeometry(0.6), new THREE.MeshStandardMaterial({color: 0xff4400, emissive: 0xffaa00}));
     const start = new THREE.Vector3(0, 2.5, 0);
     sourceCan.userData.barrelPivot.localToWorld(start);
@@ -532,83 +656,118 @@ function spawnProjectile(sourceCan, target, isRemote = false) {
 
 function animate() {
     requestAnimationFrame(animate);
+    
     clouds.forEach(cloudObj => {
         cloudObj.mesh.position.x += cloudObj.speed;
-        if (cloudObj.mesh.position.x > 450) {
-            cloudObj.mesh.position.x = -450;
-            cloudObj.mesh.position.z = -350 - Math.random() * 150;
+        if (cloudObj.mesh.position.x > 700) {
+            cloudObj.mesh.position.x = -700;
+            cloudObj.mesh.position.z = Math.random() * 1200 - 600;
         }
     });
 
-    const camSpeed = 1.2;
-    let moveVector = new THREE.Vector3(0,0,0);
-    if (keys['w']) moveVector.z -= camSpeed;
-    if (keys['s']) moveVector.z += camSpeed;
-    if (keys['q']) moveVector.x -= camSpeed;
-    if (keys['e']) moveVector.x += camSpeed;
-    if (keys['a']) camera.rotation.y += 0.03;
-    if (keys['d']) camera.rotation.y -= 0.03;
-    if (moveVector.length() > 0) {
-        const nextPos = camera.position.clone();
-        nextPos.add(moveVector.applyQuaternion(camera.quaternion));
-        nextPos.y = 3;
-        if (!checkEdgeWallCollision(nextPos)) camera.position.copy(nextPos);
-    }
+    if (!matchOver) {
+        const camSpeed = 1.2;
+        let moveVector = new THREE.Vector3(0,0,0);
+        if (keys['w']) moveVector.z -= camSpeed;
+        if (keys['s']) moveVector.z += camSpeed;
+        if (keys['q']) moveVector.x -= camSpeed;
+        if (keys['e']) moveVector.x += camSpeed;
+        if (keys['a']) camera.rotation.y += 0.03;
+        if (keys['d']) camera.rotation.y -= 0.03;
+        if (moveVector.length() > 0) {
+            const nextPos = camera.position.clone();
+            nextPos.add(moveVector.applyQuaternion(camera.quaternion));
+            nextPos.y = 3;
+            if (!checkEdgeWallCollision(nextPos)) camera.position.copy(nextPos);
+        }
 
-    if (selectedPanelType) {
-        raycaster.setFromCamera(mouse, camera);
-        const intersects = raycaster.intersectObjects([ground, ...worldPanels, ...gameWalls], true);
-        if (intersects.length > 0) {
-            if (!ghostPanel) {
-                ghostPanel = new THREE.Mesh(panelGeoms[selectedPanelType], new THREE.MeshBasicMaterial({color: 0x00ff00, transparent: true, opacity: 0.5}));
-                scene.add(ghostPanel);
+        if (selectedPanelType) {
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects([ground, ...worldPanels, ...gameWalls], true);
+            if (intersects.length > 0) {
+                const pt = intersects[0].point;
+                const blocked = isTooCloseToCannon(pt);
+
+                if (!ghostPanel || ghostPanel.userData.type !== selectedPanelType) {
+                    if (ghostPanel) scene.remove(ghostPanel);
+                    ghostPanel = new THREE.Mesh(panelGeoms[selectedPanelType], new THREE.MeshBasicMaterial({transparent: true, opacity: 0.5}));
+                    ghostPanel.userData.type = selectedPanelType;
+                    scene.add(ghostPanel);
+                }
+                
+                ghostPanel.material.color.setHex(blocked ? 0xff0000 : 0x00ff00);
+                ghostPanel.position.copy(pt);
+                ghostPanel.position.y += selectedPanelType === 'roof' ? 8 : 4;
             }
-            ghostPanel.position.copy(intersects[0].point);
-            ghostPanel.position.y += selectedPanelType === 'roof' ? 8 : 4;
-        }
-    } else if (ghostPanel) {
-        scene.remove(ghostPanel);
-        ghostPanel = null;
-    }
-
-    [...cannons, ...opponentCannons].forEach(can => {
-        can.userData.barrelPivot.rotation.x = -can.userData.angle;
-        const distToTarget = can.position.distanceTo(can.userData.targetPos);
-        if (distToTarget > 0.5) {
-            const moveDir = new THREE.Vector3().subVectors(can.userData.targetPos, can.position).normalize();
-            const nextPos = can.position.clone().addScaledVector(moveDir, 0.5);
-            can.position.copy(nextPos);
-            can.lookAt(can.userData.targetPos.x, can.position.y, can.userData.targetPos.z);
-        }
-    });
-
-    for (let i = activeProjectiles.length - 1; i >= 0; i--) {
-        const p = activeProjectiles[i];
-        p.mesh.position.add(p.velocity);
-        p.velocity.y += p.gravity;
-        p.life++;
-
-        const combatRay = new THREE.Raycaster(p.mesh.position, p.velocity.clone().normalize(), 0, 1.0);
-        const hits = combatRay.intersectObjects([...cannons, ...opponentCannons], true);
-        if (hits.length > 0) {
-            let hitObj = hits[0].object;
-            while (hitObj.parent && hitObj.parent !== scene) hitObj = hitObj.parent;
-            
-            socket.emit('destroy_unit', { roomId: currentRoomId, id: hitObj.userData.id });
-            if (hitObj.userData.box) scene.remove(hitObj.userData.box);
-            scene.remove(hitObj);
-            cannons = cannons.filter(c => c.userData.id !== hitObj.userData.id);
-            opponentCannons = opponentCannons.filter(c => c.userData.id !== hitObj.userData.id);
-            updateStatusUI();
-
-            scene.remove(p.mesh);
-            activeProjectiles.splice(i, 1);
-            continue;
+        } else if (ghostPanel) {
+            scene.remove(ghostPanel);
+            ghostPanel = null;
         }
 
-        if (p.life > p.maxLife || p.mesh.position.y < 0.1) {
-            scene.remove(p.mesh);
-            activeProjectiles.splice(i, 1);
+        [...cannons, ...opponentCannons].forEach(can => {
+            can.userData.barrelPivot.rotation.x = -can.userData.angle;
+            const distToTarget = can.position.distanceTo(can.userData.targetPos);
+            if (distToTarget > 0.5) {
+                const moveDir = new THREE.Vector3().subVectors(can.userData.targetPos, can.position).normalize();
+                const nextPos = can.position.clone().addScaledVector(moveDir, 0.5);
+                
+                const canCollisionRay = new THREE.Raycaster(can.position, moveDir, 0, 0.8);
+                const hits = canCollisionRay.intersectObjects([...worldPanels, ...gameWalls], true);
+                
+                if (hits.length === 0) {
+                    can.position.copy(nextPos);
+                }
+                can.lookAt(can.userData.targetPos.x, can.position.y, can.userData.targetPos.z);
+            }
+        });
+
+        for (let i = activeProjectiles.length - 1; i >= 0; i--) {
+            const p = activeProjectiles[i];
+            const prevPos = p.mesh.position.clone();
+            p.mesh.position.add(p.velocity);
+            p.velocity.y += p.gravity;
+            p.life++;
+
+            const rayDir = p.velocity.clone().normalize();
+            const rayLen = p.velocity.length() + 0.5;
+
+            const structRay = new THREE.Raycaster(prevPos, rayDir, 0, rayLen);
+            const structHits = structRay.intersectObjects([...worldPanels, ...gameWalls, ...bridges], true);
+            if (structHits.length > 0) {
+                const hit = structHits[0];
+                if (hit.face) {
+                    const normal = hit.face.normal.clone().applyQuaternion(hit.object.quaternion);
+                    p.velocity.reflect(normal).multiplyScalar(0.7);
+                    p.mesh.position.copy(hit.point).add(normal.multiplyScalar(0.1));
+                    continue;
+                }
+            }
+
+            const combatRay = new THREE.Raycaster(prevPos, rayDir, 0, rayLen);
+            const hits = combatRay.intersectObjects([...cannons, ...opponentCannons], true);
+            if (hits.length > 0) {
+                let hitObj = hits[0].object;
+                while (hitObj.parent && hitObj.parent !== scene) {
+                    hitObj = hitObj.parent;
+                }
+                
+                socket.emit('destroy_unit', { roomId: currentRoomId, id: hitObj.userData.id });
+                if (hitObj.userData.box) scene.remove(hitObj.userData.box);
+                scene.remove(hitObj);
+                cannons = cannons.filter(c => c.userData.id !== hitObj.userData.id);
+                opponentCannons = opponentCannons.filter(c => c.userData.id !== hitObj.userData.id);
+                updateStatusUI();
+                checkWinCondition();
+
+                scene.remove(p.mesh);
+                activeProjectiles.splice(i, 1);
+                continue;
+            }
+
+            if (p.life > p.maxLife || p.mesh.position.y < 0.1) {
+                scene.remove(p.mesh);
+                activeProjectiles.splice(i, 1);
+            }
         }
     }
 
@@ -632,14 +791,16 @@ window.onresize = () => {
 
 document.querySelectorAll('.build-opt').forEach(opt => {
     opt.onclick = () => {
-        if (opt.classList.contains('active')) {
+        const type = opt.dataset.type;
+        if (selectedPanelType === type) {
             opt.classList.remove('active');
             selectedPanelType = null;
             if (ghostPanel) { scene.remove(ghostPanel); ghostPanel = null; }
         } else {
             document.querySelectorAll('.build-opt').forEach(o => o.classList.remove('active'));
             opt.classList.add('active');
-            selectedPanelType = opt.dataset.type;
+            selectedPanelType = type;
+            if (ghostPanel) { scene.remove(ghostPanel); ghostPanel = null; }
         }
     };
 });
