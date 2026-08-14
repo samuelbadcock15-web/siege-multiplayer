@@ -23,6 +23,11 @@
  .build-opt.active { background: #00ff00; color: black; border-color: white; }
  .icon { width: 30px; height: 30px; background: #555; margin-bottom: 5px; border: 1px solid #888; }
  
+ /* Live Chat Box Styling */
+ #chat-container { position: absolute; bottom: 20px; left: 20px; width: 300px; background: rgba(15, 15, 20, 0.95); border: 2px solid #ffd700; border-radius: 8px; z-index: 200; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.7); }
+ #chat-messages { height: 110px; overflow-y: auto; padding: 8px; font-size: 11px; color: #00ff00; display: flex; flex-direction: column; gap: 4px; word-break: break-all; }
+ #chat-input { background: #111; border: none; border-top: 1px solid #ffd700; color: white; padding: 8px; font-size: 11px; outline: none; font-family: 'Courier New', Courier, monospace; }
+ 
  /* Game Over Screen Overlay */
  #game-over-modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 1000; font-family: 'Courier New', Courier, monospace; }
  .modal-content { background: #111; border: 3px solid #ffd700; padding: 30px; border-radius: 12px; text-align: center; width: 450px; box-shadow: 0 0 50px rgba(255,215,0,0.4); color: white; }
@@ -60,6 +65,12 @@
  <div style="color: #666; font-size: 9px; padding: 5px;">SELECT TO BUILD</div>
 </div>
 
+<!-- Live Chat UI Overlay -->
+<div id="chat-container">
+  <div id="chat-messages"></div>
+  <input type="text" id="chat-input" placeholder="Type message to opponent..." autocomplete="off">
+</div>
+
 <!-- Game Over Modal Overlay -->
 <div id="game-over-modal">
  <div class="modal-content">
@@ -84,6 +95,17 @@ let currentRoomId = null;
 let matchOver = false;
 let gameInitialized = false;
 
+// Scene, Camera, and Renderer setup
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87CEEB);
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1500);
+camera.position.set(0, 3, 135);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+document.body.appendChild(renderer.domElement);
+
 socket.on('assigned_role', (data) => {
     myPlayerIndex = data.playerIndex;
     currentRoomId = data.roomId;
@@ -95,7 +117,6 @@ socket.on('assigned_role', (data) => {
         camera.rotation.y = Math.PI;
     }
 
-    // Synchronize unit generation precisely with the assigned role
     if (!gameInitialized) {
         gameInitialized = true;
         if (myPlayerIndex === 1) {
@@ -150,6 +171,27 @@ document.getElementById('restart-btn').onclick = () => {
     socket.emit('request_restart', { roomId: currentRoomId });
 };
 
+// Live Chat Handlers
+const chatInput = document.getElementById('chat-input');
+const chatMessages = document.getElementById('chat-messages');
+
+chatInput.onkeydown = (e) => {
+    e.stopPropagation(); // Blocks game movement keys from triggering while typing
+    if (e.key === 'Enter' && chatInput.value.trim() !== '') {
+        const msg = chatInput.value.trim();
+        const senderName = myPlayerIndex === 1 ? "Blue" : "Dark";
+        socket.emit('send_chat', { roomId: currentRoomId, sender: senderName, message: msg });
+        chatInput.value = '';
+    }
+};
+
+socket.on('receive_chat', (data) => {
+    const div = document.createElement('div');
+    div.innerHTML = `<strong>${data.sender}:</strong> ${data.message}`;
+    chatMessages.appendChild(div);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+});
+
 const statusText = document.getElementById('status');
 const selectionBox = document.getElementById('selection-box');
 const miniSelectionBox = document.getElementById('minimap-selection-box');
@@ -157,16 +199,6 @@ const minimapCanvas = document.getElementById('minimap');
 const ctx = minimapCanvas.getContext('2d');
 minimapCanvas.width = 200;
 minimapCanvas.height = 200;
-
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87CEEB);
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1500);
-camera.position.set(0, 3, 135);
-
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-document.body.appendChild(renderer.domElement);
 
 const light = new THREE.DirectionalLight(0xffffff, 1.5);
 light.position.set(100, 100, 50);
@@ -469,7 +501,7 @@ function isTooCloseToCannon(pt) {
 
 window.onmousedown = (e) => {
     if (matchOver) return;
-    if (e.target.closest('#ui') || e.target.closest('#build-menu')) return;
+    if (e.target.closest('#ui') || e.target.closest('#build-menu') || e.target.closest('#chat-container')) return;
     if (selectedPanelType && e.button === 0) {
         raycaster.setFromCamera(mouse, camera);
         const hits = raycaster.intersectObject(ground);
