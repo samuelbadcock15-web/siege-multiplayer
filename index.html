@@ -17,7 +17,7 @@
  .info-column h3 { margin: 0 0 5px 0; color: #ffd700; font-size: 13px; }
  #selection-box { border: 1px solid #00ff00; background-color: rgba(0, 255, 0, 0.1); position: fixed; pointer-events: none; z-index: 99; display: none; }
  #minimap-selection-box { border: 1px solid #00ff00; background-color: rgba(0, 255, 0, 0.2); position: absolute; pointer-events: none; z-index: 101; display: none; }
- #build-menu { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.9); border: 2px solid #ffcc00; border-radius: 10px; display: flex; padding: 10px; gap: 15px; z-index: 200; align-items: center; }
+ #build-menu { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.9); border: 2px solid #ffcc00; border-radius: 10px; display: none; padding: 10px; gap: 15px; z-index: 200; align-items: center; }
  .build-opt { width: 70px; height: 60px; border: 1px solid #666; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 10px; cursor: pointer; transition: 0.2s; background: #222; }
  .build-opt:hover { border-color: #ffcc00; background: #333; }
  .build-opt.active { background: #00ff00; color: black; border-color: white; }
@@ -98,6 +98,7 @@ let myPlayerIndex = null;
 let currentRoomId = null;
 let matchOver = false;
 let gameInitialized = false;
+let matchStarted = false; // Lobby lock flag
 
 // Scene, Camera, and Renderer setup
 const scene = new THREE.Scene();
@@ -142,10 +143,14 @@ socket.on('assigned_role', (data) => {
 
 socket.on('waiting_for_opponent', () => {
     statusText.innerText = "STATUS: WAITING FOR OPPONENT";
+    matchStarted = false;
+    document.getElementById('build-menu').style.display = 'none';
 });
 
 socket.on('start_match', () => {
     statusText.innerText = "STATUS: MATCH STARTED!";
+    matchStarted = true;
+    document.getElementById('build-menu').style.display = 'flex';
 });
 
 socket.on('opponent_disconnected', () => {
@@ -399,6 +404,7 @@ function createCannon(x, z, mainColor, isOpp = false, customId = null) {
 }
 
 socket.on('opponent_move', (data) => {
+    if (!matchStarted) return;
     opponentCannons.forEach(can => {
         if (can.userData.id === data.id) {
             can.userData.targetPos.set(data.tx, can.position.y, data.tz);
@@ -407,6 +413,7 @@ socket.on('opponent_move', (data) => {
 });
 
 socket.on('opponent_fire', (data) => {
+    if (!matchStarted) return;
     opponentCannons.forEach(can => {
         if (can.userData.id === data.id) {
             spawnProjectile(can, new THREE.Vector3(data.target.x, data.target.y, data.target.z), true);
@@ -415,6 +422,7 @@ socket.on('opponent_fire', (data) => {
 });
 
 socket.on('opponent_build', (data) => {
+    if (!matchStarted) return;
     const panel = new THREE.Mesh(panelGeoms[data.type], new THREE.MeshStandardMaterial({color: 0xaa3333, roughness: 0.7}));
     panel.position.set(data.x, data.y, data.z);
     scene.add(panel);
@@ -435,7 +443,7 @@ socket.on('opponent_destroy', (data) => {
 });
 
 function checkWinCondition() {
-    if (matchOver) return;
+    if (matchOver || !matchStarted) return;
     let myCount = cannons.length;
     let oppCount = opponentCannons.length;
 
@@ -477,6 +485,7 @@ function updateMinimap() {
 }
 
 function toggleBox(cannon) {
+    if (!matchStarted) return;
     if (!cannon.userData.onBox) {
         const box = new THREE.Mesh(new THREE.BoxGeometry(4, 2.5, 4), new THREE.MeshStandardMaterial({color: 0x5c4033}));
         box.position.set(cannon.position.x, 1.25, cannon.position.z);
@@ -511,7 +520,7 @@ function isTooCloseToCannon(pt) {
 }
 
 window.onmousedown = (e) => {
-    if (matchOver) return;
+    if (!matchStarted || matchOver) return;
     if (e.target.closest('#ui') || e.target.closest('#build-menu') || e.target.closest('#chat-container')) return;
     if (selectedPanelType && e.button === 0) {
         raycaster.setFromCamera(mouse, camera);
@@ -573,7 +582,7 @@ window.onmousemove = (e) => {
 };
 
 window.onmouseup = (e) => {
-    if (matchOver) return;
+    if (!matchStarted || matchOver) return;
     if (e.button === 0 && isDragging) {
         isDragging = false;
         selectionBox.style.display = 'none';
@@ -634,6 +643,7 @@ function updateSelectionBox() {
 }
 
 function moveSelected(tx, tz) {
+    if (!matchStarted) return;
     const selected = cannons.filter(c => c.userData.selected);
     if (selected.length === 0) return;
     const center = new THREE.Vector3();
@@ -652,13 +662,13 @@ function updateStatusUI() {
         can.userData.barrel.material.emissive.set(can.userData.selected ? 0x00ff00 : 0x000000);
         if(can.userData.selected) count++;
     });
-    if (statusText.innerText !== "STATUS: WAITING FOR OPPONENT" && statusText.innerText !== "STATUS: MATCH STARTED!") {
+    if (matchStarted && statusText.innerText !== "STATUS: WAITING FOR OPPONENT" && statusText.innerText !== "STATUS: MATCH STARTED!") {
         statusText.innerText = count > 0 ? `STATUS: ${count} UNITS SELECTED` : "STATUS: STANDBY";
     }
 }
 
 function spawnProjectile(sourceCan, target, isRemote = false) {
-    if (matchOver) return;
+    if (!matchStarted || matchOver) return;
     const obj = new THREE.Mesh(new THREE.SphereGeometry(0.6), new THREE.MeshStandardMaterial({color: 0xff4400, emissive: 0xffaa00}));
     const start = new THREE.Vector3(0, 2.5, 0);
     sourceCan.userData.barrelPivot.localToWorld(start);
@@ -703,7 +713,7 @@ function animate() {
         }
     });
 
-    if (!matchOver) {
+    if (matchStarted && !matchOver) {
         const camSpeed = 1.2;
         let moveVector = new THREE.Vector3(0,0,0);
         if (keys['w']) moveVector.z -= camSpeed;
@@ -829,6 +839,7 @@ window.onresize = () => {
 
 document.querySelectorAll('.build-opt').forEach(opt => {
     opt.onclick = () => {
+        if (!matchStarted) return;
         const type = opt.dataset.type;
         if (selectedPanelType === type) {
             opt.classList.remove('active');
