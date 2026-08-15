@@ -55,7 +55,7 @@
     [Scroll] Zoom | [LMB Drag] Select / Move Units<br>
     [RMB] Attack / Target | [Click Panel] Build Mode
  </div>
- <span id="status" class="sys">STATUS: STANDBY</span>
+ <span id="status" class="sys">STATUS: WAITING FOR OPPONENT</span>
 </div>
 
 <div id="build-menu">
@@ -641,7 +641,9 @@ function updateStatusUI() {
         can.userData.barrel.material.emissive.set(can.userData.selected ? 0x00ff00 : 0x000000);
         if(can.userData.selected) count++;
     });
-    statusText.innerText = count > 0 ? `STATUS: ${count} UNITS SELECTED` : "STATUS: STANDBY";
+    if (statusText.innerText !== "STATUS: WAITING FOR OPPONENT" && statusText.innerText !== "STATUS: MATCH STARTED!") {
+        statusText.innerText = count > 0 ? `STATUS: ${count} UNITS SELECTED` : "STATUS: STANDBY";
+    }
 }
 
 function spawnProjectile(sourceCan, target, isRemote = false) {
