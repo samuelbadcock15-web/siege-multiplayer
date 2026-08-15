@@ -7,7 +7,6 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// Explicitly serve static files and the index.html page
 app.use(express.static(path.join(__dirname)));
 
 app.get('/', (req, res) => {
@@ -16,11 +15,17 @@ app.get('/', (req, res) => {
 
 let waitingPlayer = null;
 const rooms = {};
+let totalOnlinePlayers = 0;
+
+function broadcastPlayerCounts() {
+    io.emit('update_counts', { totalOnline: totalOnlinePlayers, inQueue: waitingPlayer ? 1 : 0 });
+}
 
 io.on('connection', (socket) => {
+    totalOnlinePlayers++;
     console.log('A player connected:', socket.id);
+    broadcastPlayerCounts();
 
-    // Matchmaking: Pair players up into rooms of 2
     if (!waitingPlayer) {
         waitingPlayer = socket;
         socket.emit('waiting_for_opponent');
@@ -34,47 +39,38 @@ io.on('connection', (socket) => {
             p2: socket.id
         };
 
-        // Assign roles (Player 1 = Blue / South, Player 2 = Dark / North)
         io.to(waitingPlayer.id).emit('assigned_role', { playerIndex: 1, roomId });
         io.to(socket.id).emit('assigned_role', { playerIndex: 2, roomId });
 
-        // Start match for both
         io.to(roomId).emit('start_match');
-
         waitingPlayer = null;
+        broadcastPlayerCounts();
     }
 
-    // Real-time unit movement synchronization
     socket.on('player_move', (data) => {
         socket.to(data.roomId).emit('opponent_move', data);
     });
 
-    // Projectile firing synchronization
     socket.on('fire_projectile', (data) => {
         socket.to(data.roomId).emit('opponent_fire', data);
     });
 
-    // Base building synchronization
     socket.on('place_panel', (data) => {
         socket.to(data.roomId).emit('opponent_build', data);
     });
 
-    // Unit destruction synchronization
     socket.on('destroy_unit', (data) => {
         socket.to(data.roomId).emit('opponent_destroy', data);
     });
 
-    // Game over checking
     socket.on('check_game_over', (data) => {
         io.to(data.roomId).emit('trigger_game_over', data);
     });
 
-    // Restart game request
     socket.on('request_restart', (data) => {
         io.to(data.roomId).emit('restart_game');
     });
 
-    // Live chat feature synchronization
     socket.on('send_chat', (data) => {
         io.to(data.roomId).emit('receive_chat', {
             sender: data.sender,
@@ -82,8 +78,8 @@ io.on('connection', (socket) => {
         });
     });
 
-    // Handle disconnects
     socket.on('disconnect', () => {
+        totalOnlinePlayers = Math.max(0, totalOnlinePlayers - 1);
         console.log('A player disconnected:', socket.id);
         if (waitingPlayer === socket) {
             waitingPlayer = null;
@@ -94,6 +90,7 @@ io.on('connection', (socket) => {
                 delete rooms[roomId];
             }
         }
+        broadcastPlayerCounts();
     });
 });
 
