@@ -42,12 +42,16 @@
 <div id="selection-box"></div>
 <div id="minimap-container"><div id="minimap-selection-box"></div><canvas id="minimap"></canvas></div>
 <div id="ui">
- <span class="ca">MISSION INTELLIGENCE: BLUE VS DARK</span>
+ <span class="ca">MISSION INTELLIGENCE: CLEAR HORIZONS</span>
  <hr>
  <div class="info-grid">
    <div class="info-column">
      <h3>COMMAND ROLE</h3>
      <p style="font-weight: bold; margin: 0 0 5px 0; color: #ffd700;" id="role-display">CONNECTING...</p>
+   </div>
+   <div class="info-column">
+     <h3>SERVER STATUS</h3>
+     <p style="font-weight: bold; margin: 0 0 5px 0; color: #00ff00;" id="server-stats">Online: 0 | Queue: 0</p>
    </div>
  </div>
  <div style="font-size: 10px; margin-top: 15px; color: #888; border-top: 1px solid #333; padding-top: 8px;">
@@ -105,6 +109,13 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 document.body.appendChild(renderer.domElement);
+
+socket.on('update_counts', (data) => {
+    const statsEl = document.getElementById('server-stats');
+    if (statsEl) {
+        statsEl.innerText = `Online: ${data.totalOnline} | Queue: ${data.inQueue}`;
+    }
+});
 
 socket.on('assigned_role', (data) => {
     myPlayerIndex = data.playerIndex;
