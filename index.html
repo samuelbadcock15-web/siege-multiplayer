@@ -668,7 +668,18 @@ window.onmousedown = (e) => {
     if (e.button === 2) {
         e.preventDefault();
         raycaster.setFromCamera(mouse, camera);
-        // STRICTLY OPPONENT ONLY: Exclude player's own cannons from RMB firing target lookup
+
+        // ANTI-FRIENDLY FIRE LOCKOUT: Check if cursor is directly clicking on one of your own cannons
+        let clickedOwnCannon = false;
+        cannons.forEach(can => {
+            if (raycaster.intersectObject(can, true).length > 0) {
+                clickedOwnCannon = true;
+            }
+        });
+
+        // If you clicked your own cannon, abort firing entirely!
+        if (clickedOwnCannon) return;
+
         const hits = raycaster.intersectObjects([ground, river, ...bridges, ...worldPanels, ...gameWalls, ...opponentCannons], true);
         if (hits.length > 0) {
             const selected = cannons.find(c => c.userData.selected);
@@ -862,7 +873,6 @@ function animate() {
                 }
             }
 
-            // --- FRIENDLY FIRE DISABLED: Projectiles only interact with opponentCannons ---
             const combatRay = new THREE.Raycaster(prevPos, rayDir, 0, rayLen);
             const hits = combatRay.intersectObjects([...opponentCannons], true);
             if (hits.length > 0) {
