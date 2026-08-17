@@ -482,9 +482,11 @@ function updateMinimap() {
     ctx.clearRect(0, 0, 200, 200);
     ctx.fillStyle = '#3a5a2a'; ctx.fillRect(0, 0, 200, 200);
     
+    // 1. Draw River First
     const riverTop = toMap(0, -riverWidth/2).y;
     ctx.fillStyle = '#0077be'; ctx.fillRect(0, riverTop < 100 ? riverTop : riverTop - riverWidth * MAP_SCALE, 200, riverWidth * MAP_SCALE);
     
+    // 2. Draw Bridges ON TOP of the River so they are clearly visible
     ctx.fillStyle = '#5c4033';
     bridgeXPositions.forEach(bx => {
         const bp = toMap(bx - bridgeWidth/2, -bridgeLength/2);
@@ -768,7 +770,6 @@ function animate() {
                 if (Math.abs(can.position.z) < (riverWidth / 2) - 1.5) {
                     const onBridge = bridgeXPositions.some(bx => Math.abs(can.position.x - bx) <= (bridgeWidth / 2));
                     if (!onBridge) {
-                        // Sink the unit!
                         if (cannons.includes(can)) {
                             socket.emit('destroy_unit', { roomId: currentRoomId, id: can.userData.id });
                         }
