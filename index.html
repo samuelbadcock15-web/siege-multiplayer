@@ -588,7 +588,10 @@ window.onmouseup = (e) => {
         isDragging = false;
         selectionBox.style.display = 'none';
         miniSelectionBox.style.display = 'none';
+        
         const dist = selectionStart.distanceTo(selectionEnd);
+        const isShiftPressed = e.shiftKey;
+
         if (dragOnMinimap) {
             const rect = minimapCanvas.getBoundingClientRect();
             if (dist < 5) {
@@ -610,21 +613,40 @@ window.onmouseup = (e) => {
                 let hitUnit = false;
                 cannons.forEach(can => {
                     if (raycaster.intersectObject(can, true).length > 0) {
+                        if (!isShiftPressed) {
+                            cannons.forEach(c => { if (c !== can) c.userData.selected = false; });
+                        }
                         can.userData.selected = !can.userData.selected;
                         hitUnit = true;
                     }
                 });
                 if (!hitUnit) {
                     const hit = raycaster.intersectObjects([ground, river, ...bridges, ...worldPanels, ...gameWalls], true);
-                    if (hit.length > 0) moveSelected(hit[0].point.x, hit[0].point.z);
+                    if (hit.length > 0) moveSelected(hit.point.x, hit.point.z);
                 }
             } else {
-                const boxX = Math.min(selectionStart.x, selectionEnd.x), boxY = Math.min(selectionStart.y, selectionEnd.y);
-                const boxW = Math.abs(selectionStart.x - selectionEnd.x), boxH = Math.abs(selectionStart.y - selectionEnd.y);
+                const boxX = Math.min(selectionStart.x, selectionEnd.x);
+                const boxY = Math.min(selectionStart.y, selectionEnd.y);
+                const boxW = Math.abs(selectionStart.x - selectionEnd.x);
+                const boxH = Math.abs(selectionStart.y - selectionEnd.y);
+
+                if (!isShiftPressed) {
+                    cannons.forEach(c => c.userData.selected = false);
+                }
+
                 cannons.forEach(can => {
-                    const v = new THREE.Vector3(); can.getWorldPosition(v); v.project(camera);
-                    const screenX = (v.x + 1) * window.innerWidth / 2, screenY = (-v.y + 1) * window.innerHeight / 2;
-                    can.userData.selected = (screenX >= boxX && screenX <= boxX + boxW && screenY >= boxY && screenY <= boxY + boxH);
+                    const v = new THREE.Vector3(); 
+                    can.getWorldPosition(v); 
+                    v.project(camera);
+                    
+                    if (v.z < 1) {
+                        const screenX = (v.x + 1) * window.innerWidth / 2;
+                        const screenY = (-v.y + 1) * window.innerHeight / 2;
+                        
+                        if (screenX >= boxX && screenX <= boxX + boxW && screenY >= boxY && screenY <= boxY + boxH) {
+                            can.userData.selected = true;
+                        }
+                    }
                 });
             }
         }
@@ -647,13 +669,22 @@ function moveSelected(tx, tz) {
     if (!matchStarted) return;
     const selected = cannons.filter(c => c.userData.selected);
     if (selected.length === 0) return;
+    
     const center = new THREE.Vector3();
     selected.forEach(c => center.add(c.position));
     center.divideScalar(selected.length);
+    
     selected.forEach(can => {
-        const offsetX = can.position.x - center.x, offsetZ = can.position.z - center.z;
+        const offsetX = can.position.x - center.x;
+        const offsetZ = can.position.z - center.z;
         can.userData.targetPos.set(tx + offsetX, can.position.y, tz + offsetZ);
-        socket.emit('player_move', { roomId: currentRoomId, id: can.userData.id, tx: can.userData.targetPos.x, tz: can.userData.targetPos.z });
+        
+        socket.emit('player_move', { 
+            roomId: currentRoomId, 
+            id: can.userData.id, 
+            tx: can.userData.targetPos.x, 
+            tz: can.userData.targetPos.z 
+        });
     });
 }
 
