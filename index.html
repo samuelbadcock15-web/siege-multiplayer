@@ -45,16 +45,18 @@
    <div class="info-column">
      <h3>COMMAND ROLE</h3>
      <p style="font-weight: bold; margin: 0 0 5px 0; color: #ffd700;" id="role-display">CONNECTING...</p>
+     <p style="font-size: 10px; margin: 0; color: #00ff00;" id="my-units-count">Your Cannons: 10</p>
    </div>
    <div class="info-column">
      <h3>SERVER STATUS</h3>
      <p style="font-weight: bold; margin: 0 0 5px 0; color: #00ff00;" id="server-stats">Online: 0 | Queue: 0</p>
+     <p style="font-size: 10px; margin: 0; color: #ffaa00;" id="enemy-units-count">Enemy Cannons: 10</p>
    </div>
  </div>
  <div style="font-size: 10px; margin-top: 15px; color: #888; border-top: 1px solid #333; padding-top: 8px;">
     [W,S,A,D] Move Camera | [Q,E] Strafe | [A/D Rotate]<br>
     [Scroll] Zoom | [LMB Click] Select Cannon & Move<br>
-    [RMB Click] Fire Projectile | [Click Panel] Build Mode (Own Half / No Bridges)
+    [RMB Click] Fire Projectile | [Click Panel] Build Mode
  </div>
  <span id="status" class="sys">STATUS: WAITING FOR OPPONENT</span>
 </div>
@@ -72,7 +74,7 @@
   <input type="text" id="chat-input" placeholder="Type message to opponent..." autocomplete="off">
 </div>
 
-<!-- Game Over Modal Overlay -->
+<!-- Game Over Screen Overlay -->
 <div id="game-over-modal">
  <div class="modal-content">
    <h1 id="modal-title" style="color: #ffd700;">BATTLE CONCLUDED</h1>
@@ -136,6 +138,7 @@ socket.on('assigned_role', (data) => {
             for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), 120, 0x012169, true, `blue_${i+1}`, i+1);
         }
     }
+    updateUnitCountsDisplay();
 });
 
 socket.on('waiting_for_opponent', () => {
@@ -376,6 +379,15 @@ function createPirateFlagTex(bgColor, fgColor, numberLabel) {
 let cannons = [];          
 let opponentCannons = [];   
 
+function updateUnitCountsDisplay() {
+    const myUnitsEl = document.getElementById('my-units-count');
+    const enemyUnitsEl = document.getElementById('enemy-units-count');
+    if (myUnitsEl && enemyUnitsEl) {
+        myUnitsEl.innerText = `Your Cannons: ${cannons.length}`;
+        enemyUnitsEl.innerText = `Enemy Cannons: ${opponentCannons.length}`;
+    }
+}
+
 function createCannon(x, z, mainColor, isOpp = false, customId = null, unitNumber = 1) {
     const cGroup = new THREE.Group();
     const barrelPivot = new THREE.Group();
@@ -412,6 +424,7 @@ function createCannon(x, z, mainColor, isOpp = false, customId = null, unitNumbe
     } else {
         cannons.push(cGroup);
     }
+    updateUnitCountsDisplay();
 }
 
 socket.on('opponent_move', (data) => {
@@ -448,6 +461,7 @@ socket.on('opponent_destroy', (data) => {
             cannons = cannons.filter(c => c.userData.id !== data.id);
             opponentCannons = opponentCannons.filter(c => c.userData.id !== data.id);
             updateStatusUI();
+            updateUnitCountsDisplay();
             checkWinCondition();
         }
     });
@@ -482,11 +496,9 @@ function updateMinimap() {
     ctx.clearRect(0, 0, 200, 200);
     ctx.fillStyle = '#3a5a2a'; ctx.fillRect(0, 0, 200, 200);
     
-    // 1. Draw River First
     const riverTop = toMap(0, -riverWidth/2).y;
     ctx.fillStyle = '#0077be'; ctx.fillRect(0, riverTop < 100 ? riverTop : riverTop - riverWidth * MAP_SCALE, 200, riverWidth * MAP_SCALE);
     
-    // 2. Draw Bridges ON TOP of the River so they are clearly visible
     ctx.fillStyle = '#5c4033';
     bridgeXPositions.forEach(bx => {
         const bp = toMap(bx - bridgeWidth/2, -bridgeLength/2);
@@ -537,13 +549,10 @@ function checkEdgeWallCollision(newPos) {
     return (Math.abs(newPos.x) > edgeLimit || Math.abs(newPos.z) > edgeLimit);
 }
 
-// Build Restriction Check: Own Half Only + No Bridges + Unit Collision (Roofs are free of unit collision)
 function isTooCloseToCannon(pt) {
-    // RULE 1: Can only build in own half of the map
     if (myPlayerIndex === 1 && pt.z < (riverWidth / 2)) return true;
     if (myPlayerIndex === 2 && pt.z > -(riverWidth / 2)) return true;
 
-    // RULE 2: No building on bridges
     let onBridge = false;
     bridgeXPositions.forEach(bx => {
         if (Math.abs(pt.x - bx) < (bridgeWidth / 2) + 2.0 && Math.abs(pt.z) < (bridgeLength / 2) + 2.0) {
@@ -552,7 +561,6 @@ function isTooCloseToCannon(pt) {
     });
     if (onBridge) return true;
 
-    // RULE 3: Roofs can be placed freely (no unit radius check), but walls still protect against clipping
     if (selectedPanelType === 'roof') {
         return false;
     }
@@ -824,6 +832,7 @@ function animate() {
                         cannons = cannons.filter(c => c.userData.id !== can.userData.id);
                         opponentCannons = opponentCannons.filter(c => c.userData.id !== can.userData.id);
                         updateStatusUI();
+                        updateUnitCountsDisplay();
                         checkWinCondition();
                     }
                 }
@@ -865,6 +874,7 @@ function animate() {
                 scene.remove(hitObj);
                 opponentCannons = opponentCannons.filter(c => c.userData.id !== hitObj.userData.id);
                 updateStatusUI();
+                updateUnitCountsDisplay();
                 checkWinCondition();
 
                 scene.remove(p.mesh);
