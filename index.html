@@ -111,7 +111,7 @@ document.body.appendChild(renderer.domElement);
 socket.on('update_counts', (data) => {
     const statsEl = document.getElementById('server-stats');
     if (statsEl) {
-        // server status text updated or handled cleanly
+        // updated via socket
     }
 });
 
@@ -464,30 +464,48 @@ function checkWinCondition() {
     }
 }
 
-function toMap(x, z) { return { x: MAP_CENTER.x + x * MAP_SCALE, y: MAP_CENTER.y + z * MAP_SCALE }; }
-function fromMap(mx, my) { return { x: (mx - MAP_CENTER.x) / MAP_SCALE, z: (my - MAP_CENTER.y) / MAP_SCALE }; }
+// Perspective-corrected Minimap Coordinate Mappings
+function toMap(x, z) {
+    if (myPlayerIndex === 2) {
+        // Flip coordinates for Player 2 so their base is at the bottom of the minimap
+        return { x: MAP_CENTER.x - x * MAP_SCALE, y: MAP_CENTER.y - z * MAP_SCALE };
+    }
+    return { x: MAP_CENTER.x + x * MAP_SCALE, y: MAP_CENTER.y + z * MAP_SCALE };
+}
+
+function fromMap(mx, my) {
+    if (myPlayerIndex === 2) {
+        return { x: -(mx - MAP_CENTER.x) / MAP_SCALE, z: -(my - MAP_CENTER.y) / MAP_SCALE };
+    }
+    return { x: (mx - MAP_CENTER.x) / MAP_SCALE, z: (my - MAP_CENTER.y) / MAP_SCALE };
+}
 
 function updateMinimap() {
     ctx.clearRect(0, 0, 200, 200);
     ctx.fillStyle = '#3a5a2a'; ctx.fillRect(0, 0, 200, 200);
+    
     const riverTop = toMap(0, -riverWidth/2).y;
-    ctx.fillStyle = '#0077be'; ctx.fillRect(0, riverTop, 200, riverWidth * MAP_SCALE);
+    ctx.fillStyle = '#0077be'; ctx.fillRect(0, riverTop < 100 ? riverTop : riverTop - riverWidth * MAP_SCALE, 200, riverWidth * MAP_SCALE);
+    
     ctx.fillStyle = '#5c4033';
     bridgeXPositions.forEach(bx => {
         const bp = toMap(bx - bridgeWidth/2, -bridgeLength/2);
         ctx.fillRect(bp.x, bp.y, bridgeWidth * MAP_SCALE, bridgeLength * MAP_SCALE);
     });
+
     activeProjectiles.forEach(p => {
         const pp = toMap(p.mesh.position.x, p.mesh.position.z);
         ctx.beginPath(); ctx.arc(pp.x, pp.y, 2.5, 0, Math.PI * 2);
         ctx.fillStyle = '#ff4400'; ctx.fill();
     });
+
     cannons.forEach(can => {
         const cp = toMap(can.position.x, can.position.z);
         ctx.beginPath(); ctx.arc(cp.x, cp.y, 5, 0, Math.PI * 2);
         ctx.fillStyle = can.userData.selected ? '#00ff00' : '#002288';
         ctx.fill();
     });
+
     opponentCannons.forEach(can => {
         const cp = toMap(can.position.x, can.position.z);
         ctx.beginPath(); ctx.arc(cp.x, cp.y, 5, 0, Math.PI * 2);
@@ -530,9 +548,6 @@ function isTooCloseToCannon(pt) {
     return tooClose;
 }
 
-// SIMPLIFIED SINGLE-UNIT CONTROLS:
-// LMB Click: Select/Deselect a single cannon, or move selected cannon to ground / minimap.
-// RMB Click: Fire projectile at target point.
 window.onmousedown = (e) => {
     if (!matchStarted || matchOver) return;
     if (e.target.closest('#ui') || e.target.closest('#build-menu') || e.target.closest('#chat-container')) return;
@@ -557,12 +572,10 @@ window.onmousedown = (e) => {
     const isDoubleClick = (now - lastClickTime) < DOUBLE_CLICK_THRESHOLD;
     lastClickTime = now;
 
-    // Minimap interaction
     if (e.target === minimapCanvas) {
         const rect = minimapCanvas.getBoundingClientRect();
         const world = fromMap(e.clientX - rect.left, e.clientY - rect.top);
         if (e.button === 0) {
-            // Move selected cannon to minimap click point
             const selected = cannons.find(c => c.userData.selected);
             if (selected) {
                 selected.userData.targetPos.set(world.x, selected.position.y, world.z);
@@ -574,7 +587,6 @@ window.onmousedown = (e) => {
         return;
     }
 
-    // LMB: Select a cannon or move selected cannon
     if (e.button === 0) {
         raycaster.setFromCamera(mouse, camera);
         let clickedCannon = null;
@@ -585,12 +597,10 @@ window.onmousedown = (e) => {
         });
 
         if (clickedCannon) {
-            // Toggle selection for this specific cannon
             cannons.forEach(c => c.userData.selected = false);
             clickedCannon.userData.selected = true;
             if (isDoubleClick) toggleBox(clickedCannon);
         } else {
-            // Move selected cannon to clicked ground point
             const hits = raycaster.intersectObjects([ground, river, ...bridges, ...worldPanels, ...gameWalls], true);
             if (hits.length > 0) {
                 const selected = cannons.find(c => c.userData.selected);
@@ -604,7 +614,6 @@ window.onmousedown = (e) => {
         updateStatusUI();
     }
 
-    // RMB: Fire projectile from selected cannon
     if (e.button === 2) {
         e.preventDefault();
         raycaster.setFromCamera(mouse, camera);
