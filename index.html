@@ -386,16 +386,13 @@ function createCannon(x, z, mainColor, isOpp = false, customId = null) {
     
     cGroup.rotation.y = (z < 0) ? 0 : Math.PI;
     
-    const assignedId = customId || (isOpp ? `p2_opp_${Math.random().toString(36).substring(2,7)}` : `p1_own_${Math.random().toString(36).substring(2,7)}`);
-    
     cGroup.userData = {
         selected: false,
         targetPos: new THREE.Vector3(x, 0.8, z),
         barrel, barrelPivot,
         onBox: false, box: null, angle: 0,
         startZ: z,
-        id: assignedId,
-        isOpponent: isOpp
+        id: customId || Math.random().toString()
     };
     scene.add(cGroup);
     
@@ -411,11 +408,7 @@ socket.on('opponent_move', (data) => {
     if (isNaN(data.tx) || isNaN(data.tz) || !isFinite(data.tx) || !isFinite(data.tz)) return;
     opponentCannons.forEach(can => {
         if (can.userData.id === data.id) {
-            // Clamp target within map boundaries to prevent units running off into oblivion
-            const limit = halfBoard - 10;
-            const clampedX = Math.max(-limit, Math.min(limit, data.tx));
-            const clampedZ = Math.max(-limit, Math.min(limit, data.tz));
-            can.userData.targetPos.set(clampedX, can.position.y, clampedZ);
+            can.userData.targetPos.set(data.tx, can.position.y, data.tz);
         }
     });
 });
@@ -573,7 +566,7 @@ window.onmousedown = (e) => {
             camera.position.set(world.x, 3, world.z);
         } else {
             raycaster.setFromCamera(mouse, camera);
-            const hits = raycaster.intersectObjects([ground, river, ...bridges, ...worldPanels, ...gameWalls, ...opponentCannons], true);
+            const hits = raycaster.intersectObjects([ground, river, ...bridges, ...worldPanels, ...gameWalls], true);
             if (hits.length > 0) {
                 cannons.forEach(can => {
                     if (can.userData.selected) spawnProjectile(can, hits[0].point);
@@ -615,7 +608,7 @@ window.onmouseup = (e) => {
             if (dist < 5) {
                 raycaster.setFromCamera(mouse, camera);
                 let hitUnit = false;
-                // ONLY select our own cannons (`cannons`), explicitly ignoring `opponentCannons`
+                // STRICT CHECK: Only check our own array (`cannons`), never `opponentCannons`
                 cannons.forEach(can => {
                     if (raycaster.intersectObject(can, true).length > 0) {
                         can.userData.selected = !can.userData.selected;
@@ -629,7 +622,7 @@ window.onmouseup = (e) => {
             } else {
                 const boxX = Math.min(selectionStart.x, selectionEnd.x), boxY = Math.min(selectionStart.y, selectionEnd.y);
                 const boxW = Math.abs(selectionStart.x - selectionEnd.x), boxH = Math.abs(selectionStart.y - selectionEnd.y);
-                // ONLY loop through our own cannons for box selections
+                // STRICT CHECK: Only loop through our own array (`cannons`) for box selection
                 cannons.forEach(can => {
                     const v = new THREE.Vector3(); can.getWorldPosition(v); v.project(camera);
                     const screenX = (v.x + 1) * window.innerWidth / 2, screenY = (-v.y + 1) * window.innerHeight / 2;
@@ -658,9 +651,11 @@ function moveSelected(tx, tz) {
 
     const selected = cannons.filter(c => c.userData.selected);
     if (selected.length === 0) return;
+    
     const center = new THREE.Vector3();
     selected.forEach(c => center.add(c.position));
     center.divideScalar(selected.length);
+    
     selected.forEach(can => {
         const offsetX = can.position.x - center.x, offsetZ = can.position.z - center.z;
         const finalX = tx + offsetX;
@@ -668,8 +663,8 @@ function moveSelected(tx, tz) {
 
         if (isNaN(finalX) || isNaN(finalZ)) return;
 
-        // Clamp target within map boundaries to keep units from running off into oblivion
-        const limit = halfBoard - 10;
+        // Strict clamp to prevent units from sliding past boundaries or wandering off into the void
+        const limit = halfBoard - 5;
         const clampedX = Math.max(-limit, Math.min(limit, finalX));
         const clampedZ = Math.max(-limit, Math.min(limit, finalZ));
 
@@ -786,6 +781,8 @@ function animate() {
                 
                 if (hits.length === 0) {
                     can.position.copy(nextPos);
+                } else {
+                    can.userData.targetPos.copy(can.position);
                 }
                 can.lookAt(can.userData.targetPos.x, can.position.y, can.userData.targetPos.z);
             }
