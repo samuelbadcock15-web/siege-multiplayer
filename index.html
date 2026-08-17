@@ -6,7 +6,7 @@
 <title>Siege - Clear Horizons (Blue vs Dark Edition)</title>
 <style>
  body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Courier New', Courier, monospace; cursor: crosshair; user-select: none; }
- #ui { position: absolute; top: 15px; left: 15px; color: white; background: rgba(15, 15, 20, 0.95); padding: 20px; border-radius: 8px; border: 2px solid #ffd700; width: 420px; z-index: 101; box-shadow: 0 0 30px rgba(0,0,0,0.7); }
+ #ui { position: absolute; top: 15px; left: 15px; color: white; background: rgba(15, 15, 20, 0.95); padding: 20px; border-radius: 8px; border: 2px solid #ffd700; width: 440px; z-index: 101; box-shadow: 0 0 30px rgba(0,0,0,0.7); }
  .ca { color: #ffd700; font-weight: bold; letter-spacing: 2px; }
  .sys { color: #00ff00; font-size: 12px; margin-top: 15px; display: block; text-align: center; border-top: 1px dashed #444; padding-top: 10px; }
  hr { border: 0; border-top: 1px solid #ffd700; margin: 10px 0; }
@@ -46,14 +46,14 @@
      <p style="font-weight: bold; margin: 0 0 5px 0; color: #ffd700;" id="role-display">CONNECTING...</p>
    </div>
    <div class="info-column">
-     <h3>SERVER STATUS</h3>
-     <p style="font-weight: bold; margin: 0 0 5px 0; color: #00ff00;" id="server-stats">Online: 0 | Queue: 0</p>
+     <h3>SECTOR TARGET</h3>
+     <p style="font-weight: bold; margin: 0 0 5px 0; color: #00ff00;" id="grid-target-display">NONE</p>
    </div>
  </div>
  <div style="font-size: 10px; margin-top: 15px; color: #888; border-top: 1px solid #333; padding-top: 8px;">
-    [W,S,A,D] Move/Rotate | [Q,E] Strafe<br>
-    [Scroll] Zoom | [LMB Drag] Select / Move Units<br>
-    [RMB] Attack / Target | [Click Panel] Build Mode
+    [W,S,A,D] Move Camera | [Q,E] Strafe | [A/D Keys Rotate]<br>
+    [Scroll] Zoom | [LMB Drag] Select Numbered Units<br>
+    [RMB] Move to Grid Ref / Attack | [Click Panel] Build Mode
  </div>
  <span id="status" class="sys">STATUS: WAITING FOR OPPONENT</span>
 </div>
@@ -128,11 +128,11 @@ socket.on('assigned_role', (data) => {
     if (!gameInitialized) {
         gameInitialized = true;
         if (myPlayerIndex === 1) {
-            for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), 120, 0x012169, false, `blue_${i}`);
-            for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), -120, 0x222222, true, `dark_${i}`);
+            for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), 120, 0x012169, false, `blue_${i+1}`, i+1);
+            for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), -120, 0x222222, true, `dark_${i+1}`, i+1);
         } else {
-            for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), -120, 0x222222, false, `dark_${i}`);
-            for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), 120, 0x012169, true, `blue_${i}`);
+            for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), -120, 0x222222, false, `dark_${i+1}`, i+1);
+            for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), 120, 0x012169, true, `blue_${i+1}`, i+1);
         }
     }
 });
@@ -215,6 +215,23 @@ const boardSize = 600;
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(boardSize, boardSize), new THREE.MeshStandardMaterial({ color: 0x3a5a2a }));
 ground.rotation.x = -Math.PI / 2;
 scene.add(ground);
+
+// Grid Helper mapping the floor into 12x12 major grid cells (Grid Ref System A-L, 1-12)
+const gridHelper = new THREE.GridHelper(boardSize, 12, 0xffd700, 0x224422);
+gridHelper.position.y = 0.02;
+scene.add(gridHelper);
+
+// Helper function to convert world coordinates (x, z) to Grid Reference (e.g. "D7")
+function getGridReference(x, z) {
+    const cols = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+    const cellSize = boardSize / 12;
+    const colIdx = Math.floor((x + boardSize / 2) / cellSize);
+    const rowIdx = Math.floor((z + boardSize / 2) / cellSize);
+    
+    const colLetter = cols[Math.max(0, Math.min(11, colIdx))];
+    const rowNumber = Math.max(1, Math.min(12, rowIdx + 1));
+    return `${colLetter}${rowNumber}`;
+}
 
 const riverWidth = 30;
 const river = new THREE.Mesh(new THREE.PlaneGeometry(boardSize, riverWidth), new THREE.MeshStandardMaterial({ color: 0x0077be, transparent: true, opacity: 0.8 }));
@@ -344,17 +361,24 @@ function drawPirateSymbol(ctx) {
     ctx.beginPath(); ctx.moveTo(100, 110); ctx.lineTo(156, 110); ctx.lineTo(148, 122); ctx.lineTo(108, 122); ctx.closePath(); ctx.fill();
     ctx.beginPath(); ctx.moveTo(90, 48); ctx.lineTo(166, 48); ctx.lineTo(128, 20); ctx.closePath(); ctx.fill();
 }
-function createPirateFlagTex(bgColor, fgColor) {
+function createPirateFlagTex(bgColor, fgColor, numberLabel) {
     const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 128;
     const ctx = canvas.getContext('2d'); ctx.fillStyle = bgColor; ctx.fillRect(0, 0, 256, 128);
     ctx.fillStyle = fgColor; drawPirateSymbol(ctx);
+    
+    // Draw unit number prominently on the flag texture
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 48px Courier New';
+    ctx.textAlign = 'center';
+    ctx.fillText(`#${numberLabel}`, 128, 115);
+
     return new THREE.CanvasTexture(canvas);
 }
 
 let cannons = [];          
 let opponentCannons = [];   
 
-function createCannon(x, z, mainColor, isOpp = false, customId = null) {
+function createCannon(x, z, mainColor, isOpp = false, customId = null, unitNumber = 1) {
     const cGroup = new THREE.Group();
     const barrelPivot = new THREE.Group();
     barrelPivot.position.y = 0.5;
@@ -367,7 +391,7 @@ function createCannon(x, z, mainColor, isOpp = false, customId = null) {
     wheels.rotation.z = Math.PI/2;
     wheels.position.y = -0.2;
     
-    const flagTex = isOpp ? createPirateFlagTex('#111122', '#00ffcc') : createPirateFlagTex('#220000', '#ffcc00');
+    const flagTex = isOpp ? createPirateFlagTex('#111122', '#00ffcc', unitNumber) : createPirateFlagTex('#220000', '#ffcc00', unitNumber);
     const cFlag = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.0), new THREE.MeshStandardMaterial({map: flagTex, side: 2}));
     cFlag.position.set(0.8, 2, -0.2);
     cGroup.add(barrelPivot, wheels, cFlag);
@@ -381,7 +405,8 @@ function createCannon(x, z, mainColor, isOpp = false, customId = null) {
         barrel, barrelPivot,
         onBox: false, box: null, angle: 0,
         startZ: z,
-        id: customId || Math.random().toString()
+        id: customId || Math.random().toString(),
+        unitNum: unitNumber
     };
     scene.add(cGroup);
     
@@ -530,6 +555,14 @@ window.onmousemove = (e) => {
     mouse.x = (e.clientX/window.innerWidth)*2-1;
     mouse.y = -(e.clientY/window.innerHeight)*2+1;
     if (isDragging) { selectionEnd.set(e.clientX, e.clientY); updateSelectionBox(); }
+    
+    // Update grid reference display dynamically under mouse pointer
+    raycaster.setFromCamera(mouse, camera);
+    const hits = raycaster.intersectObject(ground);
+    if (hits.length > 0) {
+        const pt = hits[0].point;
+        document.getElementById('grid-target-display').innerText = getGridReference(pt.x, pt.z);
+    }
 };
 
 window.onmouseup = (e) => {
@@ -588,13 +621,18 @@ function moveSelected(tx, tz) {
 }
 
 function updateStatusUI() {
-    let count = 0;
+    let selectedNums = [];
     cannons.forEach(can => {
         can.userData.barrel.material.emissive.set(can.userData.selected ? 0x00ff00 : 0x000000);
-        if(can.userData.selected) count++;
+        if(can.userData.selected) selectedNums.push(`#${can.userData.unitNum}`);
     });
+    
     if (matchStarted && statusText.innerText !== "STATUS: WAITING FOR OPPONENT" && statusText.innerText !== "STATUS: MATCH STARTED!") {
-        statusText.innerText = count > 0 ? `STATUS: ${count} UNITS SELECTED` : "STATUS: STANDBY";
+        if (selectedNums.length > 0) {
+            statusText.innerText = `SELECTED: CANNONS ${selectedNums.join(', ')}`;
+        } else {
+            statusText.innerText = "STATUS: STANDBY";
+        }
     }
 }
 
