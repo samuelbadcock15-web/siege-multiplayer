@@ -5,34 +5,29 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Siege - Clear Horizons (Blue vs Dark Edition)</title>
 <style>
- body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Courier New', Courier, monospace; cursor: crosshair; user-select: none; }
- #ui { position: absolute; top: 15px; left: 15px; color: white; background: rgba(15, 15, 20, 0.95); padding: 20px; border-radius: 8px; border: 2px solid #ffd700; width: 440px; z-index: 101; box-shadow: 0 0 30px rgba(0,0,0,0.7); }
- #minimap-container { position: absolute; top: 15px; right: 15px; width: 200px; height: 200px; background: rgba(0, 0, 0, 0.7); border: 2px solid #ffcc00; border-radius: 4px; z-index: 100; overflow: hidden; }
- #minimap { width: 100%; height: 100%; cursor: crosshair; }
- .ca { color: #ffd700; font-weight: bold; letter-spacing: 2px; }
- .sys { color: #00ff00; font-size: 12px; margin-top: 15px; display: block; text-align: center; border-top: 1px dashed #444; padding-top: 10px; }
- hr { border: 0; border-top: 1px solid #ffd700; margin: 10px 0; }
- .info-grid { display: flex; gap: 15px; text-align: left; margin-top: 10px; }
- .info-column { flex: 1; font-size: 11px; }
- .info-column h3 { margin: 0 0 5px 0; color: #ffd700; font-size: 13px; }
- #build-menu { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.9); border: 2px solid #ffcc00; border-radius: 10px; display: none; padding: 10px; gap: 15px; z-index: 200; align-items: center; }
- .build-opt { width: 70px; height: 60px; border: 1px solid #666; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 10px; cursor: pointer; transition: 0.2s; background: #222; }
- .build-opt:hover { border-color: #ffcc00; background: #333; }
- .build-opt.active { background: #00ff00; color: black; border-color: white; }
- .icon { width: 30px; height: 30px; background: #555; margin-bottom: 5px; border: 1px solid #888; }
- 
- /* Live Chat Box Styling */
- #chat-container { position: absolute; bottom: 20px; left: 20px; width: 300px; background: rgba(15, 15, 20, 0.95); border: 2px solid #ffd700; border-radius: 8px; z-index: 200; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.7); }
- #chat-messages { height: 110px; overflow-y: auto; padding: 8px; font-size: 11px; color: #00ff00; display: flex; flex-direction: column; gap: 4px; word-break: break-all; }
- #chat-input { background: #111; border: none; border-top: 1px solid #ffd700; color: white; padding: 8px; font-size: 11px; outline: none; font-family: 'Courier New', Courier, monospace; }
- 
- /* Game Over Screen Overlay */
- #game-over-modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 1000; font-family: 'Courier New', Courier, monospace; }
- .modal-content { background: #111; border: 3px solid #ffd700; padding: 30px; border-radius: 12px; text-align: center; width: 450px; box-shadow: 0 0 50px rgba(255,215,0,0.4); color: white; }
- .modal-content h1 { font-size: 28px; margin-top: 0; letter-spacing: 3px; }
- .stats-box { background: #222; border: 1px solid #444; padding: 15px; margin: 20px 0; text-align: left; font-size: 13px; line-height: 1.6; }
- #restart-btn { background: #ffd700; color: black; border: none; padding: 12px 25px; font-size: 15px; font-weight: bold; cursor: pointer; border-radius: 6px; letter-spacing: 1px; transition: 0.2s; }
- #restart-btn:hover { background: #fff; box-shadow: 0 0 15px #ffd700; }
+  body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Courier New', Courier, monospace; cursor: crosshair; user-select: none; }
+  #ui { position: absolute; top: 15px; left: 15px; color: white; background: rgba(15, 15, 20, 0.95); padding: 20px; border-radius: 8px; border: 2px solid #ffd700; width: 440px; z-index: 101; box-shadow: 0 0 30px rgba(0,0,0,0.7); }
+  #minimap-container { position: absolute; top: 15px; right: 15px; width: 200px; height: 200px; background: rgba(0, 0, 0, 0.7); border: 2px solid #ffcc00; border-radius: 4px; z-index: 100; overflow: hidden; }
+  #minimap { width: 100%; height: 100%; cursor: crosshair; }
+  .ca { color: #ffd700; font-weight: bold; letter-spacing: 2px; }
+  .sys { color: #00ff00; font-size: 12px; margin-top: 15px; display: block; text-align: center; border-top: 1px dashed #444; padding-top: 10px; }
+  hr { border: 0; border-top: 1px solid #ffd700; margin: 10px 0; }
+  .info-grid { display: flex; gap: 15px; text-align: left; margin-top: 10px; }
+  .info-column { flex: 1; font-size: 11px; }
+  .info-column h3 { margin: 0 0 5px 0; color: #ffd700; font-size: 13px; }
+  #build-menu { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.9); border: 2px solid #ffcc00; border-radius: 10px; display: none; padding: 10px; gap: 15px; z-index: 200; align-items: center; }
+  .build-opt { width: 70px; height: 60px; border: 1px solid #666; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 10px; cursor: pointer; transition: 0.2s; background: #222; }
+  .build-opt:hover { border-color: #ffcc00; background: #333; }
+  .build-opt.active { background: #00ff00; color: black; border-color: white; }
+  .icon { width: 30px; height: 30px; background: #555; margin-bottom: 5px; border: 1px solid #888; }
+  
+  /* Game Over Screen Overlay */
+  #game-over-modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 1000; font-family: 'Courier New', Courier, monospace; }
+  .modal-content { background: #111; border: 3px solid #ffd700; padding: 30px; border-radius: 12px; text-align: center; width: 450px; box-shadow: 0 0 50px rgba(255,215,0,0.4); color: white; }
+  .modal-content h1 { font-size: 28px; margin-top: 0; letter-spacing: 3px; }
+  .stats-box { background: #222; border: 1px solid #444; padding: 15px; margin: 20px 0; text-align: left; font-size: 13px; line-height: 1.6; }
+  #restart-btn { background: #ffd700; color: black; border: none; padding: 12px 25px; font-size: 15px; font-weight: bold; cursor: pointer; border-radius: 6px; letter-spacing: 1px; transition: 0.2s; }
+  #restart-btn:hover { background: #fff; box-shadow: 0 0 15px #ffd700; }
 </style>
 <script src="/socket.io/socket.io.js"></script>
 </head>
@@ -66,12 +61,6 @@
  <div class="build-opt" data-type="wall_s"><div class="icon" style="width:6px; height:30px;"></div>SIDE</div>
  <div class="build-opt" data-type="roof"><div class="icon" style="width:25px; height:25px;"></div>ROOF</div>
  <div style="color: #666; font-size: 9px; padding: 5px;">SELECT TO BUILD</div>
-</div>
-
-<!-- Live Chat UI Overlay -->
-<div id="chat-container">
-  <div id="chat-messages"></div>
-  <input type="text" id="chat-input" placeholder="Type message to opponent..." autocomplete="off">
 </div>
 
 <!-- Game Over Screen Overlay -->
@@ -186,27 +175,6 @@ socket.on('restart_game', () => {
 document.getElementById('restart-btn').onclick = () => {
     socket.emit('request_restart', { roomId: currentRoomId });
 };
-
-// Live Chat Handlers
-const chatInput = document.getElementById('chat-input');
-const chatMessages = document.getElementById('chat-messages');
-
-chatInput.onkeydown = (e) => {
-    e.stopPropagation();
-    if (e.key === 'Enter' && chatInput.value.trim() !== '') {
-        const msg = chatInput.value.trim();
-        const senderName = myPlayerIndex === 1 ? "Blue" : "Dark";
-        socket.emit('send_chat', { roomId: currentRoomId, sender: senderName, message: msg });
-        chatInput.value = '';
-    }
-};
-
-socket.on('receive_chat', (data) => {
-    const div = document.createElement('div');
-    div.innerHTML = `<strong>${data.sender}:</strong> ${data.message}`;
-    chatMessages.appendChild(div);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-});
 
 const statusText = document.getElementById('status');
 const minimapCanvas = document.getElementById('minimap');
@@ -603,7 +571,7 @@ function isTooCloseToCannon(pt) {
 
 window.onmousedown = (e) => {
     if (!matchStarted || matchOver) return;
-    if (e.target.closest('#ui') || e.target.closest('#build-menu') || e.target.closest('#chat-container')) return;
+    if (e.target.closest('#ui') || e.target.closest('#build-menu')) return;
 
     if (selectedPanelType && e.button === 0) {
         raycaster.setFromCamera(mouse, camera);
