@@ -108,7 +108,6 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 document.body.appendChild(renderer.domElement);
 
-// Restored Online & Queue Count listener
 socket.on('update_counts', (data) => {
     const statsEl = document.getElementById('server-stats');
     if (statsEl) {
@@ -634,7 +633,8 @@ window.onmousemove = (e) => {
     const hits = raycaster.intersectObject(ground);
     if (hits.length > 0) {
         const pt = hits[0].point;
-        document.getElementById('grid-target-display').innerText = getGridReference(pt.x, pt.z);
+        const gridTargetEl = document.getElementById('grid-target-display');
+        if (gridTargetEl) gridTargetEl.innerText = getGridReference(pt.x, pt.z);
     }
 };
 
@@ -763,6 +763,23 @@ function animate() {
                     can.position.copy(nextPos);
                 }
                 can.lookAt(can.userData.targetPos.x, can.position.y, can.userData.targetPos.z);
+
+                // --- WATER HAZARD CHECK ---
+                if (Math.abs(can.position.z) < (riverWidth / 2) - 1.5) {
+                    const onBridge = bridgeXPositions.some(bx => Math.abs(can.position.x - bx) <= (bridgeWidth / 2));
+                    if (!onBridge) {
+                        // Sink the unit!
+                        if (cannons.includes(can)) {
+                            socket.emit('destroy_unit', { roomId: currentRoomId, id: can.userData.id });
+                        }
+                        if (can.userData.box) scene.remove(can.userData.box);
+                        scene.remove(can);
+                        cannons = cannons.filter(c => c.userData.id !== can.userData.id);
+                        opponentCannons = opponentCannons.filter(c => c.userData.id !== can.userData.id);
+                        updateStatusUI();
+                        checkWinCondition();
+                    }
+                }
             }
         });
 
