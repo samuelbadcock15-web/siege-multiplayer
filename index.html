@@ -74,7 +74,7 @@
   <input type="text" id="chat-input" placeholder="Type message to opponent..." autocomplete="off">
 </div>
 
-<!-- Game Over Screen Overlay -->
+<!-- Game Over Modal Overlay -->
 <div id="game-over-modal">
  <div class="modal-content">
    <h1 id="modal-title" style="color: #ffd700;">BATTLE CONCLUDED</h1>
@@ -669,15 +669,22 @@ window.onmousedown = (e) => {
         e.preventDefault();
         raycaster.setFromCamera(mouse, camera);
 
-        // ANTI-FRIENDLY FIRE LOCKOUT: Check if cursor is directly clicking on one of your own cannons
+        // ENHANCED ANTI-FRIENDLY FIRE LOCKOUT: Generous 10-unit exclusion zone around player cannons
         let clickedOwnCannon = false;
-        cannons.forEach(can => {
-            if (raycaster.intersectObject(can, true).length > 0) {
-                clickedOwnCannon = true;
-            }
-        });
+        raycaster.setFromCamera(mouse, camera);
+        const groundHits = raycaster.intersectObject(ground);
+        
+        if (groundHits.length > 0) {
+            const clickPt = groundHits[0].point;
+            cannons.forEach(can => {
+                const distToOwnUnit = new THREE.Vector2(can.position.x, can.position.z).distanceTo(new THREE.Vector2(clickPt.x, clickPt.z));
+                if (distToOwnUnit < 10.0) {
+                    clickedOwnCannon = true;
+                }
+            });
+        }
 
-        // If you clicked your own cannon, abort firing entirely!
+        // If clicking within the expanded radius of any of your own cannons, abort firing!
         if (clickedOwnCannon) return;
 
         const hits = raycaster.intersectObjects([ground, river, ...bridges, ...worldPanels, ...gameWalls, ...opponentCannons], true);
