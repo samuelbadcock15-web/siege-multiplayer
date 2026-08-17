@@ -535,21 +535,37 @@ function checkEdgeWallCollision(newPos) {
     return (Math.abs(newPos.x) > edgeLimit || Math.abs(newPos.z) > edgeLimit);
 }
 
-// Fixed Build Clearance Check incorporating forward barrel nose offset
+// Precise Bounding-Box Build Clearance Check preventing wall clipping
 function isTooCloseToCannon(pt) {
     let tooClose = false;
+    
+    let pWidth = 12, pDepth = 1.5;
+    if (selectedPanelType === 'wall_s') { pWidth = 1.5; pDepth = 12; }
+    if (selectedPanelType === 'roof') { pWidth = 12; pDepth = 12; }
+
+    const panelBox = {
+        minX: pt.x - pWidth / 2 - 1.0,
+        maxX: pt.x + pWidth / 2 + 1.0,
+        minZ: pt.z - pDepth / 2 - 1.0,
+        maxZ: pt.z + pDepth / 2 + 1.0
+    };
+
     [...cannons, ...opponentCannons].forEach(can => {
+        if (can.position.x >= panelBox.minX && can.position.x <= panelBox.maxX &&
+            can.position.z >= panelBox.minZ && can.position.z <= panelBox.maxZ) {
+            tooClose = true;
+        }
+
         const forwardDir = new THREE.Vector3(0, 0, 1).applyQuaternion(can.quaternion);
-        const centerDist = new THREE.Vector2(can.position.x, can.position.z).distanceTo(new THREE.Vector2(pt.x, pt.z));
-        
         const noseX = can.position.x + forwardDir.x * 2.5;
         const noseZ = can.position.z + forwardDir.z * 2.5;
-        const noseDist = new THREE.Vector2(noseX, noseZ).distanceTo(new THREE.Vector2(pt.x, pt.z));
 
-        if (centerDist < 6.0 || noseDist < 4.5) {
+        if (noseX >= panelBox.minX && noseX <= panelBox.maxX &&
+            noseZ >= panelBox.minZ && noseZ <= panelBox.maxZ) {
             tooClose = true;
         }
     });
+
     return tooClose;
 }
 
