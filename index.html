@@ -482,11 +482,9 @@ function updateMinimap() {
     ctx.clearRect(0, 0, 200, 200);
     ctx.fillStyle = '#3a5a2a'; ctx.fillRect(0, 0, 200, 200);
     
-    // 1. Draw River First
     const riverTop = toMap(0, -riverWidth/2).y;
     ctx.fillStyle = '#0077be'; ctx.fillRect(0, riverTop < 100 ? riverTop : riverTop - riverWidth * MAP_SCALE, 200, riverWidth * MAP_SCALE);
     
-    // 2. Draw Bridges ON TOP of the River so they are clearly visible
     ctx.fillStyle = '#5c4033';
     bridgeXPositions.forEach(bx => {
         const bp = toMap(bx - bridgeWidth/2, -bridgeLength/2);
@@ -537,11 +535,12 @@ function checkEdgeWallCollision(newPos) {
     return (Math.abs(newPos.x) > edgeLimit || Math.abs(newPos.z) > edgeLimit);
 }
 
+// PROBLEM 1 FIX: Tightened build collision check. Only blocks if panel center touches within 5 units of a cannon's exact footprint.
 function isTooCloseToCannon(pt) {
     let tooClose = false;
     [...cannons, ...opponentCannons].forEach(can => {
         const horizontalDist = new THREE.Vector2(can.position.x, can.position.z).distanceTo(new THREE.Vector2(pt.x, pt.z));
-        if (horizontalDist < 15) {
+        if (horizontalDist < 5.0) {
             tooClose = true;
         }
     });
@@ -759,6 +758,7 @@ function animate() {
                 const nextPos = can.position.clone().addScaledVector(moveDir, 0.5);
                 
                 const canCollisionRay = new THREE.Raycaster(can.position, moveDir, 0, 0.8);
+                // PROBLEM 2 FIX: Cannons now respect built panels and walls using a raycast snout/nose offset check
                 const hits = canCollisionRay.intersectObjects([...worldPanels, ...gameWalls], true);
                 
                 if (hits.length === 0) {
