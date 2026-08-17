@@ -535,12 +535,18 @@ function checkEdgeWallCollision(newPos) {
     return (Math.abs(newPos.x) > edgeLimit || Math.abs(newPos.z) > edgeLimit);
 }
 
-// PROBLEM 1 FIX: Tightened build collision check. Only blocks if panel center touches within 5 units of a cannon's exact footprint.
+// Fixed Build Clearance Check incorporating forward barrel nose offset
 function isTooCloseToCannon(pt) {
     let tooClose = false;
     [...cannons, ...opponentCannons].forEach(can => {
-        const horizontalDist = new THREE.Vector2(can.position.x, can.position.z).distanceTo(new THREE.Vector2(pt.x, pt.z));
-        if (horizontalDist < 5.0) {
+        const forwardDir = new THREE.Vector3(0, 0, 1).applyQuaternion(can.quaternion);
+        const centerDist = new THREE.Vector2(can.position.x, can.position.z).distanceTo(new THREE.Vector2(pt.x, pt.z));
+        
+        const noseX = can.position.x + forwardDir.x * 2.5;
+        const noseZ = can.position.z + forwardDir.z * 2.5;
+        const noseDist = new THREE.Vector2(noseX, noseZ).distanceTo(new THREE.Vector2(pt.x, pt.z));
+
+        if (centerDist < 6.0 || noseDist < 4.5) {
             tooClose = true;
         }
     });
@@ -758,7 +764,6 @@ function animate() {
                 const nextPos = can.position.clone().addScaledVector(moveDir, 0.5);
                 
                 const canCollisionRay = new THREE.Raycaster(can.position, moveDir, 0, 0.8);
-                // PROBLEM 2 FIX: Cannons now respect built panels and walls using a raycast snout/nose offset check
                 const hits = canCollisionRay.intersectObjects([...worldPanels, ...gameWalls], true);
                 
                 if (hits.length === 0) {
