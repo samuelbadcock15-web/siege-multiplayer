@@ -430,16 +430,17 @@ socket.on('opponent_build', (data) => {
 });
 
 socket.on('opponent_destroy', (data) => {
+    const targetId = data.id;
     [...cannons, ...opponentCannons].forEach(can => {
-        if (can.userData.id === data.id) {
+        if (can.userData.id === targetId) {
             if (can.userData.box) scene.remove(can.userData.box);
             scene.remove(can);
-            cannons = cannons.filter(c => c.userData.id !== data.id);
-            opponentCannons = opponentCannons.filter(c => c.userData.id !== data.id);
-            updateStatusUI();
-            checkWinCondition();
         }
     });
+    cannons = cannons.filter(c => c.userData.id !== targetId);
+    opponentCannons = opponentCannons.filter(c => c.userData.id !== targetId);
+    updateStatusUI();
+    checkWinCondition();
 });
 
 function checkWinCondition() {
@@ -799,11 +800,15 @@ function animate() {
                     hitObj = hitObj.parent;
                 }
                 
-                socket.emit('destroy_unit', { roomId: currentRoomId, id: hitObj.userData.id });
+                const destroyedId = hitObj.userData.id;
+
+                socket.emit('destroy_unit', { roomId: currentRoomId, id: destroyedId });
+
                 if (hitObj.userData.box) scene.remove(hitObj.userData.box);
                 scene.remove(hitObj);
-                cannons = cannons.filter(c => c.userData.id !== hitObj.userData.id);
-                opponentCannons = opponentCannons.filter(c => c.userData.id !== hitObj.userData.id);
+                cannons = cannons.filter(c => c.userData.id !== destroyedId);
+                opponentCannons = opponentCannons.filter(c => c.userData.id !== destroyedId);
+                
                 updateStatusUI();
                 checkWinCondition();
 
