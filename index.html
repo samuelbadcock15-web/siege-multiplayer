@@ -641,7 +641,6 @@ window.onmousedown = (e) => {
     if (e.button === 2) {
         e.preventDefault();
         raycaster.setFromCamera(mouse, camera);
-        // Only target opponent cannons for firing/raycasting
         const hits = raycaster.intersectObjects([ground, river, ...bridges, ...worldPanels, ...gameWalls, ...opponentCannons], true);
         if (hits.length > 0) {
             const selected = cannons.find(c => c.userData.selected);
@@ -834,7 +833,7 @@ function animate() {
                 }
             }
 
-            // --- FRIENDLY FIRE DISABLED: Only check combat hits against OPPONENT cannons ---
+            // --- STRICTLY OPPONENT ONLY: Completely exclude local 'cannons' array from combat raycast ---
             const combatRay = new THREE.Raycaster(prevPos, rayDir, 0, rayLen);
             const hits = combatRay.intersectObjects([...opponentCannons], true);
             if (hits.length > 0) {
