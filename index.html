@@ -54,7 +54,7 @@
  <div style="font-size: 10px; margin-top: 15px; color: #888; border-top: 1px solid #333; padding-top: 8px;">
     [W,S,A,D] Move Camera | [Q,E] Strafe | [A/D Rotate]<br>
     [Scroll] Zoom | [LMB Click] Select Cannon & Move<br>
-    [RMB Click] Fire Projectile | [Click Panel] Build Mode (Own Half / No Bridges)
+    [RMB Click] Fire Projectile | [Click Panel] Build Mode (Roofs Free in Own Half)
  </div>
  <span id="status" class="sys">STATUS: WAITING FOR OPPONENT</span>
 </div>
@@ -535,9 +535,9 @@ function checkEdgeWallCollision(newPos) {
     return (Math.abs(newPos.x) > edgeLimit || Math.abs(newPos.z) > edgeLimit);
 }
 
-// Build Restriction Check: Own Half Only + No Bridges + No Cannon Clipping
+// Build Restriction Check: Own Half Only + No Bridges + Unit Collision (Roofs are free of unit collision)
 function isTooCloseToCannon(pt) {
-    // RULE 1: Can only build in own half of the map (z >= 0 for Player 1, z <= 0 for Player 2)
+    // RULE 1: Can only build in own half of the map
     if (myPlayerIndex === 1 && pt.z < (riverWidth / 2)) return true;
     if (myPlayerIndex === 2 && pt.z > -(riverWidth / 2)) return true;
 
@@ -550,10 +550,14 @@ function isTooCloseToCannon(pt) {
     });
     if (onBridge) return true;
 
+    // RULE 3: Roofs can be placed freely (no unit radius check), but walls still protect against clipping
+    if (selectedPanelType === 'roof') {
+        return false;
+    }
+
     let tooClose = false;
     let pWidth = 12, pDepth = 1.5;
     if (selectedPanelType === 'wall_s') { pWidth = 1.5; pDepth = 12; }
-    if (selectedPanelType === 'roof') { pWidth = 12; pDepth = 12; }
 
     const panelBox = {
         minX: pt.x - pWidth / 2 - 1.2,
