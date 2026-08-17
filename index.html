@@ -56,8 +56,8 @@
  </div>
  <div style="font-size: 10px; margin-top: 15px; color: #888; border-top: 1px solid #333; padding-top: 8px;">
     [W,S,A,D] Move/Rotate | [Q,E] Strafe<br>
-    [Scroll] Zoom | [LMB Drag] Select / Move Units<br>
-    [RMB] Attack / Target | [Click Panel] Build Mode
+    [Scroll] Zoom | [LMB Drag] Select Units<br>
+    [RMB] Move Units / Attack Target | [Click Panel] Build Mode
  </div>
  <span id="status" class="sys">STATUS: WAITING FOR OPPONENT</span>
 </div>
@@ -98,7 +98,7 @@ let myPlayerIndex = null;
 let currentRoomId = null;
 let matchOver = false;
 let gameInitialized = false;
-let matchStarted = false; // Lobby lock flag
+let matchStarted = false;
 
 // Scene, Camera, and Renderer setup
 const scene = new THREE.Scene();
@@ -192,7 +192,7 @@ const chatInput = document.getElementById('chat-input');
 const chatMessages = document.getElementById('chat-messages');
 
 chatInput.onkeydown = (e) => {
-    e.stopPropagation(); // Blocks game movement keys from triggering while typing
+    e.stopPropagation();
     if (e.key === 'Enter' && chatInput.value.trim() !== '') {
         const msg = chatInput.value.trim();
         const senderName = myPlayerIndex === 1 ? "Blue" : "Dark";
@@ -520,18 +520,18 @@ function isTooCloseToCannon(pt) {
     return tooClose;
 }
 
+// RTS Control Scheme: LMB for Selection/Building, RMB for Movement/Attacking
 window.onmousedown = (e) => {
     if (!matchStarted || matchOver) return;
     if (e.target.closest('#ui') || e.target.closest('#build-menu') || e.target.closest('#chat-container')) return;
+
+    // Build mode placement via LMB
     if (selectedPanelType && e.button === 0) {
         raycaster.setFromCamera(mouse, camera);
         const hits = raycaster.intersectObject(ground);
         if (hits.length > 0) {
             const pt = hits[0].point;
-            
-            if (isTooCloseToCannon(pt)) {
-                return;
-            }
+            if (isTooCloseToCannon(pt)) return;
 
             const newPanel = ghostPanel.clone();
             newPanel.material = new THREE.MeshStandardMaterial({color: 0x777777, roughness: 0.8});
@@ -541,9 +541,12 @@ window.onmousedown = (e) => {
         }
         return;
     }
+
     const now = Date.now();
     const isDoubleClick = (now - lastClickTime) < DOUBLE_CLICK_THRESHOLD;
     lastClickTime = now;
+
+    // LMB: Selection / Box Dragging
     if (e.button === 0) {
         isDragging = true;
         dragOnMinimap = e.target === minimapCanvas;
@@ -551,6 +554,7 @@ window.onmousedown = (e) => {
         selectionEnd.set(e.clientX, e.clientY);
         updateSelectionBox();
         if (dragOnMinimap) miniSelectionBox.style.display = 'block'; else selectionBox.style.display = 'block';
+        
         if (isDoubleClick && !dragOnMinimap) {
             raycaster.setFromCamera(mouse, camera);
             cannons.forEach(can => {
@@ -558,19 +562,34 @@ window.onmousedown = (e) => {
             });
         }
     }
+
+    // RMB: Move / Attack Orders
     if (e.button === 2) {
         e.preventDefault();
         if (e.target === minimapCanvas) {
             const rect = minimapCanvas.getBoundingClientRect();
-            const world = fromMap(e.clientX - rect.left, e.clientY - rect.top);
-            camera.position.set(world.x, 3, world.z);
+            const localX = e.clientX - rect.left;
+            const localY = e.clientY - rect.top;
+            const worldX = (localX - MAP_CENTER.x) / MAP_SCALE;
+            const worldZ = (localY - MAP_CENTER.y) / MAP_SCALE;
+            moveSelected(worldX, worldZ);
         } else {
             raycaster.setFromCamera(mouse, camera);
             const hits = raycaster.intersectObjects([ground, river, ...bridges, ...worldPanels, ...gameWalls, ...opponentCannons], true);
             if (hits.length > 0) {
-                cannons.forEach(can => {
-                    if (can.userData.selected) spawnProjectile(can, hits[0].point);
+                const hitObj = hits[0].object;
+                let isEnemyHit = false;
+                opponentCannons.forEach(opp => {
+                    if (hitObj === opp || hitObj.parent === opp) isEnemyHit = true;
                 });
+
+                if (isEnemyHit) {
+                    cannons.forEach(can => {
+                        if (can.userData.selected) spawnProjectile(can, hits[0].point);
+                    });
+                } else {
+                    moveSelected(hits[0].point.x, hits[0].point.z);
+                }
             }
         }
     }
@@ -596,7 +615,6 @@ window.onmouseup = (e) => {
             const rect = minimapCanvas.getBoundingClientRect();
             if (dist < 5) {
                 const localX = e.clientX - rect.left, localY = e.clientY - rect.top;
-                const world = fromMap(localX, localY);
                 let hitUnit = false;
                 cannons.forEach(can => {
                     const cp = toMap(can.position.x, can.position.z);
@@ -605,7 +623,6 @@ window.onmouseup = (e) => {
                         hitUnit = true;
                     }
                 });
-                if (!hitUnit) moveSelected(world.x, world.z);
             }
         } else {
             if (dist < 5) {
@@ -620,10 +637,6 @@ window.onmouseup = (e) => {
                         hitUnit = true;
                     }
                 });
-                if (!hitUnit) {
-                    const hit = raycaster.intersectObjects([ground, river, ...bridges, ...worldPanels, ...gameWalls], true);
-                    if (hit.length > 0) moveSelected(hit.point.x, hit.point.z);
-                }
             } else {
                 const boxX = Math.min(selectionStart.x, selectionEnd.x);
                 const boxY = Math.min(selectionStart.y, selectionEnd.y);
