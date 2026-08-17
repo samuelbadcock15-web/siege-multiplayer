@@ -535,7 +535,7 @@ function checkEdgeWallCollision(newPos) {
     return (Math.abs(newPos.x) > edgeLimit || Math.abs(newPos.z) > edgeLimit);
 }
 
-// Precise Bounding-Box Build Clearance Check preventing wall clipping
+// Clean Build Clearance Check (Allows tight building right next to units without overlapping)
 function isTooCloseToCannon(pt) {
     let tooClose = false;
     
@@ -544,24 +544,15 @@ function isTooCloseToCannon(pt) {
     if (selectedPanelType === 'roof') { pWidth = 12; pDepth = 12; }
 
     const panelBox = {
-        minX: pt.x - pWidth / 2 - 1.0,
-        maxX: pt.x + pWidth / 2 + 1.0,
-        minZ: pt.z - pDepth / 2 - 1.0,
-        maxZ: pt.z + pDepth / 2 + 1.0
+        minX: pt.x - pWidth / 2 - 0.5,
+        maxX: pt.x + pWidth / 2 + 0.5,
+        minZ: pt.z - pDepth / 2 - 0.5,
+        maxZ: pt.z + pDepth / 2 + 0.5
     };
 
     [...cannons, ...opponentCannons].forEach(can => {
         if (can.position.x >= panelBox.minX && can.position.x <= panelBox.maxX &&
             can.position.z >= panelBox.minZ && can.position.z <= panelBox.maxZ) {
-            tooClose = true;
-        }
-
-        const forwardDir = new THREE.Vector3(0, 0, 1).applyQuaternion(can.quaternion);
-        const noseX = can.position.x + forwardDir.x * 2.5;
-        const noseZ = can.position.z + forwardDir.z * 2.5;
-
-        if (noseX >= panelBox.minX && noseX <= panelBox.maxX &&
-            noseZ >= panelBox.minZ && noseZ <= panelBox.maxZ) {
             tooClose = true;
         }
     });
@@ -779,10 +770,15 @@ function animate() {
                 const moveDir = new THREE.Vector3().subVectors(can.userData.targetPos, can.position).normalize();
                 const nextPos = can.position.clone().addScaledVector(moveDir, 0.5);
                 
+                // --- SOLID WALL COLLISION BUFFER CHECK ---
+                // Prevent units from walking into or closer than 3.5 units to any built wall or castle boundary
+                const wallCollisionRay = new THREE.Raycaster(can.position, moveDir, 0, 3.5);
+                const wallHits = wallCollisionRay.intersectObjects([...worldPanels, ...gameWalls], true);
+                
                 const canCollisionRay = new THREE.Raycaster(can.position, moveDir, 0, 0.8);
                 const hits = canCollisionRay.intersectObjects([...worldPanels, ...gameWalls], true);
                 
-                if (hits.length === 0) {
+                if (hits.length === 0 && wallHits.length === 0) {
                     can.position.copy(nextPos);
                 }
                 can.lookAt(can.userData.targetPos.x, can.position.y, can.userData.targetPos.z);
