@@ -74,7 +74,7 @@
   <input type="text" id="chat-input" placeholder="Type message to opponent..." autocomplete="off">
 </div>
 
-<!-- Game Over Modal Overlay -->
+<!-- Game Over Screen Overlay -->
 <div id="game-over-modal">
  <div class="modal-content">
    <h1 id="modal-title" style="color: #ffd700;">BATTLE CONCLUDED</h1>
@@ -668,6 +668,7 @@ window.onmousedown = (e) => {
     if (e.button === 2) {
         e.preventDefault();
         raycaster.setFromCamera(mouse, camera);
+        // STRICTLY OPPONENT ONLY: Exclude player's own cannons from RMB firing target lookup
         const hits = raycaster.intersectObjects([ground, river, ...bridges, ...worldPanels, ...gameWalls, ...opponentCannons], true);
         if (hits.length > 0) {
             const selected = cannons.find(c => c.userData.selected);
@@ -861,7 +862,7 @@ function animate() {
                 }
             }
 
-            // --- FRIENDLY FIRE DISABLED: Strictly checking intersection against opponentCannons ONLY ---
+            // --- FRIENDLY FIRE DISABLED: Projectiles only interact with opponentCannons ---
             const combatRay = new THREE.Raycaster(prevPos, rayDir, 0, rayLen);
             const hits = combatRay.intersectObjects([...opponentCannons], true);
             if (hits.length > 0) {
