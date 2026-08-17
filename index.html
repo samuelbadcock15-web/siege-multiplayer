@@ -47,8 +47,8 @@
      <p style="font-weight: bold; margin: 0 0 5px 0; color: #ffd700;" id="role-display">CONNECTING...</p>
    </div>
    <div class="info-column">
-     <h3>SECTOR TARGET</h3>
-     <p style="font-weight: bold; margin: 0 0 5px 0; color: #00ff00;" id="grid-target-display">NONE</p>
+     <h3>SERVER STATUS</h3>
+     <p style="font-weight: bold; margin: 0 0 5px 0; color: #00ff00;" id="server-stats">Online: 0 | Queue: 0</p>
    </div>
  </div>
  <div style="font-size: 10px; margin-top: 15px; color: #888; border-top: 1px solid #333; padding-top: 8px;">
@@ -108,10 +108,11 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 document.body.appendChild(renderer.domElement);
 
+// Restored Online & Queue Count listener
 socket.on('update_counts', (data) => {
     const statsEl = document.getElementById('server-stats');
     if (statsEl) {
-        // updated via socket
+        statsEl.innerText = `Online: ${data.totalOnline} | Queue: ${data.inQueue}`;
     }
 });
 
@@ -464,10 +465,8 @@ function checkWinCondition() {
     }
 }
 
-// Perspective-corrected Minimap Coordinate Mappings
 function toMap(x, z) {
     if (myPlayerIndex === 2) {
-        // Flip coordinates for Player 2 so their base is at the bottom of the minimap
         return { x: MAP_CENTER.x - x * MAP_SCALE, y: MAP_CENTER.y - z * MAP_SCALE };
     }
     return { x: MAP_CENTER.x + x * MAP_SCALE, y: MAP_CENTER.y + z * MAP_SCALE };
