@@ -54,7 +54,7 @@
  <div style="font-size: 10px; margin-top: 15px; color: #888; border-top: 1px solid #333; padding-top: 8px;">
     [W,S,A,D] Move Camera | [Q,E] Strafe | [A/D Rotate]<br>
     [Scroll] Zoom | [LMB Click] Select Cannon & Move<br>
-    [RMB Click] Fire Projectile | [Click Panel] Build Mode
+    [RMB Click] Fire Projectile | [Click Panel] Build Mode (Own Half Only)
  </div>
  <span id="status" class="sys">STATUS: WAITING FOR OPPONENT</span>
 </div>
@@ -535,7 +535,12 @@ function checkEdgeWallCollision(newPos) {
     return (Math.abs(newPos.x) > edgeLimit || Math.abs(newPos.z) > edgeLimit);
 }
 
+// Half-Court & Cannon Clearance Build Check
 function isTooCloseToCannon(pt) {
+    // RULE: Players can only build in their own half of the map (z >= 0 for Player 1, z <= 0 for Player 2)
+    if (myPlayerIndex === 1 && pt.z < (riverWidth / 2)) return true; // Block building in opponent's half or across the river
+    if (myPlayerIndex === 2 && pt.z > -(riverWidth / 2)) return true;
+
     let tooClose = false;
     
     let pWidth = 12, pDepth = 1.5;
@@ -833,7 +838,6 @@ function animate() {
                 }
             }
 
-            // --- STRICTLY OPPONENT ONLY: Completely exclude local 'cannons' array from combat raycast ---
             const combatRay = new THREE.Raycaster(prevPos, rayDir, 0, rayLen);
             const hits = combatRay.intersectObjects([...opponentCannons], true);
             if (hits.length > 0) {
