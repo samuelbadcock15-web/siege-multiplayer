@@ -535,7 +535,7 @@ function checkEdgeWallCollision(newPos) {
     return (Math.abs(newPos.x) > edgeLimit || Math.abs(newPos.z) > edgeLimit);
 }
 
-// Clean Build Clearance Check (Allows tight building right next to units without overlapping)
+// Omni-directional Build Clearance Check (Guards front, back, left, and right flanks)
 function isTooCloseToCannon(pt) {
     let tooClose = false;
     
@@ -544,17 +544,30 @@ function isTooCloseToCannon(pt) {
     if (selectedPanelType === 'roof') { pWidth = 12; pDepth = 12; }
 
     const panelBox = {
-        minX: pt.x - pWidth / 2 - 0.5,
-        maxX: pt.x + pWidth / 2 + 0.5,
-        minZ: pt.z - pDepth / 2 - 0.5,
-        maxZ: pt.z + pDepth / 2 + 0.5
+        minX: pt.x - pWidth / 2 - 1.2,
+        maxX: pt.x + pWidth / 2 + 1.2,
+        minZ: pt.z - pDepth / 2 - 1.2,
+        maxZ: pt.z + pDepth / 2 + 1.2
     };
 
     [...cannons, ...opponentCannons].forEach(can => {
-        if (can.position.x >= panelBox.minX && can.position.x <= panelBox.maxX &&
-            can.position.z >= panelBox.minZ && can.position.z <= panelBox.maxZ) {
-            tooClose = true;
-        }
+        const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(can.quaternion);
+        const right = new THREE.Vector3(1, 0, 0).applyQuaternion(can.quaternion);
+
+        const checkPoints = [
+            can.position,                                           // Center
+            can.position.clone().addScaledVector(forward, 2.5),    // Nose / Front
+            can.position.clone().addScaledVector(forward, -1.5),   // Tail / Back
+            can.position.clone().addScaledVector(right, 1.2),      // Right Side
+            can.position.clone().addScaledVector(right, -1.2)      // Left Side
+        ];
+
+        checkPoints.forEach(cp => {
+            if (cp.x >= panelBox.minX && cp.x <= panelBox.maxX &&
+                cp.z >= panelBox.minZ && cp.z <= panelBox.maxZ) {
+                tooClose = true;
+            }
+        });
     });
 
     return tooClose;
@@ -770,8 +783,6 @@ function animate() {
                 const moveDir = new THREE.Vector3().subVectors(can.userData.targetPos, can.position).normalize();
                 const nextPos = can.position.clone().addScaledVector(moveDir, 0.5);
                 
-                // --- SOLID WALL COLLISION BUFFER CHECK ---
-                // Prevent units from walking into or closer than 3.5 units to any built wall or castle boundary
                 const wallCollisionRay = new THREE.Raycaster(can.position, moveDir, 0, 3.5);
                 const wallHits = wallCollisionRay.intersectObjects([...worldPanels, ...gameWalls], true);
                 
