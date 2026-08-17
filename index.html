@@ -54,7 +54,7 @@
  <div style="font-size: 10px; margin-top: 15px; color: #888; border-top: 1px solid #333; padding-top: 8px;">
     [W,S,A,D] Move Camera | [Q,E] Strafe | [A/D Rotate]<br>
     [Scroll] Zoom | [LMB Click] Select Cannon & Move<br>
-    [RMB Click] Fire Projectile | [Click Panel] Build Mode (Roofs Free in Own Half)
+    [RMB Click] Fire Projectile | [Click Panel] Build Mode (Own Half / No Bridges)
  </div>
  <span id="status" class="sys">STATUS: WAITING FOR OPPONENT</span>
 </div>
@@ -482,9 +482,11 @@ function updateMinimap() {
     ctx.clearRect(0, 0, 200, 200);
     ctx.fillStyle = '#3a5a2a'; ctx.fillRect(0, 0, 200, 200);
     
+    // 1. Draw River First
     const riverTop = toMap(0, -riverWidth/2).y;
     ctx.fillStyle = '#0077be'; ctx.fillRect(0, riverTop < 100 ? riverTop : riverTop - riverWidth * MAP_SCALE, 200, riverWidth * MAP_SCALE);
     
+    // 2. Draw Bridges ON TOP of the River so they are clearly visible
     ctx.fillStyle = '#5c4033';
     bridgeXPositions.forEach(bx => {
         const bp = toMap(bx - bridgeWidth/2, -bridgeLength/2);
