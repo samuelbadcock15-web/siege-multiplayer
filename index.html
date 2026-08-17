@@ -54,7 +54,7 @@
  <div style="font-size: 10px; margin-top: 15px; color: #888; border-top: 1px solid #333; padding-top: 8px;">
     [W,S,A,D] Move Camera | [Q,E] Strafe | [A/D Rotate]<br>
     [Scroll] Zoom | [LMB Click] Select Cannon & Move<br>
-    [RMB Click] Fire Projectile | [Click Panel] Build Mode (Own Half Only)
+    [RMB Click] Fire Projectile | [Click Panel] Build Mode (Own Half / No Bridges)
  </div>
  <span id="status" class="sys">STATUS: WAITING FOR OPPONENT</span>
 </div>
@@ -535,14 +535,22 @@ function checkEdgeWallCollision(newPos) {
     return (Math.abs(newPos.x) > edgeLimit || Math.abs(newPos.z) > edgeLimit);
 }
 
-// Half-Court & Cannon Clearance Build Check
+// Build Restriction Check: Own Half Only + No Bridges + No Cannon Clipping
 function isTooCloseToCannon(pt) {
-    // RULE: Players can only build in their own half of the map (z >= 0 for Player 1, z <= 0 for Player 2)
-    if (myPlayerIndex === 1 && pt.z < (riverWidth / 2)) return true; // Block building in opponent's half or across the river
+    // RULE 1: Can only build in own half of the map (z >= 0 for Player 1, z <= 0 for Player 2)
+    if (myPlayerIndex === 1 && pt.z < (riverWidth / 2)) return true;
     if (myPlayerIndex === 2 && pt.z > -(riverWidth / 2)) return true;
 
+    // RULE 2: No building on bridges
+    let onBridge = false;
+    bridgeXPositions.forEach(bx => {
+        if (Math.abs(pt.x - bx) < (bridgeWidth / 2) + 2.0 && Math.abs(pt.z) < (bridgeLength / 2) + 2.0) {
+            onBridge = true;
+        }
+    });
+    if (onBridge) return true;
+
     let tooClose = false;
-    
     let pWidth = 12, pDepth = 1.5;
     if (selectedPanelType === 'wall_s') { pWidth = 1.5; pDepth = 12; }
     if (selectedPanelType === 'roof') { pWidth = 12; pDepth = 12; }
@@ -559,11 +567,11 @@ function isTooCloseToCannon(pt) {
         const right = new THREE.Vector3(1, 0, 0).applyQuaternion(can.quaternion);
 
         const checkPoints = [
-            can.position,                                           // Center
-            can.position.clone().addScaledVector(forward, 2.5),    // Nose / Front
-            can.position.clone().addScaledVector(forward, -1.5),   // Tail / Back
-            can.position.clone().addScaledVector(right, 1.2),      // Right Side
-            can.position.clone().addScaledVector(right, -1.2)      // Left Side
+            can.position,
+            can.position.clone().addScaledVector(forward, 2.5),
+            can.position.clone().addScaledVector(forward, -1.5),
+            can.position.clone().addScaledVector(right, 1.2),
+            can.position.clone().addScaledVector(right, -1.2)
         ];
 
         checkPoints.forEach(cp => {
