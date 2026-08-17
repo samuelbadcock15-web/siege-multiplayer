@@ -5,7 +5,10 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+    pingTimeout: 60000,
+    pingInterval: 25000
+});
 
 app.use(express.static(path.join(__dirname)));
 
@@ -59,6 +62,7 @@ io.on('connection', (socket) => {
         socket.to(data.roomId).emit('opponent_build', data);
     });
 
+    // Server-relayed clean destruction to prevent double-trigger bugs
     socket.on('destroy_unit', (data) => {
         socket.to(data.roomId).emit('opponent_destroy', data);
     });
