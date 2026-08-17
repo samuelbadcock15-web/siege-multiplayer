@@ -7,13 +7,14 @@
 <style>
  body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Courier New', Courier, monospace; cursor: crosshair; user-select: none; }
  #ui { position: absolute; top: 15px; left: 15px; color: white; background: rgba(15, 15, 20, 0.95); padding: 20px; border-radius: 8px; border: 2px solid #ffd700; width: 440px; z-index: 101; box-shadow: 0 0 30px rgba(0,0,0,0.7); }
+ #minimap-container { position: absolute; top: 15px; right: 15px; width: 200px; height: 200px; background: rgba(0, 0, 0, 0.7); border: 2px solid #ffcc00; border-radius: 4px; z-index: 100; overflow: hidden; }
+ #minimap { width: 100%; height: 100%; cursor: crosshair; }
  .ca { color: #ffd700; font-weight: bold; letter-spacing: 2px; }
  .sys { color: #00ff00; font-size: 12px; margin-top: 15px; display: block; text-align: center; border-top: 1px dashed #444; padding-top: 10px; }
  hr { border: 0; border-top: 1px solid #ffd700; margin: 10px 0; }
  .info-grid { display: flex; gap: 15px; text-align: left; margin-top: 10px; }
  .info-column { flex: 1; font-size: 11px; }
  .info-column h3 { margin: 0 0 5px 0; color: #ffd700; font-size: 13px; }
- #selection-box { border: 1px solid #00ff00; background-color: rgba(0, 255, 0, 0.1); position: fixed; pointer-events: none; z-index: 99; display: none; }
  #build-menu { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.9); border: 2px solid #ffcc00; border-radius: 10px; display: none; padding: 10px; gap: 15px; z-index: 200; align-items: center; }
  .build-opt { width: 70px; height: 60px; border: 1px solid #666; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 10px; cursor: pointer; transition: 0.2s; background: #222; }
  .build-opt:hover { border-color: #ffcc00; background: #333; }
@@ -36,7 +37,7 @@
 <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
-<div id="selection-box"></div>
+<div id="minimap-container"><canvas id="minimap"></canvas></div>
 <div id="ui">
  <span class="ca">MISSION INTELLIGENCE: CLEAR HORIZONS</span>
  <hr>
@@ -51,9 +52,9 @@
    </div>
  </div>
  <div style="font-size: 10px; margin-top: 15px; color: #888; border-top: 1px solid #333; padding-top: 8px;">
-    [W,S,A,D] Move Camera | [Q,E] Strafe | [A/D Keys Rotate]<br>
-    [Scroll] Zoom | [LMB Drag] Select Numbered Units<br>
-    [RMB] Move to Grid Ref / Attack | [Click Panel] Build Mode
+    [W,S,A,D] Move Camera | [Q,E] Strafe | [A/D Rotate]<br>
+    [Scroll] Zoom | [LMB Click] Select Cannon & Move<br>
+    [RMB Click] Fire Projectile | [Click Panel] Build Mode
  </div>
  <span id="status" class="sys">STATUS: WAITING FOR OPPONENT</span>
 </div>
@@ -110,7 +111,7 @@ document.body.appendChild(renderer.domElement);
 socket.on('update_counts', (data) => {
     const statsEl = document.getElementById('server-stats');
     if (statsEl) {
-        statsEl.innerText = `Online: ${data.totalOnline} | Queue: ${data.inQueue}`;
+        // server status text updated or handled cleanly
     }
 });
 
@@ -205,7 +206,10 @@ socket.on('receive_chat', (data) => {
 });
 
 const statusText = document.getElementById('status');
-const selectionBox = document.getElementById('selection-box');
+const minimapCanvas = document.getElementById('minimap');
+const ctx = minimapCanvas.getContext('2d');
+minimapCanvas.width = 200;
+minimapCanvas.height = 200;
 
 const light = new THREE.DirectionalLight(0xffffff, 1.5);
 light.position.set(100, 100, 50);
@@ -216,18 +220,15 @@ const ground = new THREE.Mesh(new THREE.PlaneGeometry(boardSize, boardSize), new
 ground.rotation.x = -Math.PI / 2;
 scene.add(ground);
 
-// Grid Helper mapping the floor into 12x12 major grid cells (Grid Ref System A-L, 1-12)
 const gridHelper = new THREE.GridHelper(boardSize, 12, 0xffd700, 0x224422);
 gridHelper.position.y = 0.02;
 scene.add(gridHelper);
 
-// Helper function to convert world coordinates (x, z) to Grid Reference (e.g. "D7")
 function getGridReference(x, z) {
     const cols = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
     const cellSize = boardSize / 12;
     const colIdx = Math.floor((x + boardSize / 2) / cellSize);
     const rowIdx = Math.floor((z + boardSize / 2) / cellSize);
-    
     const colLetter = cols[Math.max(0, Math.min(11, colIdx))];
     const rowNumber = Math.max(1, Math.min(12, rowIdx + 1));
     return `${colLetter}${rowNumber}`;
@@ -350,10 +351,10 @@ const worldPanels = [];
 const panelGeoms = { wall_f: new THREE.BoxGeometry(12, 8, 1.5), wall_s: new THREE.BoxGeometry(1.5, 8, 12), roof: new THREE.BoxGeometry(12, 1.5, 12) };
 const activeProjectiles = [];
 const keys = {}, raycaster = new THREE.Raycaster(), mouse = new THREE.Vector2();
-let isDragging = false;
-const selectionStart = new THREE.Vector2(), selectionEnd = new THREE.Vector2();
 let lastClickTime = 0;
 const DOUBLE_CLICK_THRESHOLD = 300;
+const MAP_SCALE = 200 / boardSize;
+const MAP_CENTER = { x: 100, y: 100 };
 
 function drawPirateSymbol(ctx) {
     ctx.beginPath(); ctx.arc(128, 48, 28, 0, Math.PI * 2); ctx.fill();
@@ -365,13 +366,10 @@ function createPirateFlagTex(bgColor, fgColor, numberLabel) {
     const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 128;
     const ctx = canvas.getContext('2d'); ctx.fillStyle = bgColor; ctx.fillRect(0, 0, 256, 128);
     ctx.fillStyle = fgColor; drawPirateSymbol(ctx);
-    
-    // Draw unit number prominently on the flag texture
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 48px Courier New';
     ctx.textAlign = 'center';
     ctx.fillText(`#${numberLabel}`, 128, 115);
-
     return new THREE.CanvasTexture(canvas);
 }
 
@@ -396,7 +394,6 @@ function createCannon(x, z, mainColor, isOpp = false, customId = null, unitNumbe
     cFlag.position.set(0.8, 2, -0.2);
     cGroup.add(barrelPivot, wheels, cFlag);
     cGroup.position.set(x, 0.8, z);
-    
     cGroup.rotation.y = (z < 0) ? 0 : Math.PI;
     
     cGroup.userData = {
@@ -467,6 +464,37 @@ function checkWinCondition() {
     }
 }
 
+function toMap(x, z) { return { x: MAP_CENTER.x + x * MAP_SCALE, y: MAP_CENTER.y + z * MAP_SCALE }; }
+function fromMap(mx, my) { return { x: (mx - MAP_CENTER.x) / MAP_SCALE, z: (my - MAP_CENTER.y) / MAP_SCALE }; }
+
+function updateMinimap() {
+    ctx.clearRect(0, 0, 200, 200);
+    ctx.fillStyle = '#3a5a2a'; ctx.fillRect(0, 0, 200, 200);
+    const riverTop = toMap(0, -riverWidth/2).y;
+    ctx.fillStyle = '#0077be'; ctx.fillRect(0, riverTop, 200, riverWidth * MAP_SCALE);
+    ctx.fillStyle = '#5c4033';
+    bridgeXPositions.forEach(bx => {
+        const bp = toMap(bx - bridgeWidth/2, -bridgeLength/2);
+        ctx.fillRect(bp.x, bp.y, bridgeWidth * MAP_SCALE, bridgeLength * MAP_SCALE);
+    });
+    activeProjectiles.forEach(p => {
+        const pp = toMap(p.mesh.position.x, p.mesh.position.z);
+        ctx.beginPath(); ctx.arc(pp.x, pp.y, 2.5, 0, Math.PI * 2);
+        ctx.fillStyle = '#ff4400'; ctx.fill();
+    });
+    cannons.forEach(can => {
+        const cp = toMap(can.position.x, can.position.z);
+        ctx.beginPath(); ctx.arc(cp.x, cp.y, 5, 0, Math.PI * 2);
+        ctx.fillStyle = can.userData.selected ? '#00ff00' : '#002288';
+        ctx.fill();
+    });
+    opponentCannons.forEach(can => {
+        const cp = toMap(can.position.x, can.position.z);
+        ctx.beginPath(); ctx.arc(cp.x, cp.y, 5, 0, Math.PI * 2);
+        ctx.fillStyle = '#ddaa00'; ctx.fill();
+    });
+}
+
 function toggleBox(cannon) {
     if (!matchStarted) return;
     if (!cannon.userData.onBox) {
@@ -502,18 +530,19 @@ function isTooCloseToCannon(pt) {
     return tooClose;
 }
 
+// SIMPLIFIED SINGLE-UNIT CONTROLS:
+// LMB Click: Select/Deselect a single cannon, or move selected cannon to ground / minimap.
+// RMB Click: Fire projectile at target point.
 window.onmousedown = (e) => {
     if (!matchStarted || matchOver) return;
     if (e.target.closest('#ui') || e.target.closest('#build-menu') || e.target.closest('#chat-container')) return;
+
     if (selectedPanelType && e.button === 0) {
         raycaster.setFromCamera(mouse, camera);
         const hits = raycaster.intersectObject(ground);
         if (hits.length > 0) {
             const pt = hits[0].point;
-            
-            if (isTooCloseToCannon(pt)) {
-                return;
-            }
+            if (isTooCloseToCannon(pt)) return;
 
             const newPanel = ghostPanel.clone();
             newPanel.material = new THREE.MeshStandardMaterial({color: 0x777777, roughness: 0.8});
@@ -523,30 +552,68 @@ window.onmousedown = (e) => {
         }
         return;
     }
+
     const now = Date.now();
     const isDoubleClick = (now - lastClickTime) < DOUBLE_CLICK_THRESHOLD;
     lastClickTime = now;
-    if (e.button === 0) {
-        isDragging = true;
-        selectionStart.set(e.clientX, e.clientY);
-        selectionEnd.set(e.clientX, e.clientY);
-        updateSelectionBox();
-        selectionBox.style.display = 'block';
-        if (isDoubleClick) {
-            raycaster.setFromCamera(mouse, camera);
-            cannons.forEach(can => {
-                if (raycaster.intersectObject(can, true).length > 0) toggleBox(can);
-            });
+
+    // Minimap interaction
+    if (e.target === minimapCanvas) {
+        const rect = minimapCanvas.getBoundingClientRect();
+        const world = fromMap(e.clientX - rect.left, e.clientY - rect.top);
+        if (e.button === 0) {
+            // Move selected cannon to minimap click point
+            const selected = cannons.find(c => c.userData.selected);
+            if (selected) {
+                selected.userData.targetPos.set(world.x, selected.position.y, world.z);
+                socket.emit('player_move', { roomId: currentRoomId, id: selected.userData.id, tx: world.x, tz: world.z });
+            } else {
+                camera.position.set(world.x, 3, world.z);
+            }
         }
+        return;
     }
+
+    // LMB: Select a cannon or move selected cannon
+    if (e.button === 0) {
+        raycaster.setFromCamera(mouse, camera);
+        let clickedCannon = null;
+        cannons.forEach(can => {
+            if (raycaster.intersectObject(can, true).length > 0) {
+                clickedCannon = can;
+            }
+        });
+
+        if (clickedCannon) {
+            // Toggle selection for this specific cannon
+            cannons.forEach(c => c.userData.selected = false);
+            clickedCannon.userData.selected = true;
+            if (isDoubleClick) toggleBox(clickedCannon);
+        } else {
+            // Move selected cannon to clicked ground point
+            const hits = raycaster.intersectObjects([ground, river, ...bridges, ...worldPanels, ...gameWalls], true);
+            if (hits.length > 0) {
+                const selected = cannons.find(c => c.userData.selected);
+                if (selected) {
+                    const pt = hits[0].point;
+                    selected.userData.targetPos.set(pt.x, selected.position.y, pt.z);
+                    socket.emit('player_move', { roomId: currentRoomId, id: selected.userData.id, tx: pt.x, tz: pt.z });
+                }
+            }
+        }
+        updateStatusUI();
+    }
+
+    // RMB: Fire projectile from selected cannon
     if (e.button === 2) {
         e.preventDefault();
         raycaster.setFromCamera(mouse, camera);
         const hits = raycaster.intersectObjects([ground, river, ...bridges, ...worldPanels, ...gameWalls, ...opponentCannons], true);
         if (hits.length > 0) {
-            cannons.forEach(can => {
-                if (can.userData.selected) spawnProjectile(can, hits[0].point);
-            });
+            const selected = cannons.find(c => c.userData.selected);
+            if (selected) {
+                spawnProjectile(selected, hits[0].point);
+            }
         }
     }
 };
@@ -554,9 +621,7 @@ window.onmousedown = (e) => {
 window.onmousemove = (e) => {
     mouse.x = (e.clientX/window.innerWidth)*2-1;
     mouse.y = -(e.clientY/window.innerHeight)*2+1;
-    if (isDragging) { selectionEnd.set(e.clientX, e.clientY); updateSelectionBox(); }
-    
-    // Update grid reference display dynamically under mouse pointer
+
     raycaster.setFromCamera(mouse, camera);
     const hits = raycaster.intersectObject(ground);
     if (hits.length > 0) {
@@ -565,73 +630,28 @@ window.onmousemove = (e) => {
     }
 };
 
-window.onmouseup = (e) => {
-    if (!matchStarted || matchOver) return;
-    if (e.button === 0 && isDragging) {
-        isDragging = false;
-        selectionBox.style.display = 'none';
-        const dist = selectionStart.distanceTo(selectionEnd);
-        if (dist < 5) {
-            raycaster.setFromCamera(mouse, camera);
-            let hitUnit = false;
-            cannons.forEach(can => {
-                if (raycaster.intersectObject(can, true).length > 0) {
-                    can.userData.selected = !can.userData.selected;
-                    hitUnit = true;
-                }
-            });
-            if (!hitUnit) {
-                const hit = raycaster.intersectObjects([ground, river, ...bridges, ...worldPanels, ...gameWalls], true);
-                if (hit.length > 0) moveSelected(hit[0].point.x, hit[0].point.z);
-            }
-        } else {
-            const boxX = Math.min(selectionStart.x, selectionEnd.x), boxY = Math.min(selectionStart.y, selectionEnd.y);
-            const boxW = Math.abs(selectionStart.x - selectionEnd.x), boxH = Math.abs(selectionStart.y - selectionEnd.y);
-            cannons.forEach(can => {
-                const v = new THREE.Vector3(); can.getWorldPosition(v); v.project(camera);
-                const screenX = (v.x + 1) * window.innerWidth / 2, screenY = (-v.y + 1) * window.innerHeight / 2;
-                can.userData.selected = (screenX >= boxX && screenX <= boxX + boxW && screenY >= boxY && screenY <= boxY + boxH);
-            });
-        }
-        updateStatusUI();
-    }
-};
-
-function updateSelectionBox() {
-    let x1 = selectionStart.x, y1 = selectionStart.y;
-    let x2 = selectionEnd.x, y2 = selectionEnd.y;
-    selectionBox.style.left = Math.min(x1, x2) + 'px';
-    selectionBox.style.top = Math.min(y1, y2) + 'px';
-    selectionBox.style.width = Math.abs(x1 - x2) + 'px';
-    selectionBox.style.height = Math.abs(y1 - y2) + 'px';
-}
+window.onmouseup = (e) => {};
 
 function moveSelected(tx, tz) {
     if (!matchStarted) return;
-    const selected = cannons.filter(c => c.userData.selected);
-    if (selected.length === 0) return;
-    const center = new THREE.Vector3();
-    selected.forEach(c => center.add(c.position));
-    center.divideScalar(selected.length);
-    selected.forEach(can => {
-        const offsetX = can.position.x - center.x, offsetZ = can.position.z - center.z;
-        can.userData.targetPos.set(tx + offsetX, can.position.y, tz + offsetZ);
-        socket.emit('player_move', { roomId: currentRoomId, id: can.userData.id, tx: can.userData.targetPos.x, tz: can.userData.targetPos.z });
-    });
+    const selected = cannons.find(c => c.userData.selected);
+    if (!selected) return;
+    selected.userData.targetPos.set(tx, selected.position.y, tz);
+    socket.emit('player_move', { roomId: currentRoomId, id: selected.userData.id, tx, tz });
 }
 
 function updateStatusUI() {
-    let selectedNums = [];
+    let selectedNum = null;
     cannons.forEach(can => {
         can.userData.barrel.material.emissive.set(can.userData.selected ? 0x00ff00 : 0x000000);
-        if(can.userData.selected) selectedNums.push(`#${can.userData.unitNum}`);
+        if(can.userData.selected) selectedNum = can.userData.unitNum;
     });
     
     if (matchStarted && statusText.innerText !== "STATUS: WAITING FOR OPPONENT" && statusText.innerText !== "STATUS: MATCH STARTED!") {
-        if (selectedNums.length > 0) {
-            statusText.innerText = `SELECTED: CANNONS ${selectedNums.join(', ')}`;
+        if (selectedNum !== null) {
+            statusText.innerText = `ACTIVE COMMAND: CANNON #${selectedNum}`;
         } else {
-            statusText.innerText = "STATUS: STANDBY";
+            statusText.innerText = "STATUS: STANDBY (CLICK CANNON TO SELECT)";
         }
     }
 }
@@ -788,6 +808,7 @@ function animate() {
         }
     }
 
+    updateMinimap();
     renderer.render(scene, camera);
 }
 
