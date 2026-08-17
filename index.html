@@ -405,6 +405,7 @@ function createCannon(x, z, mainColor, isOpp = false, customId = null) {
 
 socket.on('opponent_move', (data) => {
     if (!matchStarted) return;
+    if (isNaN(data.tx) || isNaN(data.tz) || !isFinite(data.tx) || !isFinite(data.tz)) return;
     opponentCannons.forEach(can => {
         if (can.userData.id === data.id) {
             can.userData.targetPos.set(data.tx, can.position.y, data.tz);
@@ -644,6 +645,8 @@ function updateSelectionBox() {
 
 function moveSelected(tx, tz) {
     if (!matchStarted) return;
+    if (isNaN(tx) || isNaN(tz) || !isFinite(tx) || !isFinite(tz)) return;
+
     const selected = cannons.filter(c => c.userData.selected);
     if (selected.length === 0) return;
     const center = new THREE.Vector3();
@@ -651,7 +654,12 @@ function moveSelected(tx, tz) {
     center.divideScalar(selected.length);
     selected.forEach(can => {
         const offsetX = can.position.x - center.x, offsetZ = can.position.z - center.z;
-        can.userData.targetPos.set(tx + offsetX, can.position.y, tz + offsetZ);
+        const finalX = tx + offsetX;
+        const finalZ = tz + offsetZ;
+
+        if (isNaN(finalX) || isNaN(finalZ)) return;
+
+        can.userData.targetPos.set(finalX, can.position.y, finalZ);
         socket.emit('player_move', { roomId: currentRoomId, id: can.userData.id, tx: can.userData.targetPos.x, tz: can.userData.targetPos.z });
     });
 }
