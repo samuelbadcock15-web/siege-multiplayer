@@ -386,13 +386,16 @@ function createCannon(x, z, mainColor, isOpp = false, customId = null) {
     
     cGroup.rotation.y = (z < 0) ? 0 : Math.PI;
     
+    const assignedId = customId || (isOpp ? `p2_opp_${Math.random().toString(36).substring(2,7)}` : `p1_own_${Math.random().toString(36).substring(2,7)}`);
+    
     cGroup.userData = {
         selected: false,
         targetPos: new THREE.Vector3(x, 0.8, z),
         barrel, barrelPivot,
         onBox: false, box: null, angle: 0,
         startZ: z,
-        id: customId || Math.random().toString()
+        id: assignedId,
+        isOpponent: isOpp
     };
     scene.add(cGroup);
     
@@ -408,7 +411,11 @@ socket.on('opponent_move', (data) => {
     if (isNaN(data.tx) || isNaN(data.tz) || !isFinite(data.tx) || !isFinite(data.tz)) return;
     opponentCannons.forEach(can => {
         if (can.userData.id === data.id) {
-            can.userData.targetPos.set(data.tx, can.position.y, data.tz);
+            // Clamp target within map boundaries to prevent units running off into oblivion
+            const limit = halfBoard - 10;
+            const clampedX = Math.max(-limit, Math.min(limit, data.tx));
+            const clampedZ = Math.max(-limit, Math.min(limit, data.tz));
+            can.userData.targetPos.set(clampedX, can.position.y, clampedZ);
         }
     });
 });
@@ -608,6 +615,7 @@ window.onmouseup = (e) => {
             if (dist < 5) {
                 raycaster.setFromCamera(mouse, camera);
                 let hitUnit = false;
+                // ONLY select our own cannons (`cannons`), explicitly ignoring `opponentCannons`
                 cannons.forEach(can => {
                     if (raycaster.intersectObject(can, true).length > 0) {
                         can.userData.selected = !can.userData.selected;
@@ -621,6 +629,7 @@ window.onmouseup = (e) => {
             } else {
                 const boxX = Math.min(selectionStart.x, selectionEnd.x), boxY = Math.min(selectionStart.y, selectionEnd.y);
                 const boxW = Math.abs(selectionStart.x - selectionEnd.x), boxH = Math.abs(selectionStart.y - selectionEnd.y);
+                // ONLY loop through our own cannons for box selections
                 cannons.forEach(can => {
                     const v = new THREE.Vector3(); can.getWorldPosition(v); v.project(camera);
                     const screenX = (v.x + 1) * window.innerWidth / 2, screenY = (-v.y + 1) * window.innerHeight / 2;
@@ -659,7 +668,12 @@ function moveSelected(tx, tz) {
 
         if (isNaN(finalX) || isNaN(finalZ)) return;
 
-        can.userData.targetPos.set(finalX, can.position.y, finalZ);
+        // Clamp target within map boundaries to keep units from running off into oblivion
+        const limit = halfBoard - 10;
+        const clampedX = Math.max(-limit, Math.min(limit, finalX));
+        const clampedZ = Math.max(-limit, Math.min(limit, finalZ));
+
+        can.userData.targetPos.set(clampedX, can.position.y, clampedZ);
         socket.emit('player_move', { roomId: currentRoomId, id: can.userData.id, tx: can.userData.targetPos.x, tz: can.userData.targetPos.z });
     });
 }
