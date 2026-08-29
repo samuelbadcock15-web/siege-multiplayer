@@ -6,8 +6,8 @@
 <title>Siege - Clear Horizons (Blue vs Dark Edition)</title>
 <style>
   body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Courier New', Courier, monospace; cursor: crosshair; user-select: none; }
-  #ui { position: absolute; top: 15px; left: 15px; color: white; background: rgba(15, 15, 20, 0.95); padding: 20px; border-radius: 8px; border: 2px solid #ffd700; width: 440px; z-index: 101; box-shadow: 0 0 30px rgba(0,0,0,0.7); }
-  #minimap-container { position: absolute; top: 15px; right: 15px; width: 200px; height: 200px; background: rgba(0, 0, 0, 0.7); border: 2px solid #ffcc00; border-radius: 4px; z-index: 100; overflow: hidden; }
+  #ui { position: absolute; top: 15px; left: 15px; color: white; background: rgba(15, 15, 20, 0.95); padding: 20px; border-radius: 8px; border: 2px solid #ffd700; width: 440px; z-index: 101; box-shadow: 0 0 30px rgba(0,0,0,0.7); display: none; }
+  #minimap-container { position: absolute; top: 15px; right: 15px; width: 200px; height: 200px; background: rgba(0, 0, 0, 0.7); border: 2px solid #ffcc00; border-radius: 4px; z-index: 100; overflow: hidden; display: none; }
   #minimap { width: 100%; height: 100%; cursor: crosshair; }
   .ca { color: #ffd700; font-weight: bold; letter-spacing: 2px; }
   .sys { color: #00ff00; font-size: 12px; margin-top: 15px; display: block; text-align: center; border-top: 1px dashed #444; padding-top: 10px; }
@@ -21,6 +21,58 @@
   .build-opt.active { background: #00ff00; color: black; border-color: white; }
   .icon { width: 30px; height: 30px; background: #555; margin-bottom: 5px; border: 1px solid #888; }
   
+  /* --- 6-ROOM LOBBY SYSTEM --- */
+  #lobby-screen { 
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; 
+    background: radial-gradient(circle at center, #1b2033 0%, #0a0c13 100%); 
+    z-index: 500; display: flex; flex-direction: column; align-items: center; 
+    justify-content: flex-start; padding: 20px; box-sizing: border-box; overflow-y: auto; color: #fff; 
+  }
+  .lobby-header { text-align: center; margin-top: 10px; margin-bottom: 20px; }
+  .lobby-header h1 { font-size: clamp(24px, 5vw, 42px); margin: 0; letter-spacing: 2px; color: #ffd700; text-shadow: 0 0 20px rgba(255,215,0,0.4); }
+  .lobby-header p { margin: 5px 0 0; color: #8892b0; font-size: clamp(12px, 2.5vw, 15px); letter-spacing: 1px; }
+
+  #lobbies-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; width: 100%; max-width: 950px; }
+  
+  .arena-card {
+    background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between;
+    transition: transform 0.15s, border-color 0.2s, background 0.2s; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+  }
+  .arena-card:hover { border-color: rgba(255, 215, 0, 0.4); background: rgba(255, 255, 255, 0.07); }
+  .arena-card.active-room { border: 2px solid #ffd700; box-shadow: 0 0 25px rgba(255,215,0,0.25); background: rgba(255, 215, 0, 0.05); }
+
+  .card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .arena-name { font-weight: bold; font-size: 18px; color: #fff; }
+  .arena-badge { font-size: 11px; padding: 4px 8px; border-radius: 4px; font-weight: bold; text-transform: uppercase; }
+  .badge-open { background: rgba(0, 255, 204, 0.15); color: #00ffcc; }
+  .badge-ready { background: rgba(255, 215, 0, 0.2); color: #ffd700; }
+  .badge-ingame { background: rgba(255, 51, 102, 0.2); color: #ff3366; }
+
+  .player-slots { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+  .player-slot { background: rgba(0, 0, 0, 0.4); padding: 8px 12px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+  .slot-name { font-weight: bold; }
+  .slot-team-blue { color: #00aaff; }
+  .slot-team-dark { color: #ffaa00; }
+  .slot-empty { color: #555e75; font-style: italic; }
+
+  .ready-pill { font-size: 10px; padding: 2px 6px; border-radius: 3px; font-weight: bold; }
+  .pill-ready { background: #00ff00; color: #000; }
+  .pill-waiting { background: #334155; color: #aaa; }
+
+  .card-actions { display: flex; gap: 8px; }
+  .btn-join, .btn-ready, .btn-leave { flex: 1; padding: 10px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px; font-family: 'Courier New', Courier, monospace; transition: all 0.15s ease; text-transform: uppercase; }
+  .btn-join { background: #ffd700; color: #051419; }
+  .btn-join:hover { background: #fff; transform: translateY(-1px); }
+  .btn-join:disabled { background: #1e293b; color: #555e75; cursor: not-allowed; transform: none; }
+  .btn-ready { background: #1e293b; color: #fff; border: 1px solid #334155; }
+  .btn-ready.is-ready { background: #00ff00; color: #000; border-color: #00ff00; }
+  .btn-leave { background: #ff3366; color: #fff; flex: 0.5; }
+
+  #match-countdown { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.9); z-index: 600; display: none; flex-direction: column; align-items: center; justify-content: center; color: #fff; text-align: center; }
+  #countdown-num { font-size: clamp(60px, 15vw, 120px); font-weight: 900; color: #ffd700; margin: 20px 0; animation: popIn 0.5s ease-out; }
+  @keyframes popIn { 0% { transform: scale(0.3); opacity: 0; } 80% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(1); } }
+
   /* Game Over Screen Overlay */
   #game-over-modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 1000; font-family: 'Courier New', Courier, monospace; }
   .modal-content { background: #111; border: 3px solid #ffd700; padding: 30px; border-radius: 12px; text-align: center; width: 450px; box-shadow: 0 0 50px rgba(255,215,0,0.4); color: white; }
@@ -32,6 +84,22 @@
 <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
+<!-- 6-ROOM LOBBY OVERLAY -->
+<div id="lobby-screen">
+    <div class="lobby-header">
+        <h1>CLEAR HORIZONS</h1>
+        <p>Select an arena, join a lobby, and click READY to commence siege!</p>
+    </div>
+    <div id="lobbies-grid"></div>
+</div>
+
+<!-- COUNTDOWN OVERLAY -->
+<div id="match-countdown">
+    <div style="font-size: 20px; color: #ffd700; font-weight: bold;" id="countdown-role-text">COMMAND ROLE ASSIGNED</div>
+    <div id="countdown-num">3</div>
+    <div style="color: #aaa; font-size: 14px;">Muster forces into keep formation...</div>
+</div>
+
 <div id="minimap-container"><canvas id="minimap"></canvas></div>
 <div id="ui">
  <span class="ca">MISSION INTELLIGENCE: CLEAR HORIZONS</span>
@@ -53,7 +121,7 @@
     [Scroll] Zoom | [LMB Click] Select Cannon & Move<br>
     [RMB Click] Fire Projectile | [Click Panel] Build Mode
  </div>
- <span id="status" class="sys">STATUS: WAITING FOR OPPONENT</span>
+ <span id="status" class="sys">STATUS: STANDBY</span>
 </div>
 
 <div id="build-menu">
@@ -84,6 +152,7 @@ import * as THREE from 'three';
 const socket = io();
 let myPlayerIndex = null;
 let currentRoomId = null;
+let myReadyState = false;
 let matchOver = false;
 let gameInitialized = false;
 let matchStarted = false;
@@ -99,47 +168,160 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 document.body.appendChild(renderer.domElement);
 
+// --- DYNAMIC 6-LOBBY SYNC ---
+socket.on('lobbies_update', (lobbies) => {
+    const grid = document.getElementById('lobbies-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    lobbies.forEach(lobby => {
+        const isMyCurrentRoom = currentRoomId === lobby.id;
+        const isFull = lobby.playerCount >= 2;
+        const isInGame = lobby.status === 'in_game';
+
+        const card = document.createElement('div');
+        card.className = `arena-card ${isMyCurrentRoom ? 'active-room' : ''}`;
+
+        let statusBadge = `<span class="arena-badge badge-open">Waiting (${lobby.playerCount}/2)</span>`;
+        if (isInGame) statusBadge = `<span class="arena-badge badge-ingame">In Battle</span>`;
+        else if (isFull) statusBadge = `<span class="arena-badge badge-ready">Full</span>`;
+
+        const p1 = lobby.players[0];
+        const p2 = lobby.players[1];
+
+        const slot1Html = p1 
+            ? `<div class="player-slot">
+                 <span class="slot-name ${p1.team === 'blue' ? 'slot-team-blue' : 'slot-team-dark'}">
+                   ${p1.id === socket.id ? '★ YOU (' + (p1.playerIndex === 1 ? 'BLUE FORCES' : 'DARK FORCES') + ')' : 'PLAYER 1 (' + (p1.playerIndex === 1 ? 'BLUE FORCES' : 'DARK FORCES') + ')'}
+                 </span>
+                 <span class="ready-pill ${p1.ready ? 'pill-ready' : 'pill-waiting'}">${p1.ready ? 'READY' : 'WAITING'}</span>
+               </div>`
+            : `<div class="player-slot"><span class="slot-empty">Empty Garrison Slot</span></div>`;
+
+        const slot2Html = p2 
+            ? `<div class="player-slot">
+                 <span class="slot-name ${p2.team === 'blue' ? 'slot-team-blue' : 'slot-team-dark'}">
+                   ${p2.id === socket.id ? '★ YOU (' + (p2.playerIndex === 1 ? 'BLUE FORCES' : 'DARK FORCES') + ')' : 'PLAYER 2 (' + (p2.playerIndex === 1 ? 'BLUE FORCES' : 'DARK FORCES') + ')'}
+                 </span>
+                 <span class="ready-pill ${p2.ready ? 'pill-ready' : 'pill-waiting'}">${p2.ready ? 'READY' : 'WAITING'}</span>
+               </div>`
+            : `<div class="player-slot"><span class="slot-empty">Empty Garrison Slot</span></div>`;
+
+        let actionButtonsHtml = '';
+        if (isMyCurrentRoom) {
+            actionButtonsHtml = `
+                <button class="btn-ready ${myReadyState ? 'is-ready' : ''}" id="btn-ready-${lobby.id}">
+                    ${myReadyState ? '✓ READY' : 'CONFIRM READY'}
+                </button>
+                <button class="btn-leave" id="btn-leave-${lobby.id}">LEAVE</button>
+            `;
+        } else {
+            const disableJoin = isInGame || isFull || currentRoomId !== null;
+            actionButtonsHtml = `
+                <button class="btn-join" ${disableJoin ? 'disabled' : ''} id="btn-join-${lobby.id}">
+                    ${isInGame ? 'IN BATTLE' : (isFull ? 'ARENA FULL' : 'JOIN ARENA')}
+                </button>
+            `;
+        }
+
+        card.innerHTML = `
+            <div>
+                <div class="card-top">
+                    <span class="arena-name">${lobby.name}</span>
+                    ${statusBadge}
+                </div>
+                <div class="player-slots">
+                    ${slot1Html}
+                    ${slot2Html}
+                </div>
+            </div>
+            <div class="card-actions">
+                ${actionButtonsHtml}
+            </div>
+        `;
+
+        grid.appendChild(card);
+
+        // Bind Action Listeners
+        const joinBtn = document.getElementById(`btn-join-${lobby.id}`);
+        if (joinBtn) joinBtn.onclick = () => socket.emit('join_room', lobby.id);
+
+        const readyBtn = document.getElementById(`btn-ready-${lobby.id}`);
+        if (readyBtn) readyBtn.onclick = () => { socket.emit('toggle_ready', lobby.id); myReadyState = !myReadyState; };
+
+        const leaveBtn = document.getElementById(`btn-leave-${lobby.id}`);
+        if (leaveBtn) leaveBtn.onclick = () => socket.emit('leave_room');
+    });
+});
+
+socket.on('room_joined', (data) => {
+    currentRoomId = data.roomId;
+    myPlayerIndex = data.playerIndex;
+    myReadyState = false;
+});
+
+socket.on('left_room_success', () => {
+    currentRoomId = null;
+    myReadyState = false;
+});
+
+socket.on('lobby_error', (msg) => { alert(msg); });
+
+socket.on('start_match_countdown', (data) => {
+    myPlayerIndex = data.playerIndex;
+    currentRoomId = data.roomId;
+
+    document.getElementById('lobby-screen').style.display = 'none';
+    const countdownEl = document.getElementById('match-countdown');
+    const countdownNum = document.getElementById('countdown-num');
+    const roleText = document.getElementById('countdown-role-text');
+
+    const roleString = myPlayerIndex === 1 ? "BLUE FORCES (South Keep)" : "DARK FORCES (North Keep)";
+    roleText.innerText = `YOU ARE ${roleString.toUpperCase()}`;
+    countdownEl.style.display = 'flex';
+
+    let count = 3;
+    countdownNum.innerText = count;
+    const timer = setInterval(() => {
+        count--;
+        if (count > 0) {
+            countdownNum.innerText = count;
+        } else {
+            clearInterval(timer);
+            countdownEl.style.display = 'none';
+            document.getElementById('ui').style.display = 'block';
+            document.getElementById('minimap-container').style.display = 'block';
+            document.getElementById('build-menu').style.display = 'flex';
+
+            document.getElementById('role-display').innerText = roleString;
+            if (myPlayerIndex === 2) {
+                camera.position.set(0, 3, -135);
+                camera.rotation.y = Math.PI;
+            }
+
+            if (!gameInitialized) {
+                gameInitialized = true;
+                if (myPlayerIndex === 1) {
+                    for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), 120, 0x012169, false, `blue_${i+1}`, i+1);
+                    for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), -120, 0x222222, true, `dark_${i+1}`, i+1);
+                } else {
+                    for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), -120, 0x222222, false, `dark_${i+1}`, i+1);
+                    for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), 120, 0x012169, true, `blue_${i+1}`, i+1);
+                }
+            }
+            updateUnitCountsDisplay();
+
+            statusText.innerText = "STATUS: MATCH STARTED!";
+            matchStarted = true;
+        }
+    }, 1000);
+});
+
 socket.on('update_counts', (data) => {
     const statsEl = document.getElementById('server-stats');
     if (statsEl) {
-        statsEl.innerText = `Online: ${data.totalOnline} | Queue: ${data.inQueue}`;
+        statsEl.innerText = `Online: ${data.totalOnline} | Arena Match`;
     }
-});
-
-socket.on('assigned_role', (data) => {
-    myPlayerIndex = data.playerIndex;
-    currentRoomId = data.roomId;
-    const roleText = myPlayerIndex === 1 ? "BLUE FORCES (South Keep)" : "DARK FORCES (North Keep)";
-    document.getElementById('role-display').innerText = roleText;
-    
-    if (myPlayerIndex === 2) {
-        camera.position.set(0, 3, -135);
-        camera.rotation.y = Math.PI;
-    }
-
-    if (!gameInitialized) {
-        gameInitialized = true;
-        if (myPlayerIndex === 1) {
-            for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), 120, 0x012169, false, `blue_${i+1}`, i+1);
-            for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), -120, 0x222222, true, `dark_${i+1}`, i+1);
-        } else {
-            for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), -120, 0x222222, false, `dark_${i+1}`, i+1);
-            for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), 120, 0x012169, true, `blue_${i+1}`, i+1);
-        }
-    }
-    updateUnitCountsDisplay();
-});
-
-socket.on('waiting_for_opponent', () => {
-    statusText.innerText = "STATUS: WAITING FOR OPPONENT";
-    matchStarted = false;
-    document.getElementById('build-menu').style.display = 'none';
-});
-
-socket.on('start_match', () => {
-    statusText.innerText = "STATUS: MATCH STARTED!";
-    matchStarted = true;
-    document.getElementById('build-menu').style.display = 'flex';
 });
 
 socket.on('opponent_disconnected', () => {
@@ -464,11 +646,9 @@ function updateMinimap() {
     ctx.clearRect(0, 0, 200, 200);
     ctx.fillStyle = '#3a5a2a'; ctx.fillRect(0, 0, 200, 200);
     
-    // 1. Draw River First
     const riverTop = toMap(0, -riverWidth/2).y;
     ctx.fillStyle = '#0077be'; ctx.fillRect(0, riverTop < 100 ? riverTop : riverTop - riverWidth * MAP_SCALE, 200, riverWidth * MAP_SCALE);
     
-    // 2. Draw Bridges ON TOP of the River so they are clearly visible
     ctx.fillStyle = '#5c4033';
     bridgeXPositions.forEach(bx => {
         const bp = toMap(bx - bridgeWidth/2, -bridgeLength/2);
@@ -571,7 +751,7 @@ function isTooCloseToCannon(pt) {
 
 window.onmousedown = (e) => {
     if (!matchStarted || matchOver) return;
-    if (e.target.closest('#ui') || e.target.closest('#build-menu')) return;
+    if (e.target.closest('#ui') || e.target.closest('#build-menu') || e.target.closest('#lobby-screen')) return;
 
     if (selectedPanelType && e.button === 0) {
         raycaster.setFromCamera(mouse, camera);
@@ -663,14 +843,6 @@ window.onmousemove = (e) => {
 
 window.onmouseup = (e) => {};
 
-function moveSelected(tx, tz) {
-    if (!matchStarted) return;
-    const selected = cannons.find(c => c.userData.selected);
-    if (!selected) return;
-    selected.userData.targetPos.set(tx, selected.position.y, tz);
-    socket.emit('player_move', { roomId: currentRoomId, id: selected.userData.id, tx, tz });
-}
-
 function updateStatusUI() {
     let selectedNum = null;
     cannons.forEach(can => {
@@ -678,7 +850,7 @@ function updateStatusUI() {
         if(can.userData.selected) selectedNum = can.userData.unitNum;
     });
     
-    if (matchStarted && statusText.innerText !== "STATUS: WAITING FOR OPPONENT" && statusText.innerText !== "STATUS: MATCH STARTED!") {
+    if (matchStarted && statusText.innerText !== "STATUS: MATCH STARTED!") {
         if (selectedNum !== null) {
             statusText.innerText = `ACTIVE COMMAND: CANNON #${selectedNum}`;
         } else {
@@ -859,7 +1031,7 @@ function animate() {
         }
     }
 
-    updateMinimap();
+    if (matchStarted) updateMinimap();
     renderer.render(scene, camera);
 }
 
