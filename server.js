@@ -6,6 +6,7 @@ const path = require('path');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
+    cors: { origin: "*" },
     pingTimeout: 60000,
     pingInterval: 25000
 });
@@ -16,40 +17,145 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-let waitingPlayer = null;
+// Initialize 6 fixed 2-player lobbies
 const rooms = {};
+for (let i = 1; i <= 6; i++) {
+    const roomId = `room_${i}`;
+    rooms[roomId] = {
+        id: roomId,
+        name: `Arena 0${i}`,
+        players: {}, // socketId: { playerIndex: 1|2, team: 'blue'|'dark', ready: false }
+        status: 'open' // 'open' | 'in_game'
+    };
+}
+
 let totalOnlinePlayers = 0;
 
-function broadcastPlayerCounts() {
-    io.emit('update_counts', { totalOnline: totalOnlinePlayers, inQueue: waitingPlayer ? 1 : 0 });
+function getLobbiesSummary() {
+    const list = [];
+    for (const rId in rooms) {
+        const r = rooms[rId];
+        const pKeys = Object.keys(r.players);
+        list.push({
+            id: r.id,
+            name: r.name,
+            playerCount: pKeys.length,
+            status: r.status,
+            players: pKeys.map(id => ({
+                id,
+                ready: r.players[id].ready,
+                team: r.players[id].team,
+                playerIndex: r.players[id].playerIndex
+            }))
+        });
+    }
+    return list;
+}
+
+function broadcastLobbyState() {
+    io.emit('lobbies_update', getLobbiesSummary());
+    io.emit('update_counts', { totalOnline: totalOnlinePlayers, inQueue: 0 });
+}
+
+function removePlayerFromCurrentRoom(socket) {
+    for (const roomId in rooms) {
+        const room = rooms[roomId];
+        if (room.players[socket.id]) {
+            delete room.players[socket.id];
+            socket.leave(roomId);
+
+            if (room.status === 'in_game') {
+                io.to(roomId).emit('opponent_disconnected');
+                room.status = 'open';
+                room.players = {};
+            }
+            broadcastLobbyState();
+            break;
+        }
+    }
 }
 
 io.on('connection', (socket) => {
     totalOnlinePlayers++;
-    console.log('A player connected:', socket.id);
-    broadcastPlayerCounts();
+    console.log('Player connected:', socket.id);
 
-    if (!waitingPlayer) {
-        waitingPlayer = socket;
-        socket.emit('waiting_for_opponent');
-    } else {
-        const roomId = `room_${Math.random().toString(36).substring(2, 9)}`;
-        socket.join(roomId);
-        waitingPlayer.join(roomId);
+    socket.emit('lobbies_update', getLobbiesSummary());
+    broadcastLobbyState();
 
-        rooms[roomId] = {
-            p1: waitingPlayer.id,
-            p2: socket.id
+    socket.on('join_room', (roomId) => {
+        const room = rooms[roomId];
+        if (!room) return;
+
+        if (room.status === 'in_game') {
+            socket.emit('lobby_error', 'This battle is currently in progress!');
+            return;
+        }
+
+        const currentPlayers = Object.keys(room.players);
+        if (currentPlayers.length >= 2) {
+            socket.emit('lobby_error', 'This arena is already full!');
+            return;
+        }
+
+        removePlayerFromCurrentRoom(socket);
+
+        let assignedIndex = 1;
+        let assignedTeam = 'blue';
+        if (currentPlayers.length === 1) {
+            const existingP = room.players[currentPlayers[0]];
+            assignedIndex = existingP.playerIndex === 1 ? 2 : 1;
+            assignedTeam = assignedIndex === 1 ? 'blue' : 'dark';
+        }
+
+        room.players[socket.id] = {
+            playerIndex: assignedIndex,
+            team: assignedTeam,
+            ready: false
         };
 
-        io.to(waitingPlayer.id).emit('assigned_role', { playerIndex: 1, roomId });
-        io.to(socket.id).emit('assigned_role', { playerIndex: 2, roomId });
+        socket.roomID = roomId;
+        socket.join(roomId);
 
-        io.to(roomId).emit('start_match');
-        waitingPlayer = null;
-        broadcastPlayerCounts();
-    }
+        socket.emit('room_joined', {
+            roomId: room.id,
+            name: room.name,
+            playerIndex: assignedIndex,
+            team: assignedTeam
+        });
 
+        broadcastLobbyState();
+    });
+
+    socket.on('leave_room', () => {
+        removePlayerFromCurrentRoom(socket);
+        socket.roomID = null;
+        socket.emit('left_room_success');
+        broadcastLobbyState();
+    });
+
+    socket.on('toggle_ready', (roomId) => {
+        const room = rooms[roomId];
+        if (!room || !room.players[socket.id]) return;
+
+        room.players[socket.id].ready = !room.players[socket.id].ready;
+        broadcastLobbyState();
+
+        const playerIds = Object.keys(room.players);
+        const allReady = playerIds.length === 2 && playerIds.every(id => room.players[id].ready);
+
+        if (allReady) {
+            room.status = 'in_game';
+            broadcastLobbyState();
+
+            const p1 = playerIds[0];
+            const p2 = playerIds[1];
+
+            io.to(p1).emit('start_match_countdown', { roomId, playerIndex: room.players[p1].playerIndex });
+            io.to(p2).emit('start_match_countdown', { roomId, playerIndex: room.players[p2].playerIndex });
+        }
+    });
+
+    // In-Game Relay Events
     socket.on('player_move', (data) => {
         socket.to(data.roomId).emit('opponent_move', data);
     });
@@ -62,7 +168,6 @@ io.on('connection', (socket) => {
         socket.to(data.roomId).emit('opponent_build', data);
     });
 
-    // Server-relayed clean destruction to prevent double-trigger bugs
     socket.on('destroy_unit', (data) => {
         socket.to(data.roomId).emit('opponent_destroy', data);
     });
@@ -84,17 +189,9 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
         totalOnlinePlayers = Math.max(0, totalOnlinePlayers - 1);
-        console.log('A player disconnected:', socket.id);
-        if (waitingPlayer === socket) {
-            waitingPlayer = null;
-        }
-        for (const roomId in rooms) {
-            if (rooms[roomId].p1 === socket.id || rooms[roomId].p2 === socket.id) {
-                io.to(roomId).emit('opponent_disconnected');
-                delete rooms[roomId];
-            }
-        }
-        broadcastPlayerCounts();
+        console.log('Player disconnected:', socket.id);
+        removePlayerFromCurrentRoom(socket);
+        broadcastLobbyState();
     });
 });
 
