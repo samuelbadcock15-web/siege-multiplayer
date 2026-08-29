@@ -394,7 +394,7 @@ scene.add(river);
 
 const bridgeMat = new THREE.MeshStandardMaterial({ color: 0x5c4033, roughness: 0.8 });
 const bridgeWidth = 16;
-const bridgeLength = riverWidth + 4;
+const bridgeLength = riverWidth + 6;
 const bridgeXPositions = [-150, 0, 150];
 const bridges = [];
 bridgeXPositions.forEach(bx => {
@@ -646,7 +646,7 @@ function updateMinimap() {
     ctx.clearRect(0, 0, 200, 200);
     ctx.fillStyle = '#3a5a2a'; ctx.fillRect(0, 0, 200, 200);
     
-    // 1. Draw River First (Centered precisely around z=0)
+    // 1. Draw River First (Strictly mapped box coordinates)
     const pRiver1 = toMap(-boardSize/2, -riverWidth / 2);
     const pRiver2 = toMap(boardSize/2, riverWidth / 2);
     const rX = Math.min(pRiver1.x, pRiver2.x);
@@ -656,7 +656,7 @@ function updateMinimap() {
     ctx.fillStyle = '#0077be'; 
     ctx.fillRect(rX, rY, rW, rH);
     
-    // 2. Draw Bridges Oriented Consistently for Both Hosts and Guests
+    // 2. Draw Bridges (Aligned seamlessly in both views)
     ctx.fillStyle = '#5c4033';
     bridgeXPositions.forEach(bx => {
         const p1 = toMap(bx - bridgeWidth / 2, -bridgeLength / 2);
@@ -1025,27 +1025,30 @@ function animate() {
                 }
             }
 
-            // 2. Strict Combat Collision: Local shots only hit opponents; remote shots only hit local cannons
-            const candidateTargets = p.isRemote ? cannons : opponentCannons;
-            const validTargets = candidateTargets.filter(c => c.userData.id !== p.shooterId);
+            // 2. Strict Combat Collision: Projectiles ONLY destroy OPPONENTS, never yourself or teammates
+            // Local shot -> target opponentCannons
+            // Remote shot -> target local cannons
+            const targetCannonList = p.isRemote ? cannons : opponentCannons;
+            
+            let hitTarget = null;
+            for (let targetCan of targetCannonList) {
+                // Sphere-to-box distance test avoids self-clipping raycaster false positives
+                const distToCannon = p.mesh.position.distanceTo(targetCan.position);
+                if (distToCannon < 2.5) {
+                    hitTarget = targetCan;
+                    break;
+                }
+            }
 
-            const combatRay = new THREE.Raycaster(prevPos, rayDir, 0, rayLen);
-            const hits = combatRay.intersectObjects(validTargets, true);
-            if (hits.length > 0) {
-                let hitObj = hits[0].object;
-                while (hitObj.parent && hitObj.parent !== scene) {
-                    hitObj = hitObj.parent;
-                }
-                
-                // If local shot destroyed an enemy, tell server
+            if (hitTarget) {
                 if (!p.isRemote) {
-                    socket.emit('destroy_unit', { roomId: currentRoomId, id: hitObj.userData.id });
+                    socket.emit('destroy_unit', { roomId: currentRoomId, id: hitTarget.userData.id });
                 }
                 
-                if (hitObj.userData.box) scene.remove(hitObj.userData.box);
-                scene.remove(hitObj);
-                cannons = cannons.filter(c => c.userData.id !== hitObj.userData.id);
-                opponentCannons = opponentCannons.filter(c => c.userData.id !== hitObj.userData.id);
+                if (hitTarget.userData.box) scene.remove(hitTarget.userData.box);
+                scene.remove(hitTarget);
+                cannons = cannons.filter(c => c.userData.id !== hitTarget.userData.id);
+                opponentCannons = opponentCannons.filter(c => c.userData.id !== hitTarget.userData.id);
                 updateStatusUI();
                 updateUnitCountsDisplay();
                 checkWinCondition();
