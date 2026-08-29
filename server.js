@@ -1,1096 +1,201 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Siege - Clear Horizons (Blue vs Dark Edition)</title>
-<style>
-  body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Courier New', Courier, monospace; cursor: crosshair; user-select: none; }
-  #ui { position: absolute; top: 15px; left: 15px; color: white; background: rgba(15, 15, 20, 0.95); padding: 20px; border-radius: 8px; border: 2px solid #ffd700; width: 440px; z-index: 101; box-shadow: 0 0 30px rgba(0,0,0,0.7); display: none; }
-  #minimap-container { position: absolute; top: 15px; right: 15px; width: 200px; height: 200px; background: rgba(0, 0, 0, 0.7); border: 2px solid #ffcc00; border-radius: 4px; z-index: 100; overflow: hidden; display: none; }
-  #minimap { width: 100%; height: 100%; cursor: crosshair; }
-  .ca { color: #ffd700; font-weight: bold; letter-spacing: 2px; }
-  .sys { color: #00ff00; font-size: 12px; margin-top: 15px; display: block; text-align: center; border-top: 1px dashed #444; padding-top: 10px; }
-  hr { border: 0; border-top: 1px solid #ffd700; margin: 10px 0; }
-  .info-grid { display: flex; gap: 15px; text-align: left; margin-top: 10px; }
-  .info-column { flex: 1; font-size: 11px; }
-  .info-column h3 { margin: 0 0 5px 0; color: #ffd700; font-size: 13px; }
-  #build-menu { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.9); border: 2px solid #ffcc00; border-radius: 10px; display: none; padding: 10px; gap: 15px; z-index: 200; align-items: center; }
-  .build-opt { width: 70px; height: 60px; border: 1px solid #666; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 10px; cursor: pointer; transition: 0.2s; background: #222; }
-  .build-opt:hover { border-color: #ffcc00; background: #333; }
-  .build-opt.active { background: #00ff00; color: black; border-color: white; }
-  .icon { width: 30px; height: 30px; background: #555; margin-bottom: 5px; border: 1px solid #888; }
-  
-  /* --- 6-ROOM LOBBY SYSTEM --- */
-  #lobby-screen { 
-    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; 
-    background: radial-gradient(circle at center, #1b2033 0%, #0a0c13 100%); 
-    z-index: 500; display: flex; flex-direction: column; align-items: center; 
-    justify-content: flex-start; padding: 20px; box-sizing: border-box; overflow-y: auto; color: #fff; 
-  }
-  .lobby-header { text-align: center; margin-top: 10px; margin-bottom: 20px; }
-  .lobby-header h1 { font-size: clamp(24px, 5vw, 42px); margin: 0; letter-spacing: 2px; color: #ffd700; text-shadow: 0 0 20px rgba(255,215,0,0.4); }
-  .lobby-header p { margin: 5px 0 0; color: #8892b0; font-size: clamp(12px, 2.5vw, 15px); letter-spacing: 1px; }
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+const path = require('path');
 
-  #lobbies-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; width: 100%; max-width: 950px; }
-  
-  .arena-card {
-    background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 10px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between;
-    transition: transform 0.15s, border-color 0.2s, background 0.2s; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-  }
-  .arena-card:hover { border-color: rgba(255, 215, 0, 0.4); background: rgba(255, 255, 255, 0.07); }
-  .arena-card.active-room { border: 2px solid #ffd700; box-shadow: 0 0 25px rgba(255,215,0,0.25); background: rgba(255, 215, 0, 0.05); }
-
-  .card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-  .arena-name { font-weight: bold; font-size: 18px; color: #fff; }
-  .arena-badge { font-size: 11px; padding: 4px 8px; border-radius: 4px; font-weight: bold; text-transform: uppercase; }
-  .badge-open { background: rgba(0, 255, 204, 0.15); color: #00ffcc; }
-  .badge-ready { background: rgba(255, 215, 0, 0.2); color: #ffd700; }
-  .badge-ingame { background: rgba(255, 51, 102, 0.2); color: #ff3366; }
-
-  .player-slots { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
-  .player-slot { background: rgba(0, 0, 0, 0.4); padding: 8px 12px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
-  .slot-name { font-weight: bold; }
-  .slot-team-blue { color: #00aaff; }
-  .slot-team-dark { color: #ffaa00; }
-  .slot-empty { color: #555e75; font-style: italic; }
-
-  .ready-pill { font-size: 10px; padding: 2px 6px; border-radius: 3px; font-weight: bold; }
-  .pill-ready { background: #00ff00; color: #000; }
-  .pill-waiting { background: #334155; color: #aaa; }
-
-  .card-actions { display: flex; gap: 8px; }
-  .btn-join, .btn-ready, .btn-leave { flex: 1; padding: 10px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px; font-family: 'Courier New', Courier, monospace; transition: all 0.15s ease; text-transform: uppercase; }
-  .btn-join { background: #ffd700; color: #051419; }
-  .btn-join:hover { background: #fff; transform: translateY(-1px); }
-  .btn-join:disabled { background: #1e293b; color: #555e75; cursor: not-allowed; transform: none; }
-  .btn-ready { background: #1e293b; color: #fff; border: 1px solid #334155; }
-  .btn-ready.is-ready { background: #00ff00; color: #000; border-color: #00ff00; }
-  .btn-leave { background: #ff3366; color: #fff; flex: 0.5; }
-
-  #match-countdown { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.9); z-index: 600; display: none; flex-direction: column; align-items: center; justify-content: center; color: #fff; text-align: center; }
-  #countdown-num { font-size: clamp(60px, 15vw, 120px); font-weight: 900; color: #ffd700; margin: 20px 0; animation: popIn 0.5s ease-out; }
-  @keyframes popIn { 0% { transform: scale(0.3); opacity: 0; } 80% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(1); } }
-
-  /* Game Over Screen Overlay */
-  #game-over-modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 1000; font-family: 'Courier New', Courier, monospace; }
-  .modal-content { background: #111; border: 3px solid #ffd700; padding: 30px; border-radius: 12px; text-align: center; width: 450px; box-shadow: 0 0 50px rgba(255,215,0,0.4); color: white; }
-  .modal-content h1 { font-size: 28px; margin-top: 0; letter-spacing: 3px; }
-  .stats-box { background: #222; border: 1px solid #444; padding: 15px; margin: 20px 0; text-align: left; font-size: 13px; line-height: 1.6; }
-  #restart-btn { background: #ffd700; color: black; border: none; padding: 12px 25px; font-size: 15px; font-weight: bold; cursor: pointer; border-radius: 6px; letter-spacing: 1px; transition: 0.2s; }
-  #restart-btn:hover { background: #fff; box-shadow: 0 0 15px #ffd700; }
-</style>
-<script src="/socket.io/socket.io.js"></script>
-</head>
-<body>
-<!-- 6-ROOM LOBBY OVERLAY -->
-<div id="lobby-screen">
-    <div class="lobby-header">
-        <h1>CLEAR HORIZONS</h1>
-        <p>Select an arena, join a lobby, and click READY to commence siege!</p>
-    </div>
-    <div id="lobbies-grid"></div>
-</div>
-
-<!-- COUNTDOWN OVERLAY -->
-<div id="match-countdown">
-    <div style="font-size: 20px; color: #ffd700; font-weight: bold;" id="countdown-role-text">COMMAND ROLE ASSIGNED</div>
-    <div id="countdown-num">3</div>
-    <div style="color: #aaa; font-size: 14px;">Muster forces into keep formation...</div>
-</div>
-
-<div id="minimap-container"><canvas id="minimap"></canvas></div>
-<div id="ui">
- <span class="ca">MISSION INTELLIGENCE: CLEAR HORIZONS</span>
- <hr>
- <div class="info-grid">
-   <div class="info-column">
-     <h3>COMMAND ROLE</h3>
-     <p style="font-weight: bold; margin: 0 0 5px 0; color: #ffd700;" id="role-display">CONNECTING...</p>
-     <p style="font-size: 10px; margin: 0; color: #00ff00;" id="my-units-count">Your Cannons: 10</p>
-   </div>
-   <div class="info-column">
-     <h3>SERVER STATUS</h3>
-     <p style="font-weight: bold; margin: 0 0 5px 0; color: #00ff00;" id="server-stats">Online: 0 | Queue: 0</p>
-     <p style="font-size: 10px; margin: 0; color: #ffaa00;" id="enemy-units-count">Enemy Cannons: 10</p>
-   </div>
- </div>
- <div style="font-size: 10px; margin-top: 15px; color: #888; border-top: 1px solid #333; padding-top: 8px;">
-    [W,S,A,D] Move Camera | [Q,E] Strafe | [A/D Rotate]<br>
-    [Scroll] Zoom | [LMB Click] Select Cannon & Move<br>
-    [RMB Click] Fire Projectile | [Click Panel] Build Mode
- </div>
- <span id="status" class="sys">STATUS: STANDBY</span>
-</div>
-
-<div id="build-menu">
- <div class="build-opt" data-type="wall_f"><div class="icon" style="width:30px; height:6px;"></div>FRONT</div>
- <div class="build-opt" data-type="wall_s"><div class="icon" style="width:6px; height:30px;"></div>SIDE</div>
- <div class="build-opt" data-type="roof"><div class="icon" style="width:25px; height:25px;"></div>ROOF</div>
- <div style="color: #666; font-size: 9px; padding: 5px;">SELECT TO BUILD</div>
-</div>
-
-<!-- Game Over Screen Overlay -->
-<div id="game-over-modal">
- <div class="modal-content">
-   <h1 id="modal-title" style="color: #ffd700;">BATTLE CONCLUDED</h1>
-   <p id="modal-subtitle" style="font-size: 14px; color: #aaa; margin: 5px 0 15px 0;"></p>
-   <div class="stats-box">
-     <div><strong>Winner:</strong> <span id="stat-winner" style="color: #00ff00;">-</span></div>
-     <div><strong>Your Surviving Units:</strong> <span id="stat-my-units">-</span></div>
-     <div><strong>Enemy Surviving Units:</strong> <span id="stat-enemy-units">-</span></div>
-   </div>
-   <button id="restart-btn">RESTART BATTLE</button>
- </div>
-</div>
-
-<script type="importmap">{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" }}</script>
-<script type="module">
-import * as THREE from 'three';
-
-const socket = io();
-let myPlayerIndex = null;
-let currentRoomId = null;
-let myReadyState = false;
-let matchOver = false;
-let gameInitialized = false;
-let matchStarted = false;
-
-// Scene, Camera, and Renderer setup
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87CEEB);
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1500);
-camera.position.set(0, 3, 135);
-
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-document.body.appendChild(renderer.domElement);
-
-// --- DYNAMIC 6-LOBBY SYNC ---
-socket.on('lobbies_update', (lobbies) => {
-    const grid = document.getElementById('lobbies-grid');
-    if (!grid) return;
-    grid.innerHTML = '';
-
-    lobbies.forEach(lobby => {
-        const isMyCurrentRoom = currentRoomId === lobby.id;
-        const isFull = lobby.playerCount >= 2;
-        const isInGame = lobby.status === 'in_game';
-
-        const card = document.createElement('div');
-        card.className = `arena-card ${isMyCurrentRoom ? 'active-room' : ''}`;
-
-        let statusBadge = `<span class="arena-badge badge-open">Waiting (${lobby.playerCount}/2)</span>`;
-        if (isInGame) statusBadge = `<span class="arena-badge badge-ingame">In Battle</span>`;
-        else if (isFull) statusBadge = `<span class="arena-badge badge-ready">Full</span>`;
-
-        const p1 = lobby.players[0];
-        const p2 = lobby.players[1];
-
-        const slot1Html = p1 
-            ? `<div class="player-slot">
-                 <span class="slot-name ${p1.team === 'blue' ? 'slot-team-blue' : 'slot-team-dark'}">
-                   ${p1.id === socket.id ? '★ YOU (' + (p1.playerIndex === 1 ? 'BLUE FORCES' : 'DARK FORCES') + ')' : 'PLAYER 1 (' + (p1.playerIndex === 1 ? 'BLUE FORCES' : 'DARK FORCES') + ')'}
-                 </span>
-                 <span class="ready-pill ${p1.ready ? 'pill-ready' : 'pill-waiting'}">${p1.ready ? 'READY' : 'WAITING'}</span>
-               </div>`
-            : `<div class="player-slot"><span class="slot-empty">Empty Garrison Slot</span></div>`;
-
-        const slot2Html = p2 
-            ? `<div class="player-slot">
-                 <span class="slot-name ${p2.team === 'blue' ? 'slot-team-blue' : 'slot-team-dark'}">
-                   ${p2.id === socket.id ? '★ YOU (' + (p2.playerIndex === 1 ? 'BLUE FORCES' : 'DARK FORCES') + ')' : 'PLAYER 2 (' + (p2.playerIndex === 1 ? 'BLUE FORCES' : 'DARK FORCES') + ')'}
-                 </span>
-                 <span class="ready-pill ${p2.ready ? 'pill-ready' : 'pill-waiting'}">${p2.ready ? 'READY' : 'WAITING'}</span>
-               </div>`
-            : `<div class="player-slot"><span class="slot-empty">Empty Garrison Slot</span></div>`;
-
-        let actionButtonsHtml = '';
-        if (isMyCurrentRoom) {
-            actionButtonsHtml = `
-                <button class="btn-ready ${myReadyState ? 'is-ready' : ''}" id="btn-ready-${lobby.id}">
-                    ${myReadyState ? '✓ READY' : 'CONFIRM READY'}
-                </button>
-                <button class="btn-leave" id="btn-leave-${lobby.id}">LEAVE</button>
-            `;
-        } else {
-            const disableJoin = isInGame || isFull || currentRoomId !== null;
-            actionButtonsHtml = `
-                <button class="btn-join" ${disableJoin ? 'disabled' : ''} id="btn-join-${lobby.id}">
-                    ${isInGame ? 'IN BATTLE' : (isFull ? 'ARENA FULL' : 'JOIN ARENA')}
-                </button>
-            `;
-        }
-
-        card.innerHTML = `
-            <div>
-                <div class="card-top">
-                    <span class="arena-name">${lobby.name}</span>
-                    ${statusBadge}
-                </div>
-                <div class="player-slots">
-                    ${slot1Html}
-                    ${slot2Html}
-                </div>
-            </div>
-            <div class="card-actions">
-                ${actionButtonsHtml}
-            </div>
-        `;
-
-        grid.appendChild(card);
-
-        const joinBtn = document.getElementById(`btn-join-${lobby.id}`);
-        if (joinBtn) joinBtn.onclick = () => socket.emit('join_room', lobby.id);
-
-        const readyBtn = document.getElementById(`btn-ready-${lobby.id}`);
-        if (readyBtn) readyBtn.onclick = () => { socket.emit('toggle_ready', lobby.id); myReadyState = !myReadyState; };
-
-        const leaveBtn = document.getElementById(`btn-leave-${lobby.id}`);
-        if (leaveBtn) leaveBtn.onclick = () => socket.emit('leave_room');
-    });
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+    cors: { origin: "*" },
+    pingTimeout: 60000,
+    pingInterval: 25000
 });
 
-socket.on('room_joined', (data) => {
-    currentRoomId = data.roomId;
-    myPlayerIndex = data.playerIndex;
-    myReadyState = false;
+app.use(express.static(path.join(__dirname)));
+
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-socket.on('left_room_success', () => {
-    currentRoomId = null;
-    myReadyState = false;
-});
-
-socket.on('lobby_error', (msg) => { alert(msg); });
-
-socket.on('start_match_countdown', (data) => {
-    myPlayerIndex = data.playerIndex;
-    currentRoomId = data.roomId;
-
-    document.getElementById('lobby-screen').style.display = 'none';
-    const countdownEl = document.getElementById('match-countdown');
-    const countdownNum = document.getElementById('countdown-num');
-    const roleText = document.getElementById('countdown-role-text');
-
-    const roleString = myPlayerIndex === 1 ? "BLUE FORCES (South Keep)" : "DARK FORCES (North Keep)";
-    roleText.innerText = `YOU ARE ${roleString.toUpperCase()}`;
-    countdownEl.style.display = 'flex';
-
-    let count = 3;
-    countdownNum.innerText = count;
-    const timer = setInterval(() => {
-        count--;
-        if (count > 0) {
-            countdownNum.innerText = count;
-        } else {
-            clearInterval(timer);
-            countdownEl.style.display = 'none';
-            document.getElementById('ui').style.display = 'block';
-            document.getElementById('minimap-container').style.display = 'block';
-            document.getElementById('build-menu').style.display = 'flex';
-
-            document.getElementById('role-display').innerText = roleString;
-            if (myPlayerIndex === 2) {
-                camera.position.set(0, 3, -135);
-                camera.rotation.y = Math.PI;
-            }
-
-            if (!gameInitialized) {
-                gameInitialized = true;
-                if (myPlayerIndex === 1) {
-                    for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), 120, 0x012169, false, `blue_${i+1}`, i+1);
-                    for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), -120, 0x222222, true, `dark_${i+1}`, i+1);
-                } else {
-                    for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), -120, 0x222222, false, `dark_${i+1}`, i+1);
-                    for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), 120, 0x012169, true, `blue_${i+1}`, i+1);
-                }
-            }
-            updateUnitCountsDisplay();
-
-            statusText.innerText = "STATUS: MATCH STARTED!";
-            matchStarted = true;
-        }
-    }, 1000);
-});
-
-socket.on('update_counts', (data) => {
-    const statsEl = document.getElementById('server-stats');
-    if (statsEl) {
-        statsEl.innerText = `Online: ${data.totalOnline} | Arena Match`;
-    }
-});
-
-socket.on('opponent_disconnected', () => {
-    alert("Opponent disconnected!");
-    location.reload();
-});
-
-socket.on('trigger_game_over', (data) => {
-    matchOver = true;
-    const modal = document.getElementById('game-over-modal');
-    const title = document.getElementById('modal-title');
-    const subtitle = document.getElementById('modal-subtitle');
-    const statWinner = document.getElementById('stat-winner');
-    const statMyUnits = document.getElementById('stat-my-units');
-    const statEnemyUnits = document.getElementById('stat-enemy-units');
-
-    const didIWin = data.winnerIndex === myPlayerIndex;
-    title.innerText = didIWin ? "VICTORY ACHIEVED!" : "DEFEAT";
-    title.style.color = didIWin ? "#00ff00" : "#ff4444";
-    subtitle.innerText = didIWin ? "Your forces successfully secured the keep." : "Your forces have been completely eliminated.";
-    
-    statWinner.innerText = data.winnerIndex === 1 ? "Blue Forces (South Keep)" : "Dark Forces (North Keep)";
-    statMyUnits.innerText = myPlayerIndex === 1 ? data.p1Count : data.p2Count;
-    statEnemyUnits.innerText = myPlayerIndex === 1 ? data.p2Count : data.p1Count;
-
-    modal.style.display = 'flex';
-});
-
-socket.on('restart_game', () => {
-    location.reload();
-});
-
-document.getElementById('restart-btn').onclick = () => {
-    socket.emit('request_restart', { roomId: currentRoomId });
-};
-
-const statusText = document.getElementById('status');
-const minimapCanvas = document.getElementById('minimap');
-const ctx = minimapCanvas.getContext('2d');
-minimapCanvas.width = 200;
-minimapCanvas.height = 200;
-
-const light = new THREE.DirectionalLight(0xffffff, 1.5);
-light.position.set(100, 100, 50);
-scene.add(light, new THREE.AmbientLight(0x606060));
-
-const boardSize = 600;
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(boardSize, boardSize), new THREE.MeshStandardMaterial({ color: 0x3a5a2a }));
-ground.rotation.x = -Math.PI / 2;
-scene.add(ground);
-
-const gridHelper = new THREE.GridHelper(boardSize, 12, 0xffd700, 0x224422);
-gridHelper.position.y = 0.02;
-scene.add(gridHelper);
-
-function getGridReference(x, z) {
-    const cols = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
-    const cellSize = boardSize / 12;
-    const colIdx = Math.floor((x + boardSize / 2) / cellSize);
-    const rowIdx = Math.floor((z + boardSize / 2) / cellSize);
-    const colLetter = cols[Math.max(0, Math.min(11, colIdx))];
-    const rowNumber = Math.max(1, Math.min(12, rowIdx + 1));
-    return `${colLetter}${rowNumber}`;
-}
-
-const riverWidth = 30;
-const river = new THREE.Mesh(new THREE.PlaneGeometry(boardSize, riverWidth), new THREE.MeshStandardMaterial({ color: 0x0077be, transparent: true, opacity: 0.8 }));
-river.rotation.x = -Math.PI / 2;
-river.position.y = 0.01;
-scene.add(river);
-
-const bridgeMat = new THREE.MeshStandardMaterial({ color: 0x5c4033, roughness: 0.8 });
-const bridgeWidth = 16;
-const bridgeLength = riverWidth + 4;
-const bridgeXPositions = [-150, 0, 150];
-const bridges = [];
-bridgeXPositions.forEach(bx => {
-    const bridge = new THREE.Mesh(new THREE.BoxGeometry(bridgeWidth, 0.4, bridgeLength), bridgeMat);
-    bridge.position.set(bx, 0.2, 0);
-    scene.add(bridge);
-    bridges.push(bridge);
-});
-
-const clouds = [];
-function createCloudTexture() {
-    const canvas = document.createElement('canvas');
-    canvas.width = 256; canvas.height = 128;
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, 256, 128);
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
-    ctx.beginPath();
-    ctx.arc(64, 80, 32, 0, Math.PI * 2);
-    ctx.arc(110, 65, 45, 0, Math.PI * 2);
-    ctx.arc(160, 75, 38, 0, Math.PI * 2);
-    ctx.arc(195, 85, 28, 0, Math.PI * 2);
-    ctx.fill();
-    return new THREE.CanvasTexture(canvas);
-}
-const cloudMat = new THREE.MeshBasicMaterial({ map: createCloudTexture(), transparent: true, opacity: 0.7, depthWrite: false, side: THREE.DoubleSide });
-function spawnCloud() {
-    const cloudGeo = new THREE.PlaneGeometry(120 + Math.random() * 80, 60 + Math.random() * 40);
-    const cloud = new THREE.Mesh(cloudGeo, cloudMat);
-    const x = Math.random() * 1200 - 600;
-    const y = 110 + Math.random() * 60;
-    const z = Math.random() * 1200 - 600;
-    cloud.position.set(x, y, z);
-    scene.add(cloud);
-    clouds.push({ mesh: cloud, speed: 0.1 + Math.random() * 0.15 });
-}
-for (let i = 0; i < 70; i++) { spawnCloud(); }
-
-const wallHeight = 40;
-const wallThickness = 10;
-const halfBoard = boardSize / 2;
-
-function createCastleStoneTex() {
-    const canvas = document.createElement('canvas');
-    canvas.width = 512; canvas.height = 512;
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#6b7280';
-    ctx.fillRect(0, 0, 512, 512);
-    const rows = 16; const cols = 8;
-    const rh = 512 / rows; const cw = 512 / cols;
-    for (let r = 0; r < rows; r++) {
-        const offset = (r % 2) * (cw / 2);
-        for (let c = -1; c < cols + 1; c++) {
-            let x = c * cw + offset; let y = r * rh;
-            let shade = Math.floor(Math.random() * 40) - 20;
-            ctx.fillStyle = `rgb(${107 + shade}, ${114 + shade}, ${128 + shade})`;
-            ctx.fillRect(x + 2, y + 2, cw - 4, rh - 4);
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
-            for (let s = 0; s < 5; s++) {
-                ctx.fillRect(x + Math.random() * (cw - 4), y + Math.random() * (rh - 4), 3, 3);
-            }
-        }
-    }
-    ctx.strokeStyle = '#374151'; ctx.lineWidth = 4;
-    for (let r = 0; r <= rows; r++) {
-        ctx.beginPath(); ctx.moveTo(0, r * rh); ctx.lineTo(512, r * rh); ctx.stroke();
-    }
-    return new THREE.CanvasTexture(canvas);
-}
-
-const castleMat = new THREE.MeshStandardMaterial({ map: createCastleStoneTex(), roughness: 0.85, metalness: 0.1 });
-const gameWalls = [];
-
-function createCastleWall(length, isZAxis) {
-    const wallGroup = new THREE.Group();
-    const mainBoxGeo = isZAxis ? new THREE.BoxGeometry(wallThickness, wallHeight, length) : new THREE.BoxGeometry(length, wallHeight, wallThickness);
-    const mainMesh = new THREE.Mesh(mainBoxGeo, castleMat);
-    mainMesh.position.y = wallHeight / 2;
-    wallGroup.add(mainMesh);
-    
-    const merlonWidth = 10; const merlonHeight = 6; const gapWidth = 8;
-    const step = merlonWidth + gapWidth;
-    const numMerlons = Math.floor(length / step);
-    const startOffset = -length / 2 + merlonWidth / 2;
-    for (let i = 0; i < numMerlons; i++) {
-        const mGeo = isZAxis ? new THREE.BoxGeometry(wallThickness + 1, merlonHeight, merlonWidth) : new THREE.BoxGeometry(merlonWidth, merlonHeight, wallThickness + 1);
-        const mMesh = new THREE.Mesh(mGeo, castleMat);
-        const posCoord = startOffset + i * step;
-        if (isZAxis) {
-            mMesh.position.set(0, wallHeight + merlonHeight / 2, posCoord);
-        } else {
-            mMesh.position.set(posCoord, wallHeight + merlonHeight / 2, 0);
-        }
-        wallGroup.add(mMesh);
-    }
-    return wallGroup;
-}
-
-const northWall = createCastleWall(boardSize, false); northWall.position.set(0, 0, -halfBoard); scene.add(northWall); gameWalls.push(northWall);
-const southWall = createCastleWall(boardSize, false); southWall.position.set(0, 0, halfBoard); scene.add(southWall); gameWalls.push(southWall);
-const eastWall = createCastleWall(boardSize, true); eastWall.position.set(halfBoard, 0, 0); scene.add(eastWall); gameWalls.push(eastWall);
-const westWall = createCastleWall(boardSize, true); westWall.position.set(-halfBoard, 0, 0); scene.add(westWall); gameWalls.push(westWall);
-
-let selectedPanelType = null;
-let ghostPanel = null;
-const worldPanels = [];
-const panelGeoms = { wall_f: new THREE.BoxGeometry(12, 8, 1.5), wall_s: new THREE.BoxGeometry(1.5, 8, 12), roof: new THREE.BoxGeometry(12, 1.5, 12) };
-const activeProjectiles = [];
-const keys = {}, raycaster = new THREE.Raycaster(), mouse = new THREE.Vector2();
-let lastClickTime = 0;
-const DOUBLE_CLICK_THRESHOLD = 300;
-const MAP_SCALE = 200 / boardSize;
-const MAP_CENTER = { x: 100, y: 100 };
-
-function drawPirateSymbol(ctx) {
-    ctx.beginPath(); ctx.arc(128, 48, 28, 0, Math.PI * 2); ctx.fill();
-    ctx.fillRect(116, 76, 24, 20);
-    ctx.beginPath(); ctx.moveTo(100, 110); ctx.lineTo(156, 110); ctx.lineTo(148, 122); ctx.lineTo(108, 122); ctx.closePath(); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(90, 48); ctx.lineTo(166, 48); ctx.lineTo(128, 20); ctx.closePath(); ctx.fill();
-}
-function createPirateFlagTex(bgColor, fgColor, numberLabel) {
-    const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 128;
-    const ctx = canvas.getContext('2d'); ctx.fillStyle = bgColor; ctx.fillRect(0, 0, 256, 128);
-    ctx.fillStyle = fgColor; drawPirateSymbol(ctx);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 48px Courier New';
-    ctx.textAlign = 'center';
-    ctx.fillText(`#${numberLabel}`, 128, 115);
-    return new THREE.CanvasTexture(canvas);
-}
-
-let cannons = [];          
-let opponentCannons = [];   
-
-function updateUnitCountsDisplay() {
-    const myUnitsEl = document.getElementById('my-units-count');
-    const enemyUnitsEl = document.getElementById('enemy-units-count');
-    if (myUnitsEl && enemyUnitsEl) {
-        myUnitsEl.innerText = `Your Cannons: ${cannons.length}`;
-        enemyUnitsEl.innerText = `Enemy Cannons: ${opponentCannons.length}`;
-    }
-}
-
-function createCannon(x, z, mainColor, isOpp = false, customId = null, unitNumber = 1) {
-    const cGroup = new THREE.Group();
-    const barrelPivot = new THREE.Group();
-    barrelPivot.position.y = 0.5;
-    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.5, 2.5), new THREE.MeshStandardMaterial({color: 0x1a1a1a}));
-    barrel.geometry.translate(0, 1.25, 0);
-    barrel.rotation.x = Math.PI/2;
-    barrelPivot.add(barrel);
-    
-    const wheels = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 1.6), new THREE.MeshStandardMaterial({color: mainColor}));
-    wheels.rotation.z = Math.PI/2;
-    wheels.position.y = -0.2;
-    
-    const flagTex = isOpp ? createPirateFlagTex('#111122', '#00ffcc', unitNumber) : createPirateFlagTex('#220000', '#ffcc00', unitNumber);
-    const cFlag = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.0), new THREE.MeshStandardMaterial({map: flagTex, side: 2}));
-    cFlag.position.set(0.8, 2, -0.2);
-    cGroup.add(barrelPivot, wheels, cFlag);
-    cGroup.position.set(x, 0.8, z);
-    cGroup.rotation.y = (z < 0) ? 0 : Math.PI;
-    
-    cGroup.userData = {
-        selected: false,
-        targetPos: new THREE.Vector3(x, 0.8, z),
-        barrel, barrelPivot,
-        onBox: false, box: null, angle: 0,
-        startZ: z,
-        id: customId || Math.random().toString(),
-        unitNum: unitNumber
+// 6 Fixed 2-Player Combat Lobbies
+const rooms = {};
+for (let i = 1; i <= 6; i++) {
+    const roomId = `room_${i}`;
+    rooms[roomId] = {
+        id: roomId,
+        name: `Arena 0${i}`,
+        players: {}, // socketId: { playerIndex: 1|2, team: 'blue'|'dark', ready: false }
+        status: 'open' // 'open' | 'in_game'
     };
-    scene.add(cGroup);
-    
-    if (isOpp) {
-        opponentCannons.push(cGroup);
-    } else {
-        cannons.push(cGroup);
+}
+
+let totalOnlinePlayers = 0;
+
+function getLobbiesSummary() {
+    const list = [];
+    for (const rId in rooms) {
+        const r = rooms[rId];
+        const pKeys = Object.keys(r.players);
+        list.push({
+            id: r.id,
+            name: r.name,
+            playerCount: pKeys.length,
+            status: r.status,
+            players: pKeys.map(id => ({
+                id,
+                ready: r.players[id].ready,
+                team: r.players[id].team,
+                playerIndex: r.players[id].playerIndex
+            }))
+        });
     }
-    updateUnitCountsDisplay();
+    return list;
 }
 
-socket.on('opponent_move', (data) => {
-    if (!matchStarted) return;
-    opponentCannons.forEach(can => {
-        if (can.userData.id === data.id) {
-            can.userData.targetPos.set(data.tx, can.position.y, data.tz);
-        }
-    });
-});
-
-socket.on('opponent_fire', (data) => {
-    if (!matchStarted) return;
-    opponentCannons.forEach(can => {
-        if (can.userData.id === data.id) {
-            spawnProjectile(can, new THREE.Vector3(data.target.x, data.target.y, data.target.z), true);
-        }
-    });
-});
-
-socket.on('opponent_build', (data) => {
-    if (!matchStarted) return;
-    const panel = new THREE.Mesh(panelGeoms[data.type], new THREE.MeshStandardMaterial({color: 0xaa3333, roughness: 0.7}));
-    panel.position.set(data.x, data.y, data.z);
-    scene.add(panel);
-    worldPanels.push(panel);
-});
-
-socket.on('opponent_destroy', (data) => {
-    [...cannons, ...opponentCannons].forEach(can => {
-        if (can.userData.id === data.id) {
-            if (can.userData.box) scene.remove(can.userData.box);
-            scene.remove(can);
-            cannons = cannons.filter(c => c.userData.id !== data.id);
-            opponentCannons = opponentCannons.filter(c => c.userData.id !== data.id);
-            updateStatusUI();
-            updateUnitCountsDisplay();
-            checkWinCondition();
-        }
-    });
-});
-
-function checkWinCondition() {
-    if (matchOver || !matchStarted) return;
-    let myCount = cannons.length;
-    let oppCount = opponentCannons.length;
-
-    if (myCount === 0 || oppCount === 0) {
-        let winnerIdx = myCount > 0 ? myPlayerIndex : (myPlayerIndex === 1 ? 2 : 1);
-        socket.emit('check_game_over', { roomId: currentRoomId, winnerIndex: winnerIdx, p1Count: myPlayerIndex === 1 ? myCount : oppCount, p2Count: myPlayerIndex === 2 ? myCount : oppCount });
-    }
+function broadcastLobbyState() {
+    io.emit('lobbies_update', getLobbiesSummary());
+    io.emit('update_counts', { totalOnline: totalOnlinePlayers, inQueue: 0 });
 }
 
-function toMap(x, z) {
-    if (myPlayerIndex === 2) {
-        return { x: MAP_CENTER.x - x * MAP_SCALE, y: MAP_CENTER.y - z * MAP_SCALE };
-    }
-    return { x: MAP_CENTER.x + x * MAP_SCALE, y: MAP_CENTER.y + z * MAP_SCALE };
-}
+function removePlayerFromCurrentRoom(socket) {
+    for (const roomId in rooms) {
+        const room = rooms[roomId];
+        if (room.players[socket.id]) {
+            delete room.players[socket.id];
+            socket.leave(roomId);
 
-function fromMap(mx, my) {
-    if (myPlayerIndex === 2) {
-        return { x: -(mx - MAP_CENTER.x) / MAP_SCALE, z: -(my - MAP_CENTER.y) / MAP_SCALE };
-    }
-    return { x: (mx - MAP_CENTER.x) / MAP_SCALE, z: (my - MAP_CENTER.y) / MAP_SCALE };
-}
-
-function updateMinimap() {
-    ctx.clearRect(0, 0, 200, 200);
-    ctx.fillStyle = '#3a5a2a'; ctx.fillRect(0, 0, 200, 200);
-    
-    // 1. Draw River First (Centered precisely around z=0)
-    const riverMin = toMap(0, -riverWidth / 2).y;
-    const riverMax = toMap(0, riverWidth / 2).y;
-    const rY = Math.min(riverMin, riverMax);
-    const rH = Math.abs(riverMax - riverMin);
-    ctx.fillStyle = '#0077be'; 
-    ctx.fillRect(0, rY, 200, rH);
-    
-    // 2. Draw Bridges Oriented Consistently for Both Hosts and Guests
-    ctx.fillStyle = '#5c4033';
-    bridgeXPositions.forEach(bx => {
-        const p1 = toMap(bx - bridgeWidth / 2, -bridgeLength / 2);
-        const p2 = toMap(bx + bridgeWidth / 2, bridgeLength / 2);
-        const rectX = Math.min(p1.x, p2.x);
-        const rectY = Math.min(p1.y, p2.y);
-        const rectW = Math.abs(p2.x - p1.x);
-        const rectH = Math.abs(p2.y - p1.y);
-        ctx.fillRect(rectX, rectY, rectW, rectH);
-    });
-
-    activeProjectiles.forEach(p => {
-        const pp = toMap(p.mesh.position.x, p.mesh.position.z);
-        ctx.beginPath(); ctx.arc(pp.x, pp.y, 2.5, 0, Math.PI * 2);
-        ctx.fillStyle = '#ff4400'; ctx.fill();
-    });
-
-    cannons.forEach(can => {
-        const cp = toMap(can.position.x, can.position.z);
-        ctx.beginPath(); ctx.arc(cp.x, cp.y, 5, 0, Math.PI * 2);
-        ctx.fillStyle = can.userData.selected ? '#00ff00' : '#002288';
-        ctx.fill();
-    });
-
-    opponentCannons.forEach(can => {
-        const cp = toMap(can.position.x, can.position.z);
-        ctx.beginPath(); ctx.arc(cp.x, cp.y, 5, 0, Math.PI * 2);
-        ctx.fillStyle = '#ddaa00'; ctx.fill();
-    });
-}
-
-function toggleBox(cannon) {
-    if (!matchStarted) return;
-    if (!cannon.userData.onBox) {
-        const box = new THREE.Mesh(new THREE.BoxGeometry(4, 2.5, 4), new THREE.MeshStandardMaterial({color: 0x5c4033}));
-        box.position.set(cannon.position.x, 1.25, cannon.position.z);
-        scene.add(box);
-        cannon.userData.box = box;
-        cannon.userData.onBox = true;
-        cannon.userData.targetPos.y = 3.3;
-        cannon.position.y = 3.3;
-    } else {
-        if (cannon.userData.box) scene.remove(cannon.userData.box);
-        cannon.userData.box = null;
-        cannon.userData.onBox = false;
-        cannon.userData.targetPos.y = 0.8;
-        cannon.position.y = 0.8;
-    }
-}
-
-function checkEdgeWallCollision(newPos) {
-    const edgeLimit = halfBoard - 5;
-    return (Math.abs(newPos.x) > edgeLimit || Math.abs(newPos.z) > edgeLimit);
-}
-
-function isTooCloseToCannon(pt) {
-    if (myPlayerIndex === 1 && pt.z < (riverWidth / 2)) return true;
-    if (myPlayerIndex === 2 && pt.z > -(riverWidth / 2)) return true;
-
-    let onBridge = false;
-    bridgeXPositions.forEach(bx => {
-        if (Math.abs(pt.x - bx) < (bridgeWidth / 2) + 2.0 && Math.abs(pt.z) < (bridgeLength / 2) + 2.0) {
-            onBridge = true;
-        }
-    });
-    if (onBridge) return true;
-
-    if (selectedPanelType === 'roof') {
-        return false;
-    }
-
-    let tooClose = false;
-    let pWidth = 12, pDepth = 1.5;
-    if (selectedPanelType === 'wall_s') { pWidth = 1.5; pDepth = 12; }
-
-    const panelBox = {
-        minX: pt.x - pWidth / 2 - 1.2,
-        maxX: pt.x + pWidth / 2 + 1.2,
-        minZ: pt.z - pDepth / 2 - 1.2,
-        maxZ: pt.z + pDepth / 2 + 1.2
-    };
-
-    [...cannons, ...opponentCannons].forEach(can => {
-        const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(can.quaternion);
-        const right = new THREE.Vector3(1, 0, 0).applyQuaternion(can.quaternion);
-
-        const checkPoints = [
-            can.position,
-            can.position.clone().addScaledVector(forward, 2.5),
-            can.position.clone().addScaledVector(forward, -1.5),
-            can.position.clone().addScaledVector(right, 1.2),
-            can.position.clone().addScaledVector(right, -1.2)
-        ];
-
-        checkPoints.forEach(cp => {
-            if (cp.x >= panelBox.minX && cp.x <= panelBox.maxX &&
-                cp.z >= panelBox.minZ && cp.z <= panelBox.maxZ) {
-                tooClose = true;
+            if (room.status === 'in_game') {
+                io.to(roomId).emit('opponent_disconnected');
+                room.status = 'open';
+                room.players = {};
             }
+            broadcastLobbyState();
+            break;
+        }
+    }
+}
+
+io.on('connection', (socket) => {
+    totalOnlinePlayers++;
+    console.log('Player connected:', socket.id);
+
+    socket.emit('lobbies_update', getLobbiesSummary());
+    broadcastLobbyState();
+
+    socket.on('join_room', (roomId) => {
+        const room = rooms[roomId];
+        if (!room) return;
+
+        if (room.status === 'in_game') {
+            socket.emit('lobby_error', 'This battle is currently in progress!');
+            return;
+        }
+
+        const currentPlayers = Object.keys(room.players);
+        if (currentPlayers.length >= 2) {
+            socket.emit('lobby_error', 'This arena is already full!');
+            return;
+        }
+
+        removePlayerFromCurrentRoom(socket);
+
+        let assignedIndex = 1;
+        let assignedTeam = 'blue';
+        if (currentPlayers.length === 1) {
+            const existingP = room.players[currentPlayers[0]];
+            assignedIndex = existingP.playerIndex === 1 ? 2 : 1;
+            assignedTeam = assignedIndex === 1 ? 'blue' : 'dark';
+        }
+
+        room.players[socket.id] = {
+            playerIndex: assignedIndex,
+            team: assignedTeam,
+            ready: false
+        };
+
+        socket.roomID = roomId;
+        socket.join(roomId);
+
+        socket.emit('room_joined', {
+            roomId: room.id,
+            name: room.name,
+            playerIndex: assignedIndex,
+            team: assignedTeam
+        });
+
+        broadcastLobbyState();
+    });
+
+    socket.on('leave_room', () => {
+        removePlayerFromCurrentRoom(socket);
+        socket.roomID = null;
+        socket.emit('left_room_success');
+        broadcastLobbyState();
+    });
+
+    socket.on('toggle_ready', (roomId) => {
+        const room = rooms[roomId];
+        if (!room || !room.players[socket.id]) return;
+
+        room.players[socket.id].ready = !room.players[socket.id].ready;
+        broadcastLobbyState();
+
+        const playerIds = Object.keys(room.players);
+        const allReady = playerIds.length === 2 && playerIds.every(id => room.players[id].ready);
+
+        if (allReady) {
+            room.status = 'in_game';
+            broadcastLobbyState();
+
+            const p1 = playerIds[0];
+            const p2 = playerIds[1];
+
+            io.to(p1).emit('start_match_countdown', { roomId, playerIndex: room.players[p1].playerIndex });
+            io.to(p2).emit('start_match_countdown', { roomId, playerIndex: room.players[p2].playerIndex });
+        }
+    });
+
+    // In-game Relay Events
+    socket.on('player_move', (data) => {
+        socket.to(data.roomId).emit('opponent_move', data);
+    });
+
+    socket.on('fire_projectile', (data) => {
+        socket.to(data.roomId).emit('opponent_fire', data);
+    });
+
+    socket.on('place_panel', (data) => {
+        socket.to(data.roomId).emit('opponent_build', data);
+    });
+
+    socket.on('destroy_unit', (data) => {
+        socket.to(data.roomId).emit('opponent_destroy', data);
+    });
+
+    socket.on('check_game_over', (data) => {
+        io.to(data.roomId).emit('trigger_game_over', data);
+    });
+
+    socket.on('request_restart', (data) => {
+        io.to(data.roomId).emit('restart_game');
+    });
+
+    socket.on('send_chat', (data) => {
+        io.to(data.roomId).emit('receive_chat', {
+            sender: data.sender,
+            message: data.message
         });
     });
 
-    return tooClose;
-}
-
-window.onmousedown = (e) => {
-    if (!matchStarted || matchOver) return;
-    if (e.target.closest('#ui') || e.target.closest('#build-menu') || e.target.closest('#lobby-screen')) return;
-
-    if (selectedPanelType && e.button === 0) {
-        raycaster.setFromCamera(mouse, camera);
-        const hits = raycaster.intersectObject(ground);
-        if (hits.length > 0) {
-            const pt = hits[0].point;
-            if (isTooCloseToCannon(pt)) return;
-
-            const newPanel = ghostPanel.clone();
-            newPanel.material = new THREE.MeshStandardMaterial({color: 0x777777, roughness: 0.8});
-            scene.add(newPanel);
-            worldPanels.push(newPanel);
-            socket.emit('place_panel', { roomId: currentRoomId, type: selectedPanelType, x: newPanel.position.x, y: newPanel.position.y, z: newPanel.position.z });
-        }
-        return;
-    }
-
-    const now = Date.now();
-    const isDoubleClick = (now - lastClickTime) < DOUBLE_CLICK_THRESHOLD;
-    lastClickTime = now;
-
-    if (e.target === minimapCanvas) {
-        const rect = minimapCanvas.getBoundingClientRect();
-        const world = fromMap(e.clientX - rect.left, e.clientY - rect.top);
-        if (e.button === 0) {
-            const selected = cannons.find(c => c.userData.selected);
-            if (selected) {
-                selected.userData.targetPos.set(world.x, selected.position.y, world.z);
-                socket.emit('player_move', { roomId: currentRoomId, id: selected.userData.id, tx: world.x, tz: world.z });
-            } else {
-                camera.position.set(world.x, 3, world.z);
-            }
-        }
-        return;
-    }
-
-    if (e.button === 0) {
-        raycaster.setFromCamera(mouse, camera);
-        let clickedCannon = null;
-        cannons.forEach(can => {
-            if (raycaster.intersectObject(can, true).length > 0) {
-                clickedCannon = can;
-            }
-        });
-
-        if (clickedCannon) {
-            cannons.forEach(c => c.userData.selected = false);
-            clickedCannon.userData.selected = true;
-            if (isDoubleClick) toggleBox(clickedCannon);
-        } else {
-            const hits = raycaster.intersectObjects([ground, river, ...bridges, ...worldPanels, ...gameWalls], true);
-            if (hits.length > 0) {
-                const selected = cannons.find(c => c.userData.selected);
-                if (selected) {
-                    const pt = hits[0].point;
-                    selected.userData.targetPos.set(pt.x, selected.position.y, pt.z);
-                    socket.emit('player_move', { roomId: currentRoomId, id: selected.userData.id, tx: pt.x, tz: pt.z });
-                }
-            }
-        }
-        updateStatusUI();
-    }
-
-    if (e.button === 2) {
-        e.preventDefault();
-        raycaster.setFromCamera(mouse, camera);
-        const hits = raycaster.intersectObjects([ground, river, ...bridges, ...worldPanels, ...gameWalls, ...opponentCannons], true);
-        if (hits.length > 0) {
-            const selected = cannons.find(c => c.userData.selected);
-            if (selected) {
-                spawnProjectile(selected, hits[0].point);
-            }
-        }
-    }
-};
-
-window.onmousemove = (e) => {
-    mouse.x = (e.clientX/window.innerWidth)*2-1;
-    mouse.y = -(e.clientY/window.innerHeight)*2+1;
-
-    raycaster.setFromCamera(mouse, camera);
-    const hits = raycaster.intersectObject(ground);
-    if (hits.length > 0) {
-        const pt = hits[0].point;
-        const gridTargetEl = document.getElementById('grid-target-display');
-        if (gridTargetEl) gridTargetEl.innerText = getGridReference(pt.x, pt.z);
-    }
-};
-
-window.onmouseup = (e) => {};
-
-function updateStatusUI() {
-    let selectedNum = null;
-    cannons.forEach(can => {
-        can.userData.barrel.material.emissive.set(can.userData.selected ? 0x00ff00 : 0x000000);
-        if(can.userData.selected) selectedNum = can.userData.unitNum;
+    socket.on('disconnect', () => {
+        totalOnlinePlayers = Math.max(0, totalOnlinePlayers - 1);
+        console.log('Player disconnected:', socket.id);
+        removePlayerFromCurrentRoom(socket);
+        broadcastLobbyState();
     });
-    
-    if (matchStarted && statusText.innerText !== "STATUS: MATCH STARTED!") {
-        if (selectedNum !== null) {
-            statusText.innerText = `ACTIVE COMMAND: CANNON #${selectedNum}`;
-        } else {
-            statusText.innerText = "STATUS: STANDBY (CLICK CANNON TO SELECT)";
-        }
-    }
-}
-
-function spawnProjectile(sourceCan, target, isRemote = false) {
-    if (!matchStarted || matchOver) return;
-    const obj = new THREE.Mesh(new THREE.SphereGeometry(0.6), new THREE.MeshStandardMaterial({color: 0xff4400, emissive: 0xffaa00}));
-    const start = new THREE.Vector3(0, 2.5, 0);
-    sourceCan.userData.barrelPivot.localToWorld(start);
-    obj.position.copy(start);
-    
-    const maxAllowedRange = Math.abs(sourceCan.userData.startZ || 120) * 1.5;
-    const dx = target.x - start.x, dz = target.z - start.z, dy = target.y - start.y;
-    const horizontalDist = Math.sqrt(dx * dx + dz * dz);
-    const clampedDist = Math.min(horizontalDist, maxAllowedRange);
-    const ratio = clampedDist / horizontalDist;
-    const realisticTargetX = start.x + dx * ratio;
-    const realisticTargetZ = start.z + dz * ratio;
-    const finalDx = realisticTargetX - start.x;
-    const finalDz = realisticTargetZ - start.z;
-    const finalDist = Math.sqrt(finalDx * finalDx + finalDz * finalDz);
-    const gravity = -0.012;
-    const targetTime = 60 + (finalDist * 0.5);
-    const vx = finalDx / targetTime;
-    const vz = finalDz / targetTime;
-    const vy = (dy - (0.5 * gravity * Math.pow(targetTime, 2))) / targetTime;
-    
-    sourceCan.lookAt(target.x, sourceCan.position.y, target.z);
-    const localTarget = sourceCan.worldToLocal(target.clone());
-    sourceCan.userData.angle = Math.atan2(localTarget.y, Math.sqrt(localTarget.x**2 + localTarget.z**2));
-    
-    scene.add(obj);
-    activeProjectiles.push({ 
-        mesh: obj, 
-        velocity: new THREE.Vector3(vx, vy, vz), 
-        gravity, 
-        life: 0, 
-        maxLife: 500,
-        isRemote: isRemote
-    });
-
-    if (!isRemote) {
-        socket.emit('fire_projectile', { roomId: currentRoomId, id: sourceCan.userData.id, target: {x: target.x, y: target.y, z: target.z} });
-    }
-}
-
-function animate() {
-    requestAnimationFrame(animate);
-    
-    clouds.forEach(cloudObj => {
-        cloudObj.mesh.position.x += cloudObj.speed;
-        if (cloudObj.mesh.position.x > 700) {
-            cloudObj.mesh.position.x = -700;
-            cloudObj.mesh.position.z = Math.random() * 1200 - 600;
-        }
-    });
-
-    if (matchStarted && !matchOver) {
-        const camSpeed = 1.2;
-        let moveVector = new THREE.Vector3(0,0,0);
-        if (keys['w']) moveVector.z -= camSpeed;
-        if (keys['s']) moveVector.z += camSpeed;
-        if (keys['q']) moveVector.x -= camSpeed;
-        if (keys['e']) moveVector.x += camSpeed;
-        if (keys['a']) camera.rotation.y += 0.03;
-        if (keys['d']) camera.rotation.y -= 0.03;
-        if (moveVector.length() > 0) {
-            const nextPos = camera.position.clone();
-            nextPos.add(moveVector.applyQuaternion(camera.quaternion));
-            nextPos.y = 3;
-            if (!checkEdgeWallCollision(nextPos)) camera.position.copy(nextPos);
-        }
-
-        if (selectedPanelType) {
-            raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects([ground, ...worldPanels, ...gameWalls], true);
-            if (intersects.length > 0) {
-                const pt = intersects[0].point;
-                const blocked = isTooCloseToCannon(pt);
-
-                if (!ghostPanel || ghostPanel.userData.type !== selectedPanelType) {
-                    if (ghostPanel) scene.remove(ghostPanel);
-                    ghostPanel = new THREE.Mesh(panelGeoms[selectedPanelType], new THREE.MeshBasicMaterial({transparent: true, opacity: 0.5}));
-                    ghostPanel.userData.type = selectedPanelType;
-                    scene.add(ghostPanel);
-                }
-                
-                ghostPanel.material.color.setHex(blocked ? 0xff0000 : 0x00ff00);
-                ghostPanel.position.copy(pt);
-                ghostPanel.position.y += selectedPanelType === 'roof' ? 8 : 4;
-            }
-        } else if (ghostPanel) {
-            scene.remove(ghostPanel);
-            ghostPanel = null;
-        }
-
-        [...cannons, ...opponentCannons].forEach(can => {
-            can.userData.barrelPivot.rotation.x = -can.userData.angle;
-            const distToTarget = can.position.distanceTo(can.userData.targetPos);
-            if (distToTarget > 0.5) {
-                const moveDir = new THREE.Vector3().subVectors(can.userData.targetPos, can.position).normalize();
-                const nextPos = can.position.clone().addScaledVector(moveDir, 0.5);
-                
-                const wallCollisionRay = new THREE.Raycaster(can.position, moveDir, 0, 3.5);
-                const wallHits = wallCollisionRay.intersectObjects([...worldPanels, ...gameWalls], true);
-                
-                const canCollisionRay = new THREE.Raycaster(can.position, moveDir, 0, 0.8);
-                const hits = canCollisionRay.intersectObjects([...worldPanels, ...gameWalls], true);
-                
-                if (hits.length === 0 && wallHits.length === 0) {
-                    can.position.copy(nextPos);
-                }
-                can.lookAt(can.userData.targetPos.x, can.position.y, can.userData.targetPos.z);
-
-                // --- WATER HAZARD CHECK ---
-                if (Math.abs(can.position.z) < (riverWidth / 2) - 1.5) {
-                    const onBridge = bridgeXPositions.some(bx => Math.abs(can.position.x - bx) <= (bridgeWidth / 2));
-                    if (!onBridge) {
-                        if (cannons.includes(can)) {
-                            socket.emit('destroy_unit', { roomId: currentRoomId, id: can.userData.id });
-                        }
-                        if (can.userData.box) scene.remove(can.userData.box);
-                        scene.remove(can);
-                        cannons = cannons.filter(c => c.userData.id !== can.userData.id);
-                        opponentCannons = opponentCannons.filter(c => c.userData.id !== can.userData.id);
-                        updateStatusUI();
-                        updateUnitCountsDisplay();
-                        checkWinCondition();
-                    }
-                }
-            }
-        });
-
-        for (let i = activeProjectiles.length - 1; i >= 0; i--) {
-            const p = activeProjectiles[i];
-            const prevPos = p.mesh.position.clone();
-            p.mesh.position.add(p.velocity);
-            p.velocity.y += p.gravity;
-            p.life++;
-
-            const rayDir = p.velocity.clone().normalize();
-            const rayLen = p.velocity.length() + 0.5;
-
-            const structRay = new THREE.Raycaster(prevPos, rayDir, 0, rayLen);
-            const structHits = structRay.intersectObjects([...worldPanels, ...gameWalls, ...bridges], true);
-            if (structHits.length > 0) {
-                const hit = structHits[0];
-                if (hit.face) {
-                    const normal = hit.face.normal.clone().applyQuaternion(hit.object.quaternion);
-                    p.velocity.reflect(normal).multiplyScalar(0.7);
-                    p.mesh.position.copy(hit.point).add(normal.multiplyScalar(0.1));
-                    continue;
-                }
-            }
-
-            // ONLY TEST AGAINST TARGETABLE ENEMIES (No Friendly Fire)
-            const targetPool = p.isRemote ? cannons : opponentCannons;
-            const combatRay = new THREE.Raycaster(prevPos, rayDir, 0, rayLen);
-            const hits = combatRay.intersectObjects(targetPool, true);
-            if (hits.length > 0) {
-                let hitObj = hits[0].object;
-                while (hitObj.parent && hitObj.parent !== scene) {
-                    hitObj = hitObj.parent;
-                }
-                
-                // If local shot destroyed an enemy, tell server
-                if (!p.isRemote) {
-                    socket.emit('destroy_unit', { roomId: currentRoomId, id: hitObj.userData.id });
-                }
-                
-                if (hitObj.userData.box) scene.remove(hitObj.userData.box);
-                scene.remove(hitObj);
-                cannons = cannons.filter(c => c.userData.id !== hitObj.userData.id);
-                opponentCannons = opponentCannons.filter(c => c.userData.id !== hitObj.userData.id);
-                updateStatusUI();
-                updateUnitCountsDisplay();
-                checkWinCondition();
-
-                scene.remove(p.mesh);
-                activeProjectiles.splice(i, 1);
-                continue;
-            }
-
-            if (p.life > p.maxLife || p.mesh.position.y < 0.1) {
-                scene.remove(p.mesh);
-                activeProjectiles.splice(i, 1);
-            }
-        }
-    }
-
-    if (matchStarted) updateMinimap();
-    renderer.render(scene, camera);
-}
-
-window.onkeydown = (e) => { keys[e.key.toLowerCase()] = true; };
-window.onkeyup = (e) => { keys[e.key.toLowerCase()] = false; };
-window.onblur = () => { for (let k in keys) keys[k] = false; };
-window.oncontextmenu = (e) => e.preventDefault();
-window.onwheel = (e) => {
-    camera.fov = Math.min(Math.max(camera.fov + e.deltaY * 0.05, 15), 100);
-    camera.updateProjectionMatrix();
-};
-window.onresize = () => {
-    camera.aspect = window.innerWidth/window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-};
-
-document.querySelectorAll('.build-opt').forEach(opt => {
-    opt.onclick = () => {
-        if (!matchStarted) return;
-        const type = opt.dataset.type;
-        if (selectedPanelType === type) {
-            opt.classList.remove('active');
-            selectedPanelType = null;
-            if (ghostPanel) { scene.remove(ghostPanel); ghostPanel = null; }
-        } else {
-            document.querySelectorAll('.build-opt').forEach(o => o.classList.remove('active'));
-            opt.classList.add('active');
-            selectedPanelType = type;
-            if (ghostPanel) { scene.remove(ghostPanel); ghostPanel = null; }
-        }
-    };
 });
 
-animate();
-</script>
-</body>
-</html>
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server listening on port ${PORT}`);
+});
