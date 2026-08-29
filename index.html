@@ -242,7 +242,6 @@ socket.on('lobbies_update', (lobbies) => {
 
         grid.appendChild(card);
 
-        // Bind Action Listeners
         const joinBtn = document.getElementById(`btn-join-${lobby.id}`);
         if (joinBtn) joinBtn.onclick = () => socket.emit('join_room', lobby.id);
 
@@ -565,7 +564,8 @@ function createCannon(x, z, mainColor, isOpp = false, customId = null, unitNumbe
         onBox: false, box: null, angle: 0,
         startZ: z,
         id: customId || Math.random().toString(),
-        unitNum: unitNumber
+        unitNum: unitNumber,
+        isOpponent: isOpp
     };
     scene.add(cGroup);
     
@@ -646,13 +646,26 @@ function updateMinimap() {
     ctx.clearRect(0, 0, 200, 200);
     ctx.fillStyle = '#3a5a2a'; ctx.fillRect(0, 0, 200, 200);
     
-    const riverTop = toMap(0, -riverWidth/2).y;
-    ctx.fillStyle = '#0077be'; ctx.fillRect(0, riverTop < 100 ? riverTop : riverTop - riverWidth * MAP_SCALE, 200, riverWidth * MAP_SCALE);
+    // 1. Draw River First (Centered precisely around z=0)
+    const pRiver1 = toMap(-boardSize/2, -riverWidth / 2);
+    const pRiver2 = toMap(boardSize/2, riverWidth / 2);
+    const rX = Math.min(pRiver1.x, pRiver2.x);
+    const rY = Math.min(pRiver1.y, pRiver2.y);
+    const rW = Math.abs(pRiver2.x - pRiver1.x);
+    const rH = Math.abs(pRiver2.y - pRiver1.y);
+    ctx.fillStyle = '#0077be'; 
+    ctx.fillRect(rX, rY, rW, rH);
     
+    // 2. Draw Bridges Oriented Consistently for Both Hosts and Guests
     ctx.fillStyle = '#5c4033';
     bridgeXPositions.forEach(bx => {
-        const bp = toMap(bx - bridgeWidth/2, -bridgeLength/2);
-        ctx.fillRect(bp.x, bp.y, bridgeWidth * MAP_SCALE, bridgeLength * MAP_SCALE);
+        const p1 = toMap(bx - bridgeWidth / 2, -bridgeLength / 2);
+        const p2 = toMap(bx + bridgeWidth / 2, bridgeLength / 2);
+        const rectX = Math.min(p1.x, p2.x);
+        const rectY = Math.min(p1.y, p2.y);
+        const rectW = Math.abs(p2.x - p1.x);
+        const rectH = Math.abs(p2.y - p1.y);
+        ctx.fillRect(rectX, rectY, rectW, rectH);
     });
 
     activeProjectiles.forEach(p => {
@@ -887,7 +900,15 @@ function spawnProjectile(sourceCan, target, isRemote = false) {
     sourceCan.userData.angle = Math.atan2(localTarget.y, Math.sqrt(localTarget.x**2 + localTarget.z**2));
     
     scene.add(obj);
-    activeProjectiles.push({ mesh: obj, velocity: new THREE.Vector3(vx, vy, vz), gravity, life: 0, maxLife: 500 });
+    activeProjectiles.push({ 
+        mesh: obj, 
+        velocity: new THREE.Vector3(vx, vy, vz), 
+        gravity, 
+        life: 0, 
+        maxLife: 500,
+        isRemote: isRemote,
+        shooterId: sourceCan.userData.id
+    });
 
     if (!isRemote) {
         socket.emit('fire_projectile', { roomId: currentRoomId, id: sourceCan.userData.id, target: {x: target.x, y: target.y, z: target.z} });
@@ -991,6 +1012,7 @@ function animate() {
             const rayDir = p.velocity.clone().normalize();
             const rayLen = p.velocity.length() + 0.5;
 
+            // 1. Structure collisions
             const structRay = new THREE.Raycaster(prevPos, rayDir, 0, rayLen);
             const structHits = structRay.intersectObjects([...worldPanels, ...gameWalls, ...bridges], true);
             if (structHits.length > 0) {
@@ -1003,17 +1025,26 @@ function animate() {
                 }
             }
 
+            // 2. Strict Combat Collision: Local shots only hit opponents; remote shots only hit local cannons
+            const candidateTargets = p.isRemote ? cannons : opponentCannons;
+            const validTargets = candidateTargets.filter(c => c.userData.id !== p.shooterId);
+
             const combatRay = new THREE.Raycaster(prevPos, rayDir, 0, rayLen);
-            const hits = combatRay.intersectObjects([...opponentCannons], true);
+            const hits = combatRay.intersectObjects(validTargets, true);
             if (hits.length > 0) {
                 let hitObj = hits[0].object;
                 while (hitObj.parent && hitObj.parent !== scene) {
                     hitObj = hitObj.parent;
                 }
                 
-                socket.emit('destroy_unit', { roomId: currentRoomId, id: hitObj.userData.id });
+                // If local shot destroyed an enemy, tell server
+                if (!p.isRemote) {
+                    socket.emit('destroy_unit', { roomId: currentRoomId, id: hitObj.userData.id });
+                }
+                
                 if (hitObj.userData.box) scene.remove(hitObj.userData.box);
                 scene.remove(hitObj);
+                cannons = cannons.filter(c => c.userData.id !== hitObj.userData.id);
                 opponentCannons = opponentCannons.filter(c => c.userData.id !== hitObj.userData.id);
                 updateStatusUI();
                 updateUnitCountsDisplay();
