@@ -34,10 +34,10 @@
 
   #lobbies-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; width: 100%; max-width: 950px; }
   
-  .arena-card {
-    background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 10px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between;
-    transition: transform 0.15s, border-color 0.2s, background 0.2s; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+  .arena-card { 
+    background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); 
+    border-radius: 10px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between; 
+    transition: transform 0.15s, border-color 0.2s, background 0.2s; box-shadow: 0 4px 15px rgba(0,0,0,0.3); 
   }
   .arena-card:hover { border-color: rgba(255, 215, 0, 0.4); background: rgba(255, 255, 255, 0.07); }
   .arena-card.active-room { border: 2px solid #ffd700; box-shadow: 0 0 25px rgba(255,215,0,0.25); background: rgba(255, 215, 0, 0.05); }
@@ -503,8 +503,6 @@ const worldPanels = [];
 const panelGeoms = { wall_f: new THREE.BoxGeometry(12, 8, 1.5), wall_s: new THREE.BoxGeometry(1.5, 8, 12), roof: new THREE.BoxGeometry(12, 1.5, 12) };
 const activeProjectiles = [];
 const keys = {}, raycaster = new THREE.Raycaster(), mouse = new THREE.Vector2();
-let lastClickTime = 0;
-const DOUBLE_CLICK_THRESHOLD = 300;
 const MAP_SCALE = 200 / boardSize;
 const MAP_CENTER = { x: 100, y: 100 };
 
@@ -561,7 +559,7 @@ function createCannon(x, z, mainColor, isOpp = false, customId = null, unitNumbe
         selected: false,
         targetPos: new THREE.Vector3(x, 0.8, z),
         barrel, barrelPivot,
-        onBox: false, box: null, angle: 0,
+        angle: 0,
         startZ: z,
         id: customId || Math.random().toString(),
         unitNum: unitNumber,
@@ -606,7 +604,6 @@ socket.on('opponent_build', (data) => {
 socket.on('opponent_destroy', (data) => {
     [...cannons, ...opponentCannons].forEach(can => {
         if (can.userData.id === data.id) {
-            if (can.userData.box) scene.remove(can.userData.box);
             scene.remove(can);
             cannons = cannons.filter(c => c.userData.id !== data.id);
             opponentCannons = opponentCannons.filter(c => c.userData.id !== data.id);
@@ -646,7 +643,7 @@ function updateMinimap() {
     ctx.clearRect(0, 0, 200, 200);
     ctx.fillStyle = '#3a5a2a'; ctx.fillRect(0, 0, 200, 200);
     
-    // 1. Draw River First (Strictly mapped box coordinates)
+    // 1. Draw River First
     const pRiver1 = toMap(-boardSize/2, -riverWidth / 2);
     const pRiver2 = toMap(boardSize/2, riverWidth / 2);
     const rX = Math.min(pRiver1.x, pRiver2.x);
@@ -656,7 +653,7 @@ function updateMinimap() {
     ctx.fillStyle = '#0077be'; 
     ctx.fillRect(rX, rY, rW, rH);
     
-    // 2. Draw Bridges (Aligned seamlessly in both views)
+    // 2. Draw Bridges
     ctx.fillStyle = '#5c4033';
     bridgeXPositions.forEach(bx => {
         const p1 = toMap(bx - bridgeWidth / 2, -bridgeLength / 2);
@@ -686,25 +683,6 @@ function updateMinimap() {
         ctx.beginPath(); ctx.arc(cp.x, cp.y, 5, 0, Math.PI * 2);
         ctx.fillStyle = '#ddaa00'; ctx.fill();
     });
-}
-
-function toggleBox(cannon) {
-    if (!matchStarted) return;
-    if (!cannon.userData.onBox) {
-        const box = new THREE.Mesh(new THREE.BoxGeometry(4, 2.5, 4), new THREE.MeshStandardMaterial({color: 0x5c4033}));
-        box.position.set(cannon.position.x, 1.25, cannon.position.z);
-        scene.add(box);
-        cannon.userData.box = box;
-        cannon.userData.onBox = true;
-        cannon.userData.targetPos.y = 3.3;
-        cannon.position.y = 3.3;
-    } else {
-        if (cannon.userData.box) scene.remove(cannon.userData.box);
-        cannon.userData.box = null;
-        cannon.userData.onBox = false;
-        cannon.userData.targetPos.y = 0.8;
-        cannon.position.y = 0.8;
-    }
 }
 
 function checkEdgeWallCollision(newPos) {
@@ -782,10 +760,6 @@ window.onmousedown = (e) => {
         return;
     }
 
-    const now = Date.now();
-    const isDoubleClick = (now - lastClickTime) < DOUBLE_CLICK_THRESHOLD;
-    lastClickTime = now;
-
     if (e.target === minimapCanvas) {
         const rect = minimapCanvas.getBoundingClientRect();
         const world = fromMap(e.clientX - rect.left, e.clientY - rect.top);
@@ -813,7 +787,6 @@ window.onmousedown = (e) => {
         if (clickedCannon) {
             cannons.forEach(c => c.userData.selected = false);
             clickedCannon.userData.selected = true;
-            if (isDoubleClick) toggleBox(clickedCannon);
         } else {
             const hits = raycaster.intersectObjects([ground, river, ...bridges, ...worldPanels, ...gameWalls], true);
             if (hits.length > 0) {
@@ -990,7 +963,6 @@ function animate() {
                         if (cannons.includes(can)) {
                             socket.emit('destroy_unit', { roomId: currentRoomId, id: can.userData.id });
                         }
-                        if (can.userData.box) scene.remove(can.userData.box);
                         scene.remove(can);
                         cannons = cannons.filter(c => c.userData.id !== can.userData.id);
                         opponentCannons = opponentCannons.filter(c => c.userData.id !== can.userData.id);
@@ -1025,14 +997,11 @@ function animate() {
                 }
             }
 
-            // 2. Strict Combat Collision: Projectiles ONLY destroy OPPONENTS, never yourself or teammates
-            // Local shot -> target opponentCannons
-            // Remote shot -> target local cannons
+            // 2. Strict Combat Collision
             const targetCannonList = p.isRemote ? cannons : opponentCannons;
             
             let hitTarget = null;
             for (let targetCan of targetCannonList) {
-                // Sphere-to-box distance test avoids self-clipping raycaster false positives
                 const distToCannon = p.mesh.position.distanceTo(targetCan.position);
                 if (distToCannon < 2.5) {
                     hitTarget = targetCan;
@@ -1045,7 +1014,6 @@ function animate() {
                     socket.emit('destroy_unit', { roomId: currentRoomId, id: hitTarget.userData.id });
                 }
                 
-                if (hitTarget.userData.box) scene.remove(hitTarget.userData.box);
                 scene.remove(hitTarget);
                 cannons = cannons.filter(c => c.userData.id !== hitTarget.userData.id);
                 opponentCannons = opponentCannons.filter(c => c.userData.id !== hitTarget.userData.id);
