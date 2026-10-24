@@ -17,15 +17,16 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// 6 Fixed 2-Player Combat Lobbies
+// 6 Fixed 2-Player Combat Arenas
 const rooms = {};
 for (let i = 1; i <= 6; i++) {
     const roomId = `room_${i}`;
     rooms[roomId] = {
         id: roomId,
         name: `Arena 0${i}`,
-        players: {},
-        status: 'open'
+        players: {}, // socketId: { playerIndex: 1|2, team: 'blue'|'dark', ready: false }
+        panels: {},  // panelId: { id, type, pos: {x,y,z}, rot: {x,y,z}, segments: 1 }
+        status: 'open' // 'open' | 'in_game'
     };
 }
 
@@ -68,6 +69,7 @@ function removePlayerFromCurrentRoom(socket) {
                 io.to(roomId).emit('opponent_disconnected');
                 room.status = 'open';
                 room.players = {};
+                room.panels = {};
             }
             broadcastLobbyState();
             break;
@@ -77,6 +79,8 @@ function removePlayerFromCurrentRoom(socket) {
 
 io.on('connection', (socket) => {
     totalOnlinePlayers++;
+    console.log('Player connected:', socket.id);
+
     socket.emit('lobbies_update', getLobbiesSummary());
     broadcastLobbyState();
 
@@ -143,27 +147,68 @@ io.on('connection', (socket) => {
 
         if (allReady) {
             room.status = 'in_game';
+            room.panels = {}; // Reset panel grid for a fresh battle
             broadcastLobbyState();
 
             const p1 = playerIds[0];
             const p2 = playerIds[1];
 
-            io.to(p1).emit('start_match_countdown', { roomId, playerIndex: room.players[p1].playerIndex });
-            io.to(p2).emit('start_match_countdown', { roomId, playerIndex: room.players[p2].playerIndex });
+            io.to(p1).emit('start_match_countdown', { 
+                roomId, 
+                playerIndex: room.players[p1].playerIndex,
+                existingPanels: Object.values(room.panels)
+            });
+            io.to(p2).emit('start_match_countdown', { 
+                roomId, 
+                playerIndex: room.players[p2].playerIndex,
+                existingPanels: Object.values(room.panels)
+            });
         }
     });
 
-    // In-game Relay Events
+    // ==========================================
+    // REAL-TIME BUILDING & EXTENSION EVENTS
+    // ==========================================
+    socket.on('place_panel', (data) => {
+        const room = rooms[data.roomId];
+        if (!room) return;
+
+        // Save panel into the room's persistent state
+        const panelRecord = {
+            id: data.id || Math.random().toString(),
+            type: data.type,
+            pos: { x: Number(data.pos.x), y: Number(data.pos.y), z: Number(data.pos.z) },
+            rot: { x: Number(data.rot.x), y: Number(data.rot.y), z: Number(data.rot.z) },
+            segments: 1
+        };
+        room.panels[panelRecord.id] = panelRecord;
+
+        // Instant real-time broadcast to opponent screen
+        socket.to(data.roomId).emit('opponent_build', panelRecord);
+    });
+
+    socket.on('extend_ramp', (data) => {
+        const room = rooms[data.roomId];
+        if (!room) return;
+
+        // Update ramp segment count in memory if it exists
+        if (room.panels[data.id]) {
+            room.panels[data.id].segments = (room.panels[data.id].segments || 1) + 1;
+        }
+
+        // Instant real-time broadcast to stretch opponent's ramp on their screen
+        socket.to(data.roomId).emit('opponent_extend_ramp', data);
+    });
+
+    // ==========================================
+    // IN-GAME COMBAT & UNIT EVENTS
+    // ==========================================
     socket.on('player_move', (data) => {
         socket.to(data.roomId).emit('opponent_move', data);
     });
 
     socket.on('fire_projectile', (data) => {
         socket.to(data.roomId).emit('opponent_fire', data);
-    });
-
-    socket.on('place_panel', (data) => {
-        socket.to(data.roomId).emit('opponent_build', data);
     });
 
     socket.on('destroy_unit', (data) => {
@@ -175,11 +220,21 @@ io.on('connection', (socket) => {
     });
 
     socket.on('request_restart', (data) => {
+        const room = rooms[data.roomId];
+        if (room) {
+            room.panels = {};
+            room.status = 'open';
+            for (const pid in room.players) {
+                room.players[pid].ready = false;
+            }
+        }
         io.to(data.roomId).emit('restart_game');
+        broadcastLobbyState();
     });
 
     socket.on('disconnect', () => {
         totalOnlinePlayers = Math.max(0, totalOnlinePlayers - 1);
+        console.log('Player disconnected:', socket.id);
         removePlayerFromCurrentRoom(socket);
         broadcastLobbyState();
     });
