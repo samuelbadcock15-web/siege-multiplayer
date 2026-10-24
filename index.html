@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Siege - Clear Horizons Shotgun Build Edition</title>
+<title>Siege - Clear Horizons Telescoping Ramp Edition</title>
 <style>
   body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Courier New', Courier, monospace; cursor: crosshair; user-select: none; }
   #ui { position: absolute; top: 15px; left: 15px; color: white; background: rgba(15, 15, 20, 0.95); padding: 18px; border-radius: 8px; border: 2px solid #ffd700; width: 440px; z-index: 101; box-shadow: 0 0 30px rgba(0,0,0,0.7); display: none; }
@@ -31,7 +31,7 @@
     color: #ffd700; text-shadow: 0 0 10px rgba(0,0,0,0.8);
   }
   #pump-bar-container {
-    width: 160px; height: 10px; background: rgba(0,0,0,0.7); border: 1px solid #ffd700;
+    width: 170px; height: 10px; background: rgba(0,0,0,0.7); border: 1px solid #ffd700;
     border-radius: 5px; margin: 6px auto 0; overflow: hidden;
   }
   #pump-bar { width: 0%; height: 100%; background: #00ff00; transition: width 0.05s linear; }
@@ -93,7 +93,7 @@
   .modal-content { background: #111; border: 3px solid #ffd700; padding: 30px; border-radius: 12px; text-align: center; width: 450px; box-shadow: 0 0 50px rgba(255,215,0,0.4); color: white; }
   .modal-content h1 { font-size: 28px; margin-top: 0; letter-spacing: 3px; }
   .stats-box { background: #222; border: 1px solid #444; padding: 15px; margin: 20px 0; text-align: left; font-size: 13px; line-height: 1.6; }
-  #restart-btn { background: #ffd700; color: black; border: none; padding: 12px 25px; font-size: 15px; font-weight: bold; cursor: border; border-radius: 6px; letter-spacing: 1px; transition: 0.2s; }
+  #restart-btn { background: #ffd700; color: black; border: none; padding: 12px 25px; font-size: 15px; font-weight: bold; cursor: pointer; border-radius: 6px; letter-spacing: 1px; transition: 0.2s; }
   #restart-btn:hover { background: #fff; box-shadow: 0 0 15px #ffd700; }
 </style>
 <script src="/socket.io/socket.io.js"></script>
@@ -103,7 +103,7 @@
 <div id="lobby-screen">
     <div class="lobby-header">
         <h1>CLEAR HORIZONS</h1>
-        <p>Vertical Shotgun Siege | Ready up to deploy!</p>
+        <p>Continuous Telescoping Ramp Siege | Ready up to deploy!</p>
     </div>
     <div id="lobbies-grid"></div>
 </div>
@@ -111,7 +111,7 @@
 <div id="match-countdown">
     <div style="font-size: 20px; color: #ffd700; font-weight: bold;" id="countdown-role-text">COMMAND ROLE ASSIGNED</div>
     <div id="countdown-num">3</div>
-    <div style="color: #aaa; font-size: 14px;">Deploying forces to frontier positions...</div>
+    <div style="color: #aaa; font-size: 14px;">Distributing hydraulic extension charges...</div>
 </div>
 
 <div id="minimap-container"><canvas id="minimap"></canvas></div>
@@ -135,22 +135,22 @@
     [W,S,A,D] Move/Rotate Cam | [Q,E] Strafe<br>
     [LMB Ground] Place Base Floor / Select Cannon<br>
     [LMB Panel] Select | [Wheel] Cycle Floor / Wall / Ramp<br>
-    [Hold LMB on Shotgun] Pull back to load shell, push forward to fire!
+    [Underside Ramp Shotgun] PUMP TO EXTEND RAMP (Makes it longer, no new panel!)
   </div>
   <span id="status" class="sys">STATUS: STANDBY</span>
 </div>
 
 <div id="mode-legend">
-  <div class="legend-item"><div class="legend-dot" style="background:#22c55e;"></div>Mode 1: Floor (Horizontal Shotguns)</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#0ea5e9;"></div>Mode 2: Walls (Vertical Skyward Shotguns)</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#f97316;"></div>Mode 3: Ramps (Angled Ascent Shotguns)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#22c55e;"></div>Mode 1: Floor</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#0ea5e9;"></div>Mode 2: Walls (Vertical Shotguns)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f97316;"></div>Mode 3: Ramps (Angled Extender)</div>
   <div class="legend-item" style="color: #ffd700; border-left: 1px solid #444; padding-left: 12px;">
-    [WHEEL] Change Mode | [PUMP SHOTGUN] Fire Panel
+    [UNDERSIDE SHOTGUN] Pumps & Extends Same Ramp!
   </div>
 </div>
 
 <div id="pump-hud">
-  <div id="pump-text">RACK SHOTGUN TO LOAD</div>
+  <div id="pump-text">RACK SHOTGUN TO EXTEND</div>
   <div id="pump-bar-container"><div id="pump-bar"></div></div>
 </div>
 
@@ -289,19 +289,13 @@ for (let i = 0; i < 60; i++) {
 }
 
 // =================================================================
-// MODULAR 3D SNAP BUILDING ENGINE + 3D PUMP SHOTGUN HANDLES
+// MODULAR 3D SNAP BUILDING ENGINE + TELESCOPING EXTENDER
 // =================================================================
 const PANEL_SIZE = 12;
 const WALL_HEIGHT = 8;
 const PANEL_THICKNESS = 1.0;
 const RAMP_DIAG = Math.hypot(PANEL_SIZE, WALL_HEIGHT);
 const RAMP_ANGLE = Math.atan2(WALL_HEIGHT, PANEL_SIZE);
-
-const panelGeometries = {
-    floor: new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, PANEL_SIZE),
-    wall: new THREE.BoxGeometry(PANEL_SIZE, WALL_HEIGHT, PANEL_THICKNESS),
-    ramp: new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, RAMP_DIAG)
-};
 
 const panelMaterials = {
     floor: new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.8 }),
@@ -332,50 +326,41 @@ function clearShotgunHandles() {
     pumpHud.style.display = 'none';
 }
 
-// Procedural 3D Tactical Shotgun Generator
-function createShotgunHandle(dirVector, modeColor, id) {
+function createShotgunHandle(dirVector, modeColor, id, isExtender = false) {
     const gunGroup = new THREE.Group();
 
-    // 1. Metal Barrel & Receiver
     const steelMat = new THREE.MeshStandardMaterial({
-        color: 0x222225,
+        color: isExtender ? 0x332211 : 0x222225,
         metalness: 0.85,
         roughness: 0.35,
         emissive: 0x000000
     });
     
-    // Barrel
     const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 3.2, 12), steelMat);
     barrel.position.y = 1.6;
     
-    // Magazine Tube (underneath barrel)
     const magTube = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 2.6, 12), steelMat);
     magTube.position.set(0, 1.3, -0.2);
 
-    // Receiver (box body)
     const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.35, 1.2, 0.5), steelMat);
     receiver.position.set(0, 0.4, -0.1);
 
-    // Ejection Port
     const portMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
     const port = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.5, 0.2), portMat);
     port.position.set(0.01, 0.4, 0.05);
 
-    // 2. Wood Stock & Grip
-    const woodMat = new THREE.MeshStandardMaterial({ color: 0x5a2d0c, roughness: 0.7 });
+    const woodMat = new THREE.MeshStandardMaterial({ color: isExtender ? 0x8a4513 : 0x5a2d0c, roughness: 0.7 });
     const stock = new THREE.Mesh(new THREE.BoxGeometry(0.28, 1.4, 0.4), woodMat);
     stock.position.set(0, -0.8, -0.2);
     stock.rotation.x = 0.2;
 
-    // 3. Sliding Wooden Pump Forend (Racks back and forth)
     const pumpGeo = new THREE.CylinderGeometry(0.22, 0.22, 1.0, 12);
-    const pumpMat = new THREE.MeshStandardMaterial({ color: 0x6e3810, roughness: 0.6 });
+    const pumpMat = new THREE.MeshStandardMaterial({ color: isExtender ? 0xb8621b : 0x6e3810, roughness: 0.6 });
     const pumpSlide = new THREE.Mesh(pumpGeo, pumpMat);
     pumpSlide.position.set(0, 1.4, -0.1);
 
-    // 4. 12-Gauge Red Shotgun Shell (Chamber animation)
     const shellGroup = new THREE.Group();
-    const hullMat = new THREE.MeshStandardMaterial({ color: 0xcc1111, roughness: 0.4 });
+    const hullMat = new THREE.MeshStandardMaterial({ color: isExtender ? 0xff8800 : 0xcc1111, roughness: 0.4 });
     const brassMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.9, roughness: 0.2 });
     const hull = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.35, 12), hullMat);
     const brass = new THREE.Mesh(new THREE.CylinderGeometry(0.092, 0.092, 0.12, 12), brassMat);
@@ -384,24 +369,21 @@ function createShotgunHandle(dirVector, modeColor, id) {
     shellGroup.scale.set(0.001, 0.001, 0.001);
     shellGroup.position.set(0, 0.3, -0.2);
 
-    // 5. Muzzle Flash Particle System
     const flashMat = new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0 });
     const flash = new THREE.Mesh(new THREE.ConeGeometry(0.6, 1.2, 8), flashMat);
     flash.position.y = 3.6;
 
-    // 6. Mode Color Ring on Barrel Tip
     const ringMat = new THREE.MeshBasicMaterial({ color: modeColor });
     const tipRing = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.2, 12), ringMat);
     tipRing.position.y = 3.1;
 
     gunGroup.add(barrel, magTube, receiver, port, stock, pumpSlide, shellGroup, flash, tipRing);
-
-    // Orient shotgun so muzzle points along dirVector
     gunGroup.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dirVector.clone().normalize());
 
     gunGroup.userData = {
         isShotgunHandle: true,
         arrowId: id,
+        isRampExtender: isExtender,
         dirVector: dirVector.clone().normalize(),
         steelMat: steelMat,
         pumpSlide: pumpSlide,
@@ -419,6 +401,7 @@ function renderPanelHandles(panel) {
     clearShotgunHandles();
     if (!panel) return;
 
+    const isRamp = panel.userData.panelType === 'ramp';
     const mode = panel.userData.buildMode || 1;
     const pos = panel.position.clone();
     const half = PANEL_SIZE / 2;
@@ -426,37 +409,63 @@ function renderPanelHandles(panel) {
 
     let configs = [];
 
-    if (mode === 1) {
-        // MODE 1 (Floor): Horizontal shotguns pointing outward to expand the floor
+    // --- CASE A: SELECTED OBJECT IS AN EXISTING RAMP ---
+    if (isRamp) {
+        // Find ascent direction vector along this ramp
+        const forwardDir = new THREE.Vector3(0, 0, 1).applyEuler(panel.rotation);
+        const rampUpSlope = new THREE.Vector3(0, 1, 0).applyEuler(panel.rotation);
+        const inclineVector = new THREE.Vector3().crossVectors(new THREE.Vector3(1, 0, 0).applyEuler(panel.rotation), rampUpSlope).normalize();
+        
+        // 1. TELESCOPING EXTENDER SHOTGUN: Sits right on the underside angled along slope
+        const undersideOffset = new THREE.Vector3(0, -1.2, 0).applyEuler(panel.rotation);
+        configs.push({
+            id: 'ramp_extend',
+            dir: inclineVector.clone().negate(), // Points upward along slope
+            offset: undersideOffset,
+            isExtender: true
+        });
+
+        // 2. High-Deck Snap: Shotgun atop the upper lip to snap flat floor
+        const topLipOffset = inclineVector.clone().multiplyScalar(panel.userData.rampLength / 2);
+        configs.push({
+            id: 'ramp_cap_floor',
+            dir: new THREE.Vector3(0, 1, 0),
+            offset: topLipOffset.clone().add(new THREE.Vector3(0, 1.2, 0)),
+            isExtender: false
+        });
+    }
+    // --- CASE B: FLAT FLOOR / WALL MODES ---
+    else if (mode === 1) {
+        // Floor expansion
         configs = [
-            { id: 'north', dir: new THREE.Vector3(0, 0, -1), offset: new THREE.Vector3(0, 1.2, -half) },
-            { id: 'south', dir: new THREE.Vector3(0, 0, 1),  offset: new THREE.Vector3(0, 1.2, half) },
-            { id: 'east',  dir: new THREE.Vector3(1, 0, 0),  offset: new THREE.Vector3(half, 1.2, 0) },
-            { id: 'west',  dir: new THREE.Vector3(-1, 0, 0), offset: new THREE.Vector3(-half, 1.2, 0) },
-            { id: 'up',    dir: new THREE.Vector3(0, 1, 0),  offset: new THREE.Vector3(0, 2.4, 0) }
+            { id: 'north', dir: new THREE.Vector3(0, 0, -1), offset: new THREE.Vector3(0, 1.2, -half), isExtender: false },
+            { id: 'south', dir: new THREE.Vector3(0, 0, 1),  offset: new THREE.Vector3(0, 1.2, half), isExtender: false },
+            { id: 'east',  dir: new THREE.Vector3(1, 0, 0),  offset: new THREE.Vector3(half, 1.2, 0), isExtender: false },
+            { id: 'west',  dir: new THREE.Vector3(-1, 0, 0), offset: new THREE.Vector3(-half, 1.2, 0), isExtender: false },
+            { id: 'up',    dir: new THREE.Vector3(0, 1, 0),  offset: new THREE.Vector3(0, 2.4, 0), isExtender: false }
         ];
     } else if (mode === 2) {
-        // MODE 2 (Wall): Shotguns sit in the MIDDLE of each perimeter edge pointing STRAIGHT UP!
+        // Walls: Vertical skyward shotguns
         configs = [
-            { id: 'north', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 0.8, -half) },
-            { id: 'south', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 0.8, half) },
-            { id: 'east',  dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(half, 0.8, 0) },
-            { id: 'west',  dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(-half, 0.8, 0) },
-            { id: 'up',    dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 2.4, 0) } // Roof / High Flat
+            { id: 'north', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 0.8, -half), isExtender: false },
+            { id: 'south', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 0.8, half), isExtender: false },
+            { id: 'east',  dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(half, 0.8, 0), isExtender: false },
+            { id: 'west',  dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(-half, 0.8, 0), isExtender: false },
+            { id: 'up',    dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 2.4, 0), isExtender: false }
         ];
     } else if (mode === 3) {
-        // MODE 3 (Ramp): Shotguns point angled up along the ascent direction
+        // Ramps: Angled ascent shotguns from edges
         configs = [
-            { id: 'north', dir: new THREE.Vector3(0, Math.sin(RAMP_ANGLE), -Math.cos(RAMP_ANGLE)), offset: new THREE.Vector3(0, 1.2, -half) },
-            { id: 'south', dir: new THREE.Vector3(0, Math.sin(RAMP_ANGLE), Math.cos(RAMP_ANGLE)),  offset: new THREE.Vector3(0, 1.2, half) },
-            { id: 'east',  dir: new THREE.Vector3(Math.cos(RAMP_ANGLE), Math.sin(RAMP_ANGLE), 0),  offset: new THREE.Vector3(half, 1.2, 0) },
-            { id: 'west',  dir: new THREE.Vector3(-Math.cos(RAMP_ANGLE), Math.sin(RAMP_ANGLE), 0), offset: new THREE.Vector3(-half, 1.2, 0) },
-            { id: 'up',    dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 2.4, 0) }
+            { id: 'north', dir: new THREE.Vector3(0, Math.sin(RAMP_ANGLE), -Math.cos(RAMP_ANGLE)), offset: new THREE.Vector3(0, 1.2, -half), isExtender: false },
+            { id: 'south', dir: new THREE.Vector3(0, Math.sin(RAMP_ANGLE), Math.cos(RAMP_ANGLE)),  offset: new THREE.Vector3(0, 1.2, half), isExtender: false },
+            { id: 'east',  dir: new THREE.Vector3(Math.cos(RAMP_ANGLE), Math.sin(RAMP_ANGLE), 0),  offset: new THREE.Vector3(half, 1.2, 0), isExtender: false },
+            { id: 'west',  dir: new THREE.Vector3(-Math.cos(RAMP_ANGLE), Math.sin(RAMP_ANGLE), 0), offset: new THREE.Vector3(-half, 1.2, 0), isExtender: false },
+            { id: 'up',    dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 2.4, 0), isExtender: false }
         ];
     }
 
     configs.forEach(cfg => {
-        const gun = createShotgunHandle(cfg.dir, color, cfg.id);
+        const gun = createShotgunHandle(cfg.dir, color, cfg.id, cfg.isExtender);
         gun.position.copy(pos).add(cfg.offset);
         gun.userData.originalLocalPos.copy(gun.position);
         scene.add(gun);
@@ -465,10 +474,15 @@ function renderPanelHandles(panel) {
 }
 
 function updatePanelVisualMode(panel) {
-    const mode = panel.userData.buildMode || 1;
-    if (mode === 1) panel.material.color.setHex(0x1e3a1e);
-    else if (mode === 2) panel.material.color.setHex(0x1e2e4a);
-    else if (mode === 3) panel.material.color.setHex(0x4a2a12);
+    const isRamp = panel.userData.panelType === 'ramp';
+    if (isRamp) {
+        panel.material.color.setHex(0x52361b); // Warm timber/earth ramp
+    } else {
+        const mode = panel.userData.buildMode || 1;
+        if (mode === 1) panel.material.color.setHex(0x1e3a1e);
+        else if (mode === 2) panel.material.color.setHex(0x1e2e4a);
+        else if (mode === 3) panel.material.color.setHex(0x4a2a12);
+    }
     renderPanelHandles(panel);
 }
 
@@ -480,6 +494,7 @@ function selectPanel(panel) {
 
 function cyclePanelMode(delta) {
     if (!activeBasePanel) return;
+    if (activeBasePanel.userData.panelType === 'ramp') return; // Ramps stay ramps
     let mode = activeBasePanel.userData.buildMode || 1;
     if (delta > 0) mode = mode === 3 ? 1 : mode + 1;
     else mode = mode === 1 ? 3 : mode - 1;
@@ -487,18 +502,39 @@ function cyclePanelMode(delta) {
     updatePanelVisualMode(activeBasePanel);
 }
 
-function placePanel(type, position, rotation, isRemote = false) {
-    const geo = panelGeometries[type];
+// Instantiate permanent world panels
+function placePanel(type, position, rotation, isRemote = false, customId = null) {
     const mat = panelMaterials[type].clone();
-    const mesh = new THREE.Mesh(geo, mat);
+    let mesh;
+
+    if (type === 'ramp') {
+        const geo = new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, RAMP_DIAG);
+        mesh = new THREE.Mesh(geo, mat);
+        mesh.userData = {
+            isPanel: true,
+            panelType: 'ramp',
+            rampSegments: 1,
+            rampLength: RAMP_DIAG,
+            baseElevation: position.y - (WALL_HEIGHT / 2),
+            id: customId || Math.random().toString(),
+            permanent: true
+        };
+    } else {
+        const geo = type === 'floor' 
+            ? new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, PANEL_SIZE)
+            : new THREE.BoxGeometry(PANEL_SIZE, WALL_HEIGHT, PANEL_THICKNESS);
+        mesh = new THREE.Mesh(geo, mat);
+        mesh.userData = {
+            isPanel: true,
+            panelType: type,
+            buildMode: 1,
+            id: customId || Math.random().toString(),
+            permanent: true
+        };
+    }
+
     mesh.position.copy(position);
     mesh.rotation.copy(rotation);
-    mesh.userData = {
-        isPanel: true,
-        panelType: type,
-        buildMode: 1,
-        permanent: true
-    };
 
     scene.add(mesh);
     worldPanels.push(mesh);
@@ -507,6 +543,7 @@ function placePanel(type, position, rotation, isRemote = false) {
         socket.emit('place_panel', {
             roomId: currentRoomId,
             type: type,
+            id: mesh.userData.id,
             pos: { x: mesh.position.x, y: mesh.position.y, z: mesh.position.z },
             rot: { x: mesh.rotation.x, y: mesh.rotation.y, z: mesh.rotation.z }
         });
@@ -514,17 +551,83 @@ function placePanel(type, position, rotation, isRemote = false) {
     return mesh;
 }
 
+// --- TELESCOPING RAMP EXTENSION ENGINE ---
+function extendRampDirectly(rampMesh, isRemote = false) {
+    rampMesh.userData.rampSegments = (rampMesh.userData.rampSegments || 1) + 1;
+    const segs = rampMesh.userData.rampSegments;
+    const newLength = RAMP_DIAG * segs;
+    rampMesh.userData.rampLength = newLength;
+
+    // Dispose old geometry and stretch length along its incline
+    rampMesh.geometry.dispose();
+    rampMesh.geometry = new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, newLength);
+
+    // Shift center forward and upward along slope so the bottom foot stays pinned to the ground
+    // Each additional segment pushes center by +half panel run (6) and +half wall height (4)
+    const inclineForward = new THREE.Vector3(0, Math.sin(RAMP_ANGLE), -Math.cos(RAMP_ANGLE)).applyEuler(rampMesh.rotation);
+    rampMesh.position.add(new THREE.Vector3(0, WALL_HEIGHT / 2, 0));
+    
+    // Horizontal compensation
+    if (Math.abs(rampMesh.rotation.x) > 0.1) {
+        const signZ = rampMesh.rotation.x > 0 ? -1 : 1;
+        rampMesh.position.z += signZ * (PANEL_SIZE / 2);
+    }
+    if (Math.abs(rampMesh.rotation.z) > 0.1) {
+        const signX = rampMesh.rotation.z > 0 ? 1 : -1;
+        rampMesh.position.x += signX * (PANEL_SIZE / 2);
+    }
+
+    if (!isRemote) {
+        socket.emit('extend_ramp', {
+            roomId: currentRoomId,
+            id: rampMesh.userData.id
+        });
+    }
+
+    renderPanelHandles(rampMesh);
+}
+
+socket.on('opponent_extend_ramp', (data) => {
+    const r = worldPanels.find(p => p.userData.id === data.id);
+    if (r) extendRampDirectly(r, true);
+});
+
 socket.on('opponent_build', (data) => {
     if (!matchStarted) return;
     placePanel(
         data.type,
         new THREE.Vector3(data.pos.x, data.pos.y, data.pos.z),
         new THREE.Euler(data.rot.x, data.rot.y, data.rot.z),
-        true
+        true,
+        data.id
     );
 });
 
 function triggerBranchBuild(parentPanel, gunId) {
+    // 1. EXTENDER SHOTGUN CHECK: DO NOT SPAWN A NEW PANEL!
+    if (gunId === 'ramp_extend' && parentPanel.userData.panelType === 'ramp') {
+        extendRampDirectly(parentPanel);
+        return;
+    }
+
+    // 2. High-deck Floor Cap at the top lip of a ramp
+    if (gunId === 'ramp_cap_floor' && parentPanel.userData.panelType === 'ramp') {
+        const topLipPos = parentPanel.position.clone();
+        topLipPos.y += (WALL_HEIGHT * parentPanel.userData.rampSegments) / 2;
+        if (Math.abs(parentPanel.rotation.x) > 0.1) {
+            const dirZ = parentPanel.rotation.x > 0 ? -1 : 1;
+            topLipPos.z += dirZ * (PANEL_SIZE * parentPanel.userData.rampSegments / 2 + PANEL_SIZE / 2);
+        }
+        if (Math.abs(parentPanel.rotation.z) > 0.1) {
+            const dirX = parentPanel.rotation.z > 0 ? 1 : -1;
+            topLipPos.x += dirX * (PANEL_SIZE * parentPanel.userData.rampSegments / 2 + PANEL_SIZE / 2);
+        }
+        const flatDeck = placePanel('floor', topLipPos, new THREE.Euler(0, 0, 0));
+        activeBasePanel = flatDeck;
+        selectPanel(flatDeck);
+        return;
+    }
+
     const mode = parentPanel.userData.buildMode || 1;
     const basePos = parentPanel.position.clone();
     let newPos = basePos.clone();
@@ -533,16 +636,14 @@ function triggerBranchBuild(parentPanel, gunId) {
 
     if (mode === 1) {
         buildType = 'floor';
-        const isRampParent = parentPanel.userData.panelType === 'ramp';
-        if (gunId === 'north') { newPos.z -= PANEL_SIZE; if (isRampParent) newPos.y += (WALL_HEIGHT / 2); }
-        if (gunId === 'south') { newPos.z += PANEL_SIZE; if (isRampParent) newPos.y -= (WALL_HEIGHT / 2); }
-        if (gunId === 'east')  { newPos.x += PANEL_SIZE; if (isRampParent) newPos.y += (WALL_HEIGHT / 2); }
-        if (gunId === 'west')  { newPos.x -= PANEL_SIZE; if (isRampParent) newPos.y -= (WALL_HEIGHT / 2); }
-        if (gunId === 'up')    { newPos.y += WALL_HEIGHT; }
+        if (gunId === 'north') newPos.z -= PANEL_SIZE;
+        if (gunId === 'south') newPos.z += PANEL_SIZE;
+        if (gunId === 'east')  newPos.x += PANEL_SIZE;
+        if (gunId === 'west')  newPos.x -= PANEL_SIZE;
+        if (gunId === 'up')    newPos.y += WALL_HEIGHT;
     } 
     else if (mode === 2) {
         buildType = 'wall';
-        // Spawn vertical wall shooting up from edge
         newPos.y += (WALL_HEIGHT / 2);
         if (gunId === 'north') { newPos.z -= (PANEL_SIZE / 2); newRot.y = 0; }
         if (gunId === 'south') { newPos.z += (PANEL_SIZE / 2); newRot.y = 0; }
@@ -551,26 +652,25 @@ function triggerBranchBuild(parentPanel, gunId) {
         if (gunId === 'up')    { buildType = 'floor'; newPos.y = basePos.y + WALL_HEIGHT; }
     } 
     else if (mode === 3) {
-        // --- MODE 3: CORRECTED 180° RAMP ORIENTATION ---
-        // Bottom lip starts flush with the floor panel, top lip climbs to upper tier (+8 height)
+        // Starts clean ramp with bottom lip pinned to floor edge
         buildType = 'ramp';
         newPos.y += (WALL_HEIGHT / 2);
 
         if (gunId === 'north') {
             newPos.z -= PANEL_SIZE;
-            newRot.x = RAMP_ANGLE; // Inverted so bottom touches floor edge, top ascends to north
+            newRot.x = RAMP_ANGLE;
         }
         if (gunId === 'south') {
             newPos.z += PANEL_SIZE;
-            newRot.x = -RAMP_ANGLE; // Inverted so bottom touches floor edge, top ascends to south
+            newRot.x = -RAMP_ANGLE;
         }
         if (gunId === 'east') {
             newPos.x += PANEL_SIZE;
-            newRot.z = RAMP_ANGLE; // Inverted so bottom touches floor edge, top ascends to east
+            newRot.z = RAMP_ANGLE;
         }
         if (gunId === 'west') {
             newPos.x -= PANEL_SIZE;
-            newRot.z = -RAMP_ANGLE; // Inverted so bottom touches floor edge, top ascends to west
+            newRot.z = -RAMP_ANGLE;
         }
         if (gunId === 'up') {
             buildType = 'floor';
@@ -580,8 +680,7 @@ function triggerBranchBuild(parentPanel, gunId) {
 
     const spawned = placePanel(buildType, newPos, newRot);
     activeBasePanel = spawned;
-    spawned.userData.buildMode = mode;
-    updatePanelVisualMode(spawned);
+    selectPanel(spawned);
 }
 
 // =================================================================
@@ -816,7 +915,7 @@ window.onmousedown = (e) => {
     if (e.button === 0) {
         raycaster.setFromCamera(mouse, camera);
 
-        // 1. Engage Shotgun for Pump-Action Reload
+        // 1. Engage Shotgun for Pump-Action Reload / Extend
         const gunIntersects = raycaster.intersectObjects(shotgunHandles, true);
         if (gunIntersects.length > 0) {
             let hitObj = gunIntersects[0].object;
@@ -827,14 +926,20 @@ window.onmousedown = (e) => {
                 pumpCocked = false;
                 pumpProgress = 0;
                 pumpHud.style.display = 'block';
-                pumpText.innerText = "RACK SLIDE BACK TO LOAD SHELL...";
+
+                if (hitObj.userData.isRampExtender) {
+                    pumpText.innerText = "RACK SLIDE TO EXTEND RAMP LONGER...";
+                    pumpBar.style.background = '#ff8800';
+                } else {
+                    pumpText.innerText = "RACK SLIDE BACK TO LOAD SHELL...";
+                    pumpBar.style.background = '#ffd700';
+                }
                 pumpBar.style.width = '0%';
-                pumpBar.style.background = '#ffd700';
                 return;
             }
         }
 
-        // 2. Select Existing Panels (for wheel mode cycling)
+        // 2. Select Existing Panels (for mode cycling or ramp extender)
         const panelHits = raycaster.intersectObjects(worldPanels, false);
         if (panelHits.length > 0) {
             selectPanel(panelHits[0].object);
@@ -917,59 +1022,51 @@ window.onmousemove = (e) => {
             const shellGroup = pumpingShotgun.userData.shellGroup;
             const initialY = pumpingShotgun.userData.initialPumpY;
 
-            // STAGE 1: PULL BACK (RACK SLIDE & LOAD SHELL INTO BREECH)
+            // STAGE 1: PULL BACK
             if (!pumpCocked) {
                 const cockAmount = Math.max(0, Math.min(50, -dragAlongAxis));
                 pumpProgress = cockAmount / 50;
                 pumpBar.style.width = `${pumpProgress * 50}%`;
 
-                // Slide moves back toward receiver
                 pumpSlide.position.y = initialY - (pumpProgress * 0.9);
 
-                // Shell emerges into open breech
                 const shellScale = Math.min(1.0, pumpProgress * 1.5);
                 shellGroup.scale.set(shellScale, shellScale, shellScale);
                 shellGroup.position.set(0, 0.4 + (pumpProgress * 0.2), -0.1 + (pumpProgress * 0.2));
 
                 if (pumpProgress >= 1.0) {
                     pumpCocked = true;
-                    pumpText.innerText = "SHELL CHAMBERED! PUSH FORWARD TO FIRE!";
+                    pumpText.innerText = pumpingShotgun.userData.isRampExtender 
+                        ? "HYDRAULIC CHARGED! PUSH FORWARD TO EXTEND RAMP!"
+                        : "SHELL CHAMBERED! PUSH FORWARD TO FIRE!";
                     pumpBar.style.background = '#00ff00';
                 }
             } 
-            // STAGE 2: PUSH FORWARD (CHAMBER & SLAM BOLT SHUT)
+            // STAGE 2: PUSH FORWARD
             else {
                 const forwardAmount = Math.max(0, dragAlongAxis);
                 const fireProgress = Math.min(1.0, forwardAmount / 40);
                 pumpBar.style.width = `${50 + fireProgress * 50}%`;
 
-                // Slide rams forward
                 pumpSlide.position.y = (initialY - 0.9) + (fireProgress * 0.9);
-
-                // Shell drives cleanly into the chamber barrel
                 shellGroup.position.y = 0.6 + (fireProgress * 0.9);
                 shellGroup.position.z = 0.1 - (fireProgress * 0.2);
 
                 if (fireProgress >= 1.0) {
-                    // --- FIRE BANG! ---
                     const firedGunId = pumpingShotgun.userData.arrowId;
                     pumpingShotgun.userData.recoilTimer = 1.0;
-
-                    // Trigger Muzzle Flash
                     pumpingShotgun.userData.flash.material.opacity = 1.0;
 
-                    // Fire Panel Into Existence
+                    // Trigger branch build OR extend existing ramp
                     triggerBranchBuild(activeBasePanel, firedGunId);
 
-                    // Re-arm chamber for rapid pump-chains
                     pumpStartMouse = { x: e.clientX, y: e.clientY };
                     pumpCocked = false;
                     pumpProgress = 0;
-                    pumpText.innerText = "NEXT ROUND IN TUBE! RACK TO LOAD...";
                     pumpBar.style.width = '0%';
                     pumpBar.style.background = '#ffd700';
 
-                    // Rebind to corresponding shotgun on new panel
+                    // Re-bind to corresponding shotgun on active panel
                     const nextGun = shotgunHandles.find(g => g.userData.arrowId === firedGunId);
                     pumpingShotgun = nextGun || null;
                     if (!pumpingShotgun) pumpHud.style.display = 'none';
@@ -1061,20 +1158,18 @@ function animate() {
             const isHovered = (gun === currentHover) || (gun === pumpingShotgun);
             const pulse = (Math.sin(time * 8) + 1) * 0.5;
 
-            // Recoil kickback decay
             if (gun.userData.recoilTimer > 0) {
                 gun.userData.recoilTimer = Math.max(0, gun.userData.recoilTimer - dt * 6);
                 const kick = gun.userData.dirVector.clone().multiplyScalar(-gun.userData.recoilTimer * 0.8);
                 gun.position.copy(gun.userData.originalLocalPos).add(kick);
             }
 
-            // Fade Muzzle Flash
             if (gun.userData.flash.material.opacity > 0) {
                 gun.userData.flash.material.opacity = Math.max(0, gun.userData.flash.material.opacity - dt * 10);
             }
 
             if (isHovered) {
-                gun.userData.steelMat.emissive.setHex(0xffaa00);
+                gun.userData.steelMat.emissive.setHex(gun.userData.isRampExtender ? 0xff6600 : 0xffaa00);
                 gun.userData.steelMat.emissiveIntensity = 0.5 + (pulse * 0.4);
                 if (!pumpingShotgun) {
                     const s = 1.25 + (pulse * 0.05);
@@ -1101,12 +1196,12 @@ function animate() {
                 can.position.z = nextPos.z;
                 can.lookAt(can.userData.targetPos.x, can.position.y, can.userData.targetPos.z);
 
-                // Elevation raycast
-                const downRay = new THREE.Raycaster(new THREE.Vector3(can.position.x, 100, can.position.z), new THREE.Vector3(0, -1, 0), 0, 150);
+                // Elevation raycast (works over continuous extended ramps)
+                const downRay = new THREE.Raycaster(new THREE.Vector3(can.position.x, 150, can.position.z), new THREE.Vector3(0, -1, 0), 0, 200);
                 const elevateHits = downRay.intersectObjects([ground, ...worldPanels, ...bridges], true);
                 if (elevateHits.length > 0) {
                     const targetY = elevateHits[0].point.y + 0.8;
-                    can.position.y += (targetY - can.position.y) * 0.2 * dt60;
+                    can.position.y += (targetY - can.position.y) * 0.25 * dt60;
                 }
 
                 // River Hazard Check
@@ -1138,7 +1233,6 @@ function animate() {
             const rayDir = p.velocity.clone().normalize();
             const rayLen = frameVel.length() + 0.3;
 
-            // Structure bounce
             const structRay = new THREE.Raycaster(prevPos, rayDir, 0, rayLen);
             const structHits = structRay.intersectObjects([...worldPanels, ...gameWalls, ...bridges], true);
             if (structHits.length > 0) {
@@ -1151,7 +1245,6 @@ function animate() {
                 }
             }
 
-            // Unit Hits
             const targetCannons = p.isRemote ? cannons : opponentCannons;
             let hitTarget = null;
             for (let can of targetCannons) {
