@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Siege - Clear Horizons Tactical Air-Bridge Edition</title>
+<title>Siege - Clear Horizons Altitude Slider Edition</title>
 <style>
   body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Courier New', Courier, monospace; cursor: crosshair; user-select: none; }
   #ui { position: absolute; top: 15px; left: 15px; color: white; background: rgba(15, 15, 20, 0.95); padding: 18px; border-radius: 8px; border: 2px solid #ffd700; width: 440px; z-index: 101; box-shadow: 0 0 30px rgba(0,0,0,0.7); display: none; }
@@ -35,6 +35,80 @@
     border-radius: 5px; margin: 6px auto 0; overflow: hidden;
   }
   #pump-bar { width: 0%; height: 100%; background: #00ff00; transition: width 0.05s linear; }
+
+  /* --- CAMERA ALTITUDE ELEVATION SLIDER (RIGHT HAND SIDE) --- */
+  #camera-altitude-control {
+    position: absolute;
+    right: 25px;
+    top: 240px;
+    bottom: 80px;
+    width: 60px;
+    background: rgba(10, 14, 25, 0.92);
+    border: 2px solid #ffd700;
+    border-radius: 10px;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 15px 5px;
+    box-sizing: border-box;
+    z-index: 250;
+    box-shadow: 0 0 25px rgba(0,0,0,0.7);
+    color: #ffd700;
+  }
+  .alt-header {
+    font-size: 10px;
+    font-weight: bold;
+    text-align: center;
+    letter-spacing: 1px;
+    line-height: 1.2;
+  }
+  .alt-value-display {
+    font-size: 11px;
+    font-weight: bold;
+    color: #00ffcc;
+    margin: 5px 0;
+  }
+  .alt-slider-wrapper {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    margin: 10px 0;
+  }
+  #altitude-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 260px;
+    height: 8px;
+    background: #1e293b;
+    border-radius: 4px;
+    outline: none;
+    transform: rotate(-90deg);
+    cursor: pointer;
+    border: 1px solid #444;
+  }
+  #altitude-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #ffd700;
+    cursor: pointer;
+    box-shadow: 0 0 10px #ffd700;
+    border: 2px solid #ffffff;
+  }
+  #altitude-slider::-moz-range-thumb {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #ffd700;
+    cursor: pointer;
+    box-shadow: 0 0 10px #ffd700;
+    border: 2px solid #ffffff;
+  }
 
   /* --- 6-ROOM LOBBY SYSTEM --- */
   #lobby-screen { 
@@ -111,10 +185,20 @@
 <div id="match-countdown">
     <div style="font-size: 20px; color: #ffd700; font-weight: bold;" id="countdown-role-text">COMMAND ROLE ASSIGNED</div>
     <div id="countdown-num">3</div>
-    <div style="color: #aaa; font-size: 14px;">Distributing hydraulic extension charges...</div>
+    <div style="color: #aaa; font-size: 14px;">Deploying forces to frontier positions...</div>
 </div>
 
 <div id="minimap-container"><canvas id="minimap"></canvas></div>
+
+<!-- CAMERA ALTITUDE SLIDER (RIGHT HAND SIDE) -->
+<div id="camera-altitude-control">
+  <div class="alt-header">ALT<br>SKY</div>
+  <div class="alt-slider-wrapper">
+    <input type="range" id="altitude-slider" min="5" max="220" value="5" step="1">
+  </div>
+  <div class="alt-value-display" id="alt-val-text">Y: 5</div>
+  <div class="alt-header" style="color: #aaa;">GND</div>
+</div>
 
 <div id="ui">
   <span class="ca">MISSION INTELLIGENCE</span>
@@ -133,7 +217,8 @@
   </div>
   <div style="font-size: 10px; margin-top: 15px; color: #aaa; border-top: 1px solid #333; padding-top: 8px; line-height: 1.4;">
     [W,S,A,D] Move/Rotate Cam | [Q,E] Strafe<br>
-    [LMB] Select Cannon & Move Units across Ground, Panels & Ramps<br>
+    [Right Slider] Change Camera Flight Altitude Level<br>
+    [LMB] Select Cannon & March onto Ground, Panels & Ramps<br>
     [RMB on Panel] Select Panel | [Wheel] Cycle Floor / Wall / Ramp<br>
     [Hold LMB on Shotgun] Pull back & push forward to build/extend!
   </div>
@@ -145,7 +230,7 @@
   <div class="legend-item"><div class="legend-dot" style="background:#0ea5e9;"></div>Wall Mode</div>
   <div class="legend-item"><div class="legend-dot" style="background:#f97316;"></div>Ramp Mode</div>
   <div class="legend-item" style="color: #ffd700; border-left: 1px solid #444; padding-left: 12px;">
-    [RMB] Select Panel | [HORIZONTAL SHOTGUN ON RAMP] Level Out Flat Sky-Floor!
+    [RMB] Select Panel | [HORIZONTAL SHOTGUN ON RAMP] Level Out Flat Air-Floor!
   </div>
 </div>
 
@@ -181,6 +266,9 @@ let matchStarted = false;
 
 const clock = new THREE.Clock();
 
+// Target altitude variable maintained by the right-hand slider
+let targetCameraAltitude = 5.0;
+
 // Scene, Camera, Renderer
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87CEEB);
@@ -197,6 +285,16 @@ const minimapCanvas = document.getElementById('minimap');
 const ctx = minimapCanvas.getContext('2d');
 minimapCanvas.width = 200;
 minimapCanvas.height = 200;
+
+// Wire up the right-hand altitude slider
+const altitudeSlider = document.getElementById('altitude-slider');
+const altValText = document.getElementById('alt-val-text');
+const altitudeControlBox = document.getElementById('camera-altitude-control');
+
+altitudeSlider.oninput = (e) => {
+    targetCameraAltitude = parseFloat(e.target.value);
+    altValText.innerText = `Y: ${Math.round(targetCameraAltitude)}`;
+};
 
 // Lighting
 const light = new THREE.DirectionalLight(0xffffff, 1.5);
@@ -412,13 +510,11 @@ function renderPanelHandles(panel) {
 
     let configs = [];
 
-    // --- CASE A: SELECTED PANEL IS A RAMP ---
     if (isRamp) {
-        // Find direction vectors of this ramp
         const rampUpSlope = new THREE.Vector3(0, 1, 0).applyEuler(panel.rotation);
         const inclineVector = new THREE.Vector3().crossVectors(new THREE.Vector3(1, 0, 0).applyEuler(panel.rotation), rampUpSlope).normalize();
         
-        // 1. EXTENDER SHOTGUN: Underside angled along slope to telescope the ramp
+        // 1. UNDERSIDE EXTENDER SHOTGUN
         const undersideOffset = new THREE.Vector3(0, -1.2, 0).applyEuler(panel.rotation);
         configs.push({
             id: 'ramp_extend',
@@ -445,7 +541,6 @@ function renderPanelHandles(panel) {
             isLevelOut: true
         });
     }
-    // --- CASE B: FLAT FLOOR / WALL MODES ---
     else if (mode === 1) {
         configs = [
             { id: 'north', dir: new THREE.Vector3(0, 0, -1), offset: new THREE.Vector3(0, 1.2, -half), isExtender: false, isLevelOut: false },
@@ -558,7 +653,6 @@ function placePanel(type, position, rotation, isRemote = false, customId = null)
     return mesh;
 }
 
-// Telescoping extension without spawning new panels
 function extendRampDirectly(rampMesh, isRemote = false) {
     rampMesh.userData.rampSegments = (rampMesh.userData.rampSegments || 1) + 1;
     const segs = rampMesh.userData.rampSegments;
@@ -606,19 +700,16 @@ socket.on('opponent_build', (data) => {
 });
 
 function triggerBranchBuild(parentPanel, gunId) {
-    // 1. Ramp Extender Shotgun -> Telescopes ramp longer
     if (gunId === 'ramp_extend' && parentPanel.userData.panelType === 'ramp') {
         extendRampDirectly(parentPanel);
         return;
     }
 
-    // 2. HORIZONTAL LEVEL-OUT SHOTGUN -> SNAPS FLAT AIR-FLOOR DIRECTLY AT RAMP PEAK
     if (gunId === 'ramp_level_flat' && parentPanel.userData.panelType === 'ramp') {
         const segs = parentPanel.userData.rampSegments || 1;
         const totalRise = WALL_HEIGHT * segs;
         const totalRun = PANEL_SIZE * segs;
 
-        // Base foot elevation + total ascent
         const summitY = (parentPanel.userData.baseElevation || 0.5) + totalRise;
         const flatPos = parentPanel.position.clone();
         flatPos.y = summitY;
@@ -889,7 +980,7 @@ function updateMinimap() {
 // =================================================================
 window.onmousedown = (e) => {
     if (!matchStarted || matchOver) return;
-    if (e.target.closest('#ui') || e.target.closest('#lobby-screen') || e.target.closest('#mode-legend')) return;
+    if (e.target.closest('#ui') || e.target.closest('#lobby-screen') || e.target.closest('#mode-legend') || e.target.closest('#camera-altitude-control')) return;
 
     if (e.target === minimapCanvas && e.button === 0) {
         const rect = minimapCanvas.getBoundingClientRect();
@@ -905,12 +996,12 @@ window.onmousedown = (e) => {
     }
 
     // -------------------------------------------------------------
-    // LEFT MOUSE BUTTON (LMB): UNITS, TROOP MARCH & SHOTGUN PUMPING
+    // LEFT MOUSE BUTTON (LMB): TROOP MARCH & SHOTGUN PUMPING
     // -------------------------------------------------------------
     if (e.button === 0) {
         raycaster.setFromCamera(mouse, camera);
 
-        // 1. Check if user is clicking & pumping a Shotgun
+        // 1. Engage Shotgun Handle
         const gunIntersects = raycaster.intersectObjects(shotgunHandles, true);
         if (gunIntersects.length > 0) {
             let hitObj = gunIntersects[0].object;
@@ -937,7 +1028,7 @@ window.onmousedown = (e) => {
             }
         }
 
-        // 2. Unit Selection
+        // 2. Select Cannon
         let clickedCannon = null;
         cannons.forEach(can => {
             if (raycaster.intersectObject(can, true).length > 0) clickedCannon = can;
@@ -952,17 +1043,15 @@ window.onmousedown = (e) => {
             return;
         }
 
-        // 3. Move Selected Units across Ground, Panels & Elevated Ramps
+        // 3. Move Units across Ground, Panels & Elevated Ramps
         const walkableHits = raycaster.intersectObjects([ground, ...worldPanels, ...bridges], true);
         if (walkableHits.length > 0) {
             const pt = walkableHits[0].point;
             const selected = cannons.find(c => c.userData.selected);
             if (selected) {
-                // Command troops onto the ground, ramp or elevated panel
                 selected.userData.targetPos.set(pt.x, pt.y + 0.8, pt.z);
                 socket.emit('player_move', { roomId: currentRoomId, id: selected.userData.id, tx: pt.x, tz: pt.z });
             } else if (worldPanels.length === 0) {
-                // Initial root panel placement on empty ground if none exists
                 const isMySide = myPlayerIndex === 1 ? (pt.z > riverWidth / 2) : (pt.z < -riverWidth / 2);
                 if (isMySide) {
                     const snapX = Math.round(pt.x / PANEL_SIZE) * PANEL_SIZE;
@@ -971,7 +1060,6 @@ window.onmousedown = (e) => {
                     selectPanel(rootPanel);
                 }
             } else {
-                // Deselect handles when clicking open space
                 clearShotgunHandles();
                 activeBasePanel = null;
             }
@@ -1067,7 +1155,6 @@ window.onmousemove = (e) => {
                     pumpingShotgun.userData.recoilTimer = 1.0;
                     pumpingShotgun.userData.flash.material.opacity = 1.0;
 
-                    // Trigger branch build OR extend existing ramp OR level out
                     triggerBranchBuild(activeBasePanel, firedGunId);
 
                     pumpStartMouse = { x: e.clientX, y: e.clientY };
@@ -1115,7 +1202,7 @@ window.onresize = () => {
 };
 
 // =================================================================
-// DELTA-TIME ANIMATION LOOP + SHOTGUN HOVER GLOW
+// DELTA-TIME ANIMATION LOOP + PERSISTENT ALTITUDE CAMERA
 // =================================================================
 function animate() {
     requestAnimationFrame(animate);
@@ -1133,7 +1220,10 @@ function animate() {
     });
 
     if (matchStarted && !matchOver) {
-        // Camera Controls
+        // Smoothly interpolate camera elevation toward slider altitude
+        camera.position.y += (targetCameraAltitude - camera.position.y) * 0.15 * dt60;
+
+        // Camera Planar Controls at the chosen altitude level
         const camSpeed = 1.2 * dt60;
         const moveVector = new THREE.Vector3(0, 0, 0);
         if (keys['w']) moveVector.z -= camSpeed;
@@ -1206,7 +1296,6 @@ function animate() {
                 can.position.z = nextPos.z;
                 can.lookAt(can.userData.targetPos.x, can.position.y, can.userData.targetPos.z);
 
-                // Elevation raycast (seamlessly climbs ramps and rides elevated flat floors)
                 const downRay = new THREE.Raycaster(new THREE.Vector3(can.position.x, 250, can.position.z), new THREE.Vector3(0, -1, 0), 0, 300);
                 const elevateHits = downRay.intersectObjects([ground, ...worldPanels, ...bridges], true);
                 if (elevateHits.length > 0) {
@@ -1214,7 +1303,6 @@ function animate() {
                     can.position.y += (targetY - can.position.y) * 0.3 * dt60;
                 }
 
-                // River Hazard Check
                 if (Math.abs(can.position.z) < (riverWidth / 2) - 1.5 && can.position.y < 2.0) {
                     const onBridge = bridgeXPositions.some(bx => Math.abs(can.position.x - bx) <= (bridgeWidth / 2));
                     if (!onBridge) {
@@ -1395,11 +1483,21 @@ socket.on('start_match_countdown', (data) => {
             document.getElementById('ui').style.display = 'block';
             document.getElementById('minimap-container').style.display = 'block';
             document.getElementById('mode-legend').style.display = 'flex';
+            altitudeControlBox.style.display = 'flex';
             document.getElementById('role-display').innerText = roleString;
 
             if (myPlayerIndex === 2) {
+                targetCameraAltitude = 5.0;
+                altitudeSlider.value = 5;
+                altValText.innerText = "Y: 5";
                 camera.position.set(0, 5, -135);
                 camera.rotation.y = Math.PI;
+            } else {
+                targetCameraAltitude = 5.0;
+                altitudeSlider.value = 5;
+                altValText.innerText = "Y: 5";
+                camera.position.set(0, 5, 135);
+                camera.rotation.y = 0;
             }
 
             if (!gameInitialized) {
