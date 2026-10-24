@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Siege - Clear Horizons Telescoping Ramp Edition</title>
+<title>Siege - Clear Horizons Tactical Air-Bridge Edition</title>
 <style>
   body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Courier New', Courier, monospace; cursor: crosshair; user-select: none; }
   #ui { position: absolute; top: 15px; left: 15px; color: white; background: rgba(15, 15, 20, 0.95); padding: 18px; border-radius: 8px; border: 2px solid #ffd700; width: 440px; z-index: 101; box-shadow: 0 0 30px rgba(0,0,0,0.7); display: none; }
@@ -103,7 +103,7 @@
 <div id="lobby-screen">
     <div class="lobby-header">
         <h1>CLEAR HORIZONS</h1>
-        <p>Continuous Telescoping Ramp Siege | Ready up to deploy!</p>
+        <p>Tactical Air-Bridge & Ramp Combat | Ready up to deploy!</p>
     </div>
     <div id="lobbies-grid"></div>
 </div>
@@ -133,24 +133,24 @@
   </div>
   <div style="font-size: 10px; margin-top: 15px; color: #aaa; border-top: 1px solid #333; padding-top: 8px; line-height: 1.4;">
     [W,S,A,D] Move/Rotate Cam | [Q,E] Strafe<br>
-    [LMB Ground] Place Base Floor / Select Cannon<br>
-    [LMB Panel] Select | [Wheel] Cycle Floor / Wall / Ramp<br>
-    [Underside Ramp Shotgun] PUMP TO EXTEND RAMP (Makes it longer, no new panel!)
+    [LMB] Select Cannon & Move Units across Ground, Panels & Ramps<br>
+    [RMB on Panel] Select Panel | [Wheel] Cycle Floor / Wall / Ramp<br>
+    [Hold LMB on Shotgun] Pull back & push forward to build/extend!
   </div>
   <span id="status" class="sys">STATUS: STANDBY</span>
 </div>
 
 <div id="mode-legend">
-  <div class="legend-item"><div class="legend-dot" style="background:#22c55e;"></div>Mode 1: Floor</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#0ea5e9;"></div>Mode 2: Walls (Vertical Shotguns)</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#f97316;"></div>Mode 3: Ramps (Angled Extender)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#22c55e;"></div>Floor Mode</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#0ea5e9;"></div>Wall Mode</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f97316;"></div>Ramp Mode</div>
   <div class="legend-item" style="color: #ffd700; border-left: 1px solid #444; padding-left: 12px;">
-    [UNDERSIDE SHOTGUN] Pumps & Extends Same Ramp!
+    [RMB] Select Panel | [HORIZONTAL SHOTGUN ON RAMP] Level Out Flat Sky-Floor!
   </div>
 </div>
 
 <div id="pump-hud">
-  <div id="pump-text">RACK SHOTGUN TO EXTEND</div>
+  <div id="pump-text">RACK SHOTGUN TO BUILD</div>
   <div id="pump-bar-container"><div id="pump-bar"></div></div>
 </div>
 
@@ -289,7 +289,7 @@ for (let i = 0; i < 60; i++) {
 }
 
 // =================================================================
-// MODULAR 3D SNAP BUILDING ENGINE + TELESCOPING EXTENDER
+// MODULAR 3D SNAP BUILDING ENGINE + HORIZONTAL RAMP LEVEL-OUT
 // =================================================================
 const PANEL_SIZE = 12;
 const WALL_HEIGHT = 8;
@@ -326,11 +326,12 @@ function clearShotgunHandles() {
     pumpHud.style.display = 'none';
 }
 
-function createShotgunHandle(dirVector, modeColor, id, isExtender = false) {
+function createShotgunHandle(dirVector, modeColor, id, isExtender = false, isLevelOut = false) {
     const gunGroup = new THREE.Group();
 
+    const steelColor = isExtender ? 0x332211 : (isLevelOut ? 0x113322 : 0x222225);
     const steelMat = new THREE.MeshStandardMaterial({
-        color: isExtender ? 0x332211 : 0x222225,
+        color: steelColor,
         metalness: 0.85,
         roughness: 0.35,
         emissive: 0x000000
@@ -349,18 +350,19 @@ function createShotgunHandle(dirVector, modeColor, id, isExtender = false) {
     const port = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.5, 0.2), portMat);
     port.position.set(0.01, 0.4, 0.05);
 
-    const woodMat = new THREE.MeshStandardMaterial({ color: isExtender ? 0x8a4513 : 0x5a2d0c, roughness: 0.7 });
+    const woodColor = isLevelOut ? 0x225522 : (isExtender ? 0x8a4513 : 0x5a2d0c);
+    const woodMat = new THREE.MeshStandardMaterial({ color: woodColor, roughness: 0.7 });
     const stock = new THREE.Mesh(new THREE.BoxGeometry(0.28, 1.4, 0.4), woodMat);
     stock.position.set(0, -0.8, -0.2);
     stock.rotation.x = 0.2;
 
     const pumpGeo = new THREE.CylinderGeometry(0.22, 0.22, 1.0, 12);
-    const pumpMat = new THREE.MeshStandardMaterial({ color: isExtender ? 0xb8621b : 0x6e3810, roughness: 0.6 });
+    const pumpMat = new THREE.MeshStandardMaterial({ color: isLevelOut ? 0x338833 : (isExtender ? 0xb8621b : 0x6e3810), roughness: 0.6 });
     const pumpSlide = new THREE.Mesh(pumpGeo, pumpMat);
     pumpSlide.position.set(0, 1.4, -0.1);
 
     const shellGroup = new THREE.Group();
-    const hullMat = new THREE.MeshStandardMaterial({ color: isExtender ? 0xff8800 : 0xcc1111, roughness: 0.4 });
+    const hullMat = new THREE.MeshStandardMaterial({ color: isLevelOut ? 0x00ff88 : (isExtender ? 0xff8800 : 0xcc1111), roughness: 0.4 });
     const brassMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.9, roughness: 0.2 });
     const hull = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.35, 12), hullMat);
     const brass = new THREE.Mesh(new THREE.CylinderGeometry(0.092, 0.092, 0.12, 12), brassMat);
@@ -384,6 +386,7 @@ function createShotgunHandle(dirVector, modeColor, id, isExtender = false) {
         isShotgunHandle: true,
         arrowId: id,
         isRampExtender: isExtender,
+        isRampLevelOut: isLevelOut,
         dirVector: dirVector.clone().normalize(),
         steelMat: steelMat,
         pumpSlide: pumpSlide,
@@ -409,63 +412,68 @@ function renderPanelHandles(panel) {
 
     let configs = [];
 
-    // --- CASE A: SELECTED OBJECT IS AN EXISTING RAMP ---
+    // --- CASE A: SELECTED PANEL IS A RAMP ---
     if (isRamp) {
-        // Find ascent direction vector along this ramp
-        const forwardDir = new THREE.Vector3(0, 0, 1).applyEuler(panel.rotation);
+        // Find direction vectors of this ramp
         const rampUpSlope = new THREE.Vector3(0, 1, 0).applyEuler(panel.rotation);
         const inclineVector = new THREE.Vector3().crossVectors(new THREE.Vector3(1, 0, 0).applyEuler(panel.rotation), rampUpSlope).normalize();
         
-        // 1. TELESCOPING EXTENDER SHOTGUN: Sits right on the underside angled along slope
+        // 1. EXTENDER SHOTGUN: Underside angled along slope to telescope the ramp
         const undersideOffset = new THREE.Vector3(0, -1.2, 0).applyEuler(panel.rotation);
         configs.push({
             id: 'ramp_extend',
-            dir: inclineVector.clone().negate(), // Points upward along slope
+            dir: inclineVector.clone().negate(),
             offset: undersideOffset,
-            isExtender: true
+            isExtender: true,
+            isLevelOut: false
         });
 
-        // 2. High-Deck Snap: Shotgun atop the upper lip to snap flat floor
+        // 2. HORIZONTAL LEVEL-OUT SHOTGUN: Sits right on the summit lip pointing completely FLAT
+        let horizontalDir = new THREE.Vector3(0, 0, 0);
+        if (Math.abs(panel.rotation.x) > 0.1) {
+            horizontalDir.set(0, 0, panel.rotation.x > 0 ? -1 : 1);
+        } else if (Math.abs(panel.rotation.z) > 0.1) {
+            horizontalDir.set(panel.rotation.z > 0 ? 1 : -1, 0, 0);
+        }
+
         const topLipOffset = inclineVector.clone().multiplyScalar(panel.userData.rampLength / 2);
         configs.push({
-            id: 'ramp_cap_floor',
-            dir: new THREE.Vector3(0, 1, 0),
-            offset: topLipOffset.clone().add(new THREE.Vector3(0, 1.2, 0)),
-            isExtender: false
+            id: 'ramp_level_flat',
+            dir: horizontalDir,
+            offset: topLipOffset.clone().add(new THREE.Vector3(0, 0.6, 0)),
+            isExtender: false,
+            isLevelOut: true
         });
     }
     // --- CASE B: FLAT FLOOR / WALL MODES ---
     else if (mode === 1) {
-        // Floor expansion
         configs = [
-            { id: 'north', dir: new THREE.Vector3(0, 0, -1), offset: new THREE.Vector3(0, 1.2, -half), isExtender: false },
-            { id: 'south', dir: new THREE.Vector3(0, 0, 1),  offset: new THREE.Vector3(0, 1.2, half), isExtender: false },
-            { id: 'east',  dir: new THREE.Vector3(1, 0, 0),  offset: new THREE.Vector3(half, 1.2, 0), isExtender: false },
-            { id: 'west',  dir: new THREE.Vector3(-1, 0, 0), offset: new THREE.Vector3(-half, 1.2, 0), isExtender: false },
-            { id: 'up',    dir: new THREE.Vector3(0, 1, 0),  offset: new THREE.Vector3(0, 2.4, 0), isExtender: false }
+            { id: 'north', dir: new THREE.Vector3(0, 0, -1), offset: new THREE.Vector3(0, 1.2, -half), isExtender: false, isLevelOut: false },
+            { id: 'south', dir: new THREE.Vector3(0, 0, 1),  offset: new THREE.Vector3(0, 1.2, half), isExtender: false, isLevelOut: false },
+            { id: 'east',  dir: new THREE.Vector3(1, 0, 0),  offset: new THREE.Vector3(half, 1.2, 0), isExtender: false, isLevelOut: false },
+            { id: 'west',  dir: new THREE.Vector3(-1, 0, 0), offset: new THREE.Vector3(-half, 1.2, 0), isExtender: false, isLevelOut: false },
+            { id: 'up',    dir: new THREE.Vector3(0, 1, 0),  offset: new THREE.Vector3(0, 2.4, 0), isExtender: false, isLevelOut: false }
         ];
     } else if (mode === 2) {
-        // Walls: Vertical skyward shotguns
         configs = [
-            { id: 'north', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 0.8, -half), isExtender: false },
-            { id: 'south', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 0.8, half), isExtender: false },
-            { id: 'east',  dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(half, 0.8, 0), isExtender: false },
-            { id: 'west',  dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(-half, 0.8, 0), isExtender: false },
-            { id: 'up',    dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 2.4, 0), isExtender: false }
+            { id: 'north', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 0.8, -half), isExtender: false, isLevelOut: false },
+            { id: 'south', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 0.8, half), isExtender: false, isLevelOut: false },
+            { id: 'east',  dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(half, 0.8, 0), isExtender: false, isLevelOut: false },
+            { id: 'west',  dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(-half, 0.8, 0), isExtender: false, isLevelOut: false },
+            { id: 'up',    dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 2.4, 0), isExtender: false, isLevelOut: false }
         ];
     } else if (mode === 3) {
-        // Ramps: Angled ascent shotguns from edges
         configs = [
-            { id: 'north', dir: new THREE.Vector3(0, Math.sin(RAMP_ANGLE), -Math.cos(RAMP_ANGLE)), offset: new THREE.Vector3(0, 1.2, -half), isExtender: false },
-            { id: 'south', dir: new THREE.Vector3(0, Math.sin(RAMP_ANGLE), Math.cos(RAMP_ANGLE)),  offset: new THREE.Vector3(0, 1.2, half), isExtender: false },
-            { id: 'east',  dir: new THREE.Vector3(Math.cos(RAMP_ANGLE), Math.sin(RAMP_ANGLE), 0),  offset: new THREE.Vector3(half, 1.2, 0), isExtender: false },
-            { id: 'west',  dir: new THREE.Vector3(-Math.cos(RAMP_ANGLE), Math.sin(RAMP_ANGLE), 0), offset: new THREE.Vector3(-half, 1.2, 0), isExtender: false },
-            { id: 'up',    dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 2.4, 0), isExtender: false }
+            { id: 'north', dir: new THREE.Vector3(0, Math.sin(RAMP_ANGLE), -Math.cos(RAMP_ANGLE)), offset: new THREE.Vector3(0, 1.2, -half), isExtender: false, isLevelOut: false },
+            { id: 'south', dir: new THREE.Vector3(0, Math.sin(RAMP_ANGLE), Math.cos(RAMP_ANGLE)),  offset: new THREE.Vector3(0, 1.2, half), isExtender: false, isLevelOut: false },
+            { id: 'east',  dir: new THREE.Vector3(Math.cos(RAMP_ANGLE), Math.sin(RAMP_ANGLE), 0),  offset: new THREE.Vector3(half, 1.2, 0), isExtender: false, isLevelOut: false },
+            { id: 'west',  dir: new THREE.Vector3(-Math.cos(RAMP_ANGLE), Math.sin(RAMP_ANGLE), 0), offset: new THREE.Vector3(-half, 1.2, 0), isExtender: false, isLevelOut: false },
+            { id: 'up',    dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 2.4, 0), isExtender: false, isLevelOut: false }
         ];
     }
 
     configs.forEach(cfg => {
-        const gun = createShotgunHandle(cfg.dir, color, cfg.id, cfg.isExtender);
+        const gun = createShotgunHandle(cfg.dir, color, cfg.id, cfg.isExtender, cfg.isLevelOut);
         gun.position.copy(pos).add(cfg.offset);
         gun.userData.originalLocalPos.copy(gun.position);
         scene.add(gun);
@@ -476,7 +484,7 @@ function renderPanelHandles(panel) {
 function updatePanelVisualMode(panel) {
     const isRamp = panel.userData.panelType === 'ramp';
     if (isRamp) {
-        panel.material.color.setHex(0x52361b); // Warm timber/earth ramp
+        panel.material.color.setHex(0x52361b);
     } else {
         const mode = panel.userData.buildMode || 1;
         if (mode === 1) panel.material.color.setHex(0x1e3a1e);
@@ -494,7 +502,7 @@ function selectPanel(panel) {
 
 function cyclePanelMode(delta) {
     if (!activeBasePanel) return;
-    if (activeBasePanel.userData.panelType === 'ramp') return; // Ramps stay ramps
+    if (activeBasePanel.userData.panelType === 'ramp') return;
     let mode = activeBasePanel.userData.buildMode || 1;
     if (delta > 0) mode = mode === 3 ? 1 : mode + 1;
     else mode = mode === 1 ? 3 : mode - 1;
@@ -502,7 +510,6 @@ function cyclePanelMode(delta) {
     updatePanelVisualMode(activeBasePanel);
 }
 
-// Instantiate permanent world panels
 function placePanel(type, position, rotation, isRemote = false, customId = null) {
     const mat = panelMaterials[type].clone();
     let mesh;
@@ -551,23 +558,18 @@ function placePanel(type, position, rotation, isRemote = false, customId = null)
     return mesh;
 }
 
-// --- TELESCOPING RAMP EXTENSION ENGINE ---
+// Telescoping extension without spawning new panels
 function extendRampDirectly(rampMesh, isRemote = false) {
     rampMesh.userData.rampSegments = (rampMesh.userData.rampSegments || 1) + 1;
     const segs = rampMesh.userData.rampSegments;
     const newLength = RAMP_DIAG * segs;
     rampMesh.userData.rampLength = newLength;
 
-    // Dispose old geometry and stretch length along its incline
     rampMesh.geometry.dispose();
     rampMesh.geometry = new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, newLength);
 
-    // Shift center forward and upward along slope so the bottom foot stays pinned to the ground
-    // Each additional segment pushes center by +half panel run (6) and +half wall height (4)
-    const inclineForward = new THREE.Vector3(0, Math.sin(RAMP_ANGLE), -Math.cos(RAMP_ANGLE)).applyEuler(rampMesh.rotation);
     rampMesh.position.add(new THREE.Vector3(0, WALL_HEIGHT / 2, 0));
     
-    // Horizontal compensation
     if (Math.abs(rampMesh.rotation.x) > 0.1) {
         const signZ = rampMesh.rotation.x > 0 ? -1 : 1;
         rampMesh.position.z += signZ * (PANEL_SIZE / 2);
@@ -604,27 +606,34 @@ socket.on('opponent_build', (data) => {
 });
 
 function triggerBranchBuild(parentPanel, gunId) {
-    // 1. EXTENDER SHOTGUN CHECK: DO NOT SPAWN A NEW PANEL!
+    // 1. Ramp Extender Shotgun -> Telescopes ramp longer
     if (gunId === 'ramp_extend' && parentPanel.userData.panelType === 'ramp') {
         extendRampDirectly(parentPanel);
         return;
     }
 
-    // 2. High-deck Floor Cap at the top lip of a ramp
-    if (gunId === 'ramp_cap_floor' && parentPanel.userData.panelType === 'ramp') {
-        const topLipPos = parentPanel.position.clone();
-        topLipPos.y += (WALL_HEIGHT * parentPanel.userData.rampSegments) / 2;
+    // 2. HORIZONTAL LEVEL-OUT SHOTGUN -> SNAPS FLAT AIR-FLOOR DIRECTLY AT RAMP PEAK
+    if (gunId === 'ramp_level_flat' && parentPanel.userData.panelType === 'ramp') {
+        const segs = parentPanel.userData.rampSegments || 1;
+        const totalRise = WALL_HEIGHT * segs;
+        const totalRun = PANEL_SIZE * segs;
+
+        // Base foot elevation + total ascent
+        const summitY = (parentPanel.userData.baseElevation || 0.5) + totalRise;
+        const flatPos = parentPanel.position.clone();
+        flatPos.y = summitY;
+
         if (Math.abs(parentPanel.rotation.x) > 0.1) {
             const dirZ = parentPanel.rotation.x > 0 ? -1 : 1;
-            topLipPos.z += dirZ * (PANEL_SIZE * parentPanel.userData.rampSegments / 2 + PANEL_SIZE / 2);
-        }
-        if (Math.abs(parentPanel.rotation.z) > 0.1) {
+            flatPos.z += dirZ * ((totalRun / 2) + (PANEL_SIZE / 2));
+        } else if (Math.abs(parentPanel.rotation.z) > 0.1) {
             const dirX = parentPanel.rotation.z > 0 ? 1 : -1;
-            topLipPos.x += dirX * (PANEL_SIZE * parentPanel.userData.rampSegments / 2 + PANEL_SIZE / 2);
+            flatPos.x += dirX * ((totalRun / 2) + (PANEL_SIZE / 2));
         }
-        const flatDeck = placePanel('floor', topLipPos, new THREE.Euler(0, 0, 0));
-        activeBasePanel = flatDeck;
-        selectPanel(flatDeck);
+
+        const levelFloor = placePanel('floor', flatPos, new THREE.Euler(0, 0, 0));
+        activeBasePanel = levelFloor;
+        selectPanel(levelFloor);
         return;
     }
 
@@ -652,30 +661,13 @@ function triggerBranchBuild(parentPanel, gunId) {
         if (gunId === 'up')    { buildType = 'floor'; newPos.y = basePos.y + WALL_HEIGHT; }
     } 
     else if (mode === 3) {
-        // Starts clean ramp with bottom lip pinned to floor edge
         buildType = 'ramp';
         newPos.y += (WALL_HEIGHT / 2);
-
-        if (gunId === 'north') {
-            newPos.z -= PANEL_SIZE;
-            newRot.x = RAMP_ANGLE;
-        }
-        if (gunId === 'south') {
-            newPos.z += PANEL_SIZE;
-            newRot.x = -RAMP_ANGLE;
-        }
-        if (gunId === 'east') {
-            newPos.x += PANEL_SIZE;
-            newRot.z = RAMP_ANGLE;
-        }
-        if (gunId === 'west') {
-            newPos.x -= PANEL_SIZE;
-            newRot.z = -RAMP_ANGLE;
-        }
-        if (gunId === 'up') {
-            buildType = 'floor';
-            newPos.y = basePos.y + WALL_HEIGHT;
-        }
+        if (gunId === 'north') { newPos.z -= PANEL_SIZE; newRot.x = RAMP_ANGLE; }
+        if (gunId === 'south') { newPos.z += PANEL_SIZE; newRot.x = -RAMP_ANGLE; }
+        if (gunId === 'east')  { newPos.x += PANEL_SIZE; newRot.z = RAMP_ANGLE; }
+        if (gunId === 'west')  { newPos.x -= PANEL_SIZE; newRot.z = -RAMP_ANGLE; }
+        if (gunId === 'up')    { buildType = 'floor'; newPos.y = basePos.y + WALL_HEIGHT; }
     }
 
     const spawned = placePanel(buildType, newPos, newRot);
@@ -893,7 +885,7 @@ function updateMinimap() {
 }
 
 // =================================================================
-// WINDOW INTERACTIONS & SHOTGUN PUMP BUILD CONTROLS
+// DEDICATED LMB UNIT MOVEMENT & RMB PANEL SELECTION
 // =================================================================
 window.onmousedown = (e) => {
     if (!matchStarted || matchOver) return;
@@ -912,10 +904,13 @@ window.onmousedown = (e) => {
         return;
     }
 
+    // -------------------------------------------------------------
+    // LEFT MOUSE BUTTON (LMB): UNITS, TROOP MARCH & SHOTGUN PUMPING
+    // -------------------------------------------------------------
     if (e.button === 0) {
         raycaster.setFromCamera(mouse, camera);
 
-        // 1. Engage Shotgun for Pump-Action Reload / Extend
+        // 1. Check if user is clicking & pumping a Shotgun
         const gunIntersects = raycaster.intersectObjects(shotgunHandles, true);
         if (gunIntersects.length > 0) {
             let hitObj = gunIntersects[0].object;
@@ -928,8 +923,11 @@ window.onmousedown = (e) => {
                 pumpHud.style.display = 'block';
 
                 if (hitObj.userData.isRampExtender) {
-                    pumpText.innerText = "RACK SLIDE TO EXTEND RAMP LONGER...";
+                    pumpText.innerText = "RACK SLIDE TO EXTEND RAMP...";
                     pumpBar.style.background = '#ff8800';
+                } else if (hitObj.userData.isRampLevelOut) {
+                    pumpText.innerText = "RACK SLIDE TO LEVEL OUT FLAT AIR-FLOOR...";
+                    pumpBar.style.background = '#00ff88';
                 } else {
                     pumpText.innerText = "RACK SLIDE BACK TO LOAD SHELL...";
                     pumpBar.style.background = '#ffd700';
@@ -939,14 +937,7 @@ window.onmousedown = (e) => {
             }
         }
 
-        // 2. Select Existing Panels (for mode cycling or ramp extender)
-        const panelHits = raycaster.intersectObjects(worldPanels, false);
-        if (panelHits.length > 0) {
-            selectPanel(panelHits[0].object);
-            return;
-        }
-
-        // 3. Select Units
+        // 2. Unit Selection
         let clickedCannon = null;
         cannons.forEach(can => {
             if (raycaster.intersectObject(can, true).length > 0) clickedCannon = can;
@@ -961,36 +952,51 @@ window.onmousedown = (e) => {
             return;
         }
 
-        // 4. Ground Click: Move Unit or Place First Root Panel
-        const groundHits = raycaster.intersectObject(ground);
-        if (groundHits.length > 0) {
-            const pt = groundHits[0].point;
+        // 3. Move Selected Units across Ground, Panels & Elevated Ramps
+        const walkableHits = raycaster.intersectObjects([ground, ...worldPanels, ...bridges], true);
+        if (walkableHits.length > 0) {
+            const pt = walkableHits[0].point;
             const selected = cannons.find(c => c.userData.selected);
             if (selected) {
-                selected.userData.targetPos.set(pt.x, selected.position.y, pt.z);
+                // Command troops onto the ground, ramp or elevated panel
+                selected.userData.targetPos.set(pt.x, pt.y + 0.8, pt.z);
                 socket.emit('player_move', { roomId: currentRoomId, id: selected.userData.id, tx: pt.x, tz: pt.z });
-            } else {
+            } else if (worldPanels.length === 0) {
+                // Initial root panel placement on empty ground if none exists
                 const isMySide = myPlayerIndex === 1 ? (pt.z > riverWidth / 2) : (pt.z < -riverWidth / 2);
-                if (isMySide && worldPanels.length === 0) {
+                if (isMySide) {
                     const snapX = Math.round(pt.x / PANEL_SIZE) * PANEL_SIZE;
                     const snapZ = Math.round(pt.z / PANEL_SIZE) * PANEL_SIZE;
                     const rootPanel = placePanel('floor', new THREE.Vector3(snapX, PANEL_THICKNESS / 2, snapZ), new THREE.Euler(0, 0, 0));
                     selectPanel(rootPanel);
-                } else if (gunIntersects.length === 0 && panelHits.length === 0) {
-                    clearShotgunHandles();
-                    activeBasePanel = null;
                 }
+            } else {
+                // Deselect handles when clicking open space
+                clearShotgunHandles();
+                activeBasePanel = null;
             }
         }
     }
 
+    // -------------------------------------------------------------
+    // RIGHT MOUSE BUTTON (RMB): SELECT PANELS OR FIRE ARTILLERY
+    // -------------------------------------------------------------
     if (e.button === 2) {
         e.preventDefault();
         raycaster.setFromCamera(mouse, camera);
-        const hits = raycaster.intersectObjects([ground, river, ...bridges, ...worldPanels, ...gameWalls, ...opponentCannons], true);
-        if (hits.length > 0) {
+
+        // 1. Right Click on ANY Panel selects it and opens its shotguns
+        const panelHits = raycaster.intersectObjects(worldPanels, false);
+        if (panelHits.length > 0) {
+            selectPanel(panelHits[0].object);
+            return;
+        }
+
+        // 2. Right Click without hitting a panel fires selected cannon
+        const combatHits = raycaster.intersectObjects([ground, river, ...bridges, ...worldPanels, ...gameWalls, ...opponentCannons], true);
+        if (combatHits.length > 0) {
             const selected = cannons.find(c => c.userData.selected);
-            if (selected) spawnProjectile(selected, hits[0].point);
+            if (selected) spawnProjectile(selected, combatHits[0].point);
         }
     }
 };
@@ -1036,9 +1042,13 @@ window.onmousemove = (e) => {
 
                 if (pumpProgress >= 1.0) {
                     pumpCocked = true;
-                    pumpText.innerText = pumpingShotgun.userData.isRampExtender 
-                        ? "HYDRAULIC CHARGED! PUSH FORWARD TO EXTEND RAMP!"
-                        : "SHELL CHAMBERED! PUSH FORWARD TO FIRE!";
+                    if (pumpingShotgun.userData.isRampExtender) {
+                        pumpText.innerText = "HYDRAULIC CHARGED! PUSH FORWARD TO EXTEND RAMP!";
+                    } else if (pumpingShotgun.userData.isRampLevelOut) {
+                        pumpText.innerText = "CHAMBERED! PUSH FORWARD TO LEVEL OUT AIR-FLOOR!";
+                    } else {
+                        pumpText.innerText = "SHELL CHAMBERED! PUSH FORWARD TO FIRE!";
+                    }
                     pumpBar.style.background = '#00ff00';
                 }
             } 
@@ -1057,7 +1067,7 @@ window.onmousemove = (e) => {
                     pumpingShotgun.userData.recoilTimer = 1.0;
                     pumpingShotgun.userData.flash.material.opacity = 1.0;
 
-                    // Trigger branch build OR extend existing ramp
+                    // Trigger branch build OR extend existing ramp OR level out
                     triggerBranchBuild(activeBasePanel, firedGunId);
 
                     pumpStartMouse = { x: e.clientX, y: e.clientY };
@@ -1066,7 +1076,6 @@ window.onmousemove = (e) => {
                     pumpBar.style.width = '0%';
                     pumpBar.style.background = '#ffd700';
 
-                    // Re-bind to corresponding shotgun on active panel
                     const nextGun = shotgunHandles.find(g => g.userData.arrowId === firedGunId);
                     pumpingShotgun = nextGun || null;
                     if (!pumpingShotgun) pumpHud.style.display = 'none';
@@ -1169,7 +1178,8 @@ function animate() {
             }
 
             if (isHovered) {
-                gun.userData.steelMat.emissive.setHex(gun.userData.isRampExtender ? 0xff6600 : 0xffaa00);
+                const glowHex = gun.userData.isRampLevelOut ? 0x00ffaa : (gun.userData.isRampExtender ? 0xff6600 : 0xffaa00);
+                gun.userData.steelMat.emissive.setHex(glowHex);
                 gun.userData.steelMat.emissiveIntensity = 0.5 + (pulse * 0.4);
                 if (!pumpingShotgun) {
                     const s = 1.25 + (pulse * 0.05);
@@ -1196,12 +1206,12 @@ function animate() {
                 can.position.z = nextPos.z;
                 can.lookAt(can.userData.targetPos.x, can.position.y, can.userData.targetPos.z);
 
-                // Elevation raycast (works over continuous extended ramps)
-                const downRay = new THREE.Raycaster(new THREE.Vector3(can.position.x, 150, can.position.z), new THREE.Vector3(0, -1, 0), 0, 200);
+                // Elevation raycast (seamlessly climbs ramps and rides elevated flat floors)
+                const downRay = new THREE.Raycaster(new THREE.Vector3(can.position.x, 250, can.position.z), new THREE.Vector3(0, -1, 0), 0, 300);
                 const elevateHits = downRay.intersectObjects([ground, ...worldPanels, ...bridges], true);
                 if (elevateHits.length > 0) {
                     const targetY = elevateHits[0].point.y + 0.8;
-                    can.position.y += (targetY - can.position.y) * 0.25 * dt60;
+                    can.position.y += (targetY - can.position.y) * 0.3 * dt60;
                 }
 
                 // River Hazard Check
