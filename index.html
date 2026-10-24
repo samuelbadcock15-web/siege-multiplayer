@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Siege - Clear Horizons Destructible Structures Edition</title>
+<title>Siege - Clear Horizons Fixed Ramp Shotgun Edition</title>
 <style>
   body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Courier New', Courier, monospace; cursor: crosshair; user-select: none; }
   #ui { position: absolute; top: 15px; left: 15px; color: white; background: rgba(15, 15, 20, 0.95); padding: 18px; border-radius: 8px; border: 2px solid #ffd700; width: 440px; z-index: 101; box-shadow: 0 0 30px rgba(0,0,0,0.7); display: none; }
@@ -131,7 +131,7 @@
 <div id="lobby-screen">
     <div class="lobby-header">
         <h1>CLEAR HORIZONS</h1>
-        <p>Destructible Structures & Tactical Siege | Ready up to deploy!</p>
+        <p>Fixed-Anchor Ramp & Modular Combat Siege | Ready up to deploy!</p>
     </div>
     <div id="lobbies-grid"></div>
 </div>
@@ -171,19 +171,19 @@
   </div>
   <div style="font-size: 10px; margin-top: 15px; color: #aaa; border-top: 1px solid #333; padding-top: 8px; line-height: 1.4;">
     [LMB Cannon] Select / Deselect | [LMB Ground/Panel] March<br>
-    [RMB on Panel with Cannon Selected] Shoot & Destroy Panel!<br>
-    [RMB on Panel with NO Cannon Selected] Build / Pump Shotguns<br>
-    [Wheel] Cycle Floor / Wall / Ramp | [ESC] Deselect
+    [RMB on Surface/Target] Fire Cannonball (Ricochets off ALL Panels!)<br>
+    [RMB on Panel with NO Cannon] Select Panel to Build / Extend<br>
+    [Ramp Extender Shotgun] Fixed on ramp foot (above surface) - pull back & release!
   </div>
   <span id="status" class="sys">STATUS: STANDBY</span>
 </div>
 
 <div id="mode-legend">
   <div class="legend-item"><div class="legend-dot" style="background:#22c55e;"></div>Floor Mode</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#0ea5e9;"></div>Wall Mode</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#0ea5e9;"></div>Wall Mode (4 Edge Shotguns)</div>
   <div class="legend-item"><div class="legend-dot" style="background:#f97316;"></div>Ramp Mode</div>
   <div class="legend-item" style="color: #ffd700; border-left: 1px solid #444; padding-left: 12px;">
-    Cannons can shoot & destroy ALL Ground, Air & Wall Panels!
+    Ramp Extender is mounted ABOVE the surface at the foot & stays fixed!
   </div>
 </div>
 
@@ -346,7 +346,7 @@ for (let i = 0; i < 60; i++) {
 }
 
 // =================================================================
-// MODULAR 3D SNAP BUILDING ENGINE + FULL DAMAGE SYSTEM
+// MODULAR 3D SNAP BUILDING ENGINE
 // =================================================================
 const PANEL_SIZE = 12;
 const WALL_HEIGHT = 8;
@@ -473,6 +473,7 @@ function createShotgunHandle(dirVector, modeColor, id, isExtender = false, isLev
     return gunGroup;
 }
 
+// RENDER ALL SHOTGUNS DEPENDING ON PANEL TYPE
 function renderPanelHandles(panel) {
     clearShotgunHandles();
     if (!panel) return;
@@ -485,7 +486,9 @@ function renderPanelHandles(panel) {
 
     let configs = [];
 
-    // 1. RAMP PANEL
+    // =============================================================
+    // 1. RAMP PANEL: EXTENDER IS FIXED AT FOOT (ABOVE SURFACE)
+    // =============================================================
     if (pType === 'ramp') {
         const segs = panel.userData.rampSegments || 1;
         const totalRun = PANEL_SIZE * segs;
@@ -500,31 +503,49 @@ function renderPanelHandles(panel) {
 
         const horizontalDir = new THREE.Vector3(dirX, 0, dirZ).normalize();
         const inclineSlope = new THREE.Vector3(dirX * Math.cos(RAMP_ANGLE), Math.sin(RAMP_ANGLE), dirZ * Math.cos(RAMP_ANGLE)).normalize();
+        const rampNormal = new THREE.Vector3(0, 1, 0).applyEuler(panel.rotation);
 
-        const undersideOffset = new THREE.Vector3(0, -1.2, 0).applyEuler(panel.rotation);
+        // Fixed foot position (remains invariant as ramp extends)
+        const footPos = new THREE.Vector3(
+            panel.position.x - dirX * (totalRun / 2),
+            panel.position.y - (totalRise / 2),
+            panel.position.z - dirZ * (totalRun / 2)
+        );
+
+        // 1. EXTENDER SHOTGUN: MOUNTED ON TOP (ABOVE) SURFACE AT THE FOOT - NEVER MOVES!
+        const extenderPos = footPos.clone()
+            .addScaledVector(inclineSlope, 2.2)
+            .addScaledVector(rampNormal, 1.4);
+        
+        const extenderOffset = extenderPos.clone().sub(pos);
+
         configs.push({
             id: 'ramp_extend',
             dir: inclineSlope,
-            offset: undersideOffset,
+            offset: extenderOffset,
             isExtender: true,
             isLevelOut: false
         });
 
-        const topCenterOffset = new THREE.Vector3(
-            dirX * (totalRun / 4),
-            totalRise / 4 + 0.6,
-            dirZ * (totalRun / 4)
+        // 2. HORIZONTAL LEVEL-OUT SHOTGUN: MOUNTED AT THE SUMMIT LIP
+        const summitPos = new THREE.Vector3(
+            footPos.x + dirX * totalRun,
+            footPos.y + totalRise,
+            footPos.z + dirZ * totalRun
         );
+        const summitOffset = summitPos.clone().add(new THREE.Vector3(0, 0.6, 0)).sub(pos);
 
         configs.push({
             id: 'ramp_level_flat',
             dir: horizontalDir,
-            offset: topCenterOffset,
+            offset: summitOffset,
             isExtender: false,
             isLevelOut: true
         });
     }
-    // 2. WALL PANELS: UP, DOWN, LEFT, RIGHT
+    // =============================================================
+    // 2. WALL PANEL: 4 EDGE SHOTGUNS (UP, DOWN, LEFT, RIGHT)
+    // =============================================================
     else if (pType === 'wall_x') {
         const halfH = WALL_HEIGHT / 2;
         configs = [
@@ -543,7 +564,9 @@ function renderPanelHandles(panel) {
             { id: 'wall_right', dir: new THREE.Vector3(0, 0, 1), offset: new THREE.Vector3(0, 0, half + 1.4), isExtender: false, isLevelOut: false }
         ];
     }
-    // 3. FLOOR PANELS (MODE 1: EXPAND FLOOR)
+    // =============================================================
+    // 3. FLOOR PANEL: MODE 1 (EXPAND FLOOR)
+    // =============================================================
     else if (mode === 1) {
         configs = [
             { id: 'north', dir: new THREE.Vector3(0, 0, -1), offset: new THREE.Vector3(0, 1.2, -half), isExtender: false, isLevelOut: false },
@@ -553,7 +576,9 @@ function renderPanelHandles(panel) {
             { id: 'up',    dir: new THREE.Vector3(0, 1, 0),  offset: new THREE.Vector3(0, 2.4, 0), isExtender: false, isLevelOut: false }
         ];
     }
-    // 4. FLOOR PANELS (MODE 2: SPAWN WALLS)
+    // =============================================================
+    // 4. FLOOR PANEL: MODE 2 (SPAWN WALLS)
+    // =============================================================
     else if (mode === 2) {
         configs = [
             { id: 'spawn_wall_north', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 1.4, -half), isExtender: false, isLevelOut: false },
@@ -562,7 +587,9 @@ function renderPanelHandles(panel) {
             { id: 'spawn_wall_west',  dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(-half, 1.4, 0), isExtender: false, isLevelOut: false }
         ];
     }
-    // 5. FLOOR PANELS (MODE 3: SPAWN RAMPS)
+    // =============================================================
+    // 5. FLOOR PANEL: MODE 3 (SPAWN RAMPS)
+    // =============================================================
     else if (mode === 3) {
         configs = [
             { id: 'north', dir: new THREE.Vector3(0, Math.sin(RAMP_ANGLE), -Math.cos(RAMP_ANGLE)), offset: new THREE.Vector3(0, 1.2, -half), isExtender: false, isLevelOut: false },
@@ -628,8 +655,6 @@ function placePanel(type, position, rotation, isRemote = false, customId = null)
             rampSegments: 1,
             rampLength: RAMP_DIAG,
             baseElevation: position.y - (WALL_HEIGHT / 2),
-            hp: 150,
-            maxHp: 150,
             id: customId || Math.random().toString(),
             permanent: true
         };
@@ -640,8 +665,6 @@ function placePanel(type, position, rotation, isRemote = false, customId = null)
             isPanel: true,
             panelType: type,
             buildMode: 1,
-            hp: 100,
-            maxHp: 100,
             id: customId || Math.random().toString(),
             permanent: true
         };
@@ -684,8 +707,6 @@ function extendRampDirectly(rampMesh, isRemote = false) {
     const segs = rampMesh.userData.rampSegments;
     const newLength = RAMP_DIAG * segs;
     rampMesh.userData.rampLength = newLength;
-    rampMesh.userData.maxHp += 150;
-    rampMesh.userData.hp += 150;
 
     rampMesh.geometry.dispose();
     rampMesh.geometry = new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, newLength);
@@ -709,24 +730,6 @@ function extendRampDirectly(rampMesh, isRemote = false) {
     }
 
     renderPanelHandles(rampMesh);
-}
-
-function damagePanel(panel, dmg = 50, isRemote = false) {
-    if (!panel || !panel.userData.isPanel) return;
-
-    panel.userData.hp -= dmg;
-    const healthRatio = Math.max(0, panel.userData.hp / panel.userData.maxHp);
-
-    // Darken & add emissive impact flash
-    panel.material.color.multiplyScalar(0.85);
-    panel.material.emissive.setHex(0xff3300);
-    setTimeout(() => {
-        if (panel.material) panel.material.emissive.setHex(0x000000);
-    }, 120);
-
-    if (panel.userData.hp <= 0) {
-        undoDemolishPanel(panel, isRemote);
-    }
 }
 
 function undoDemolishPanel(panel, isRemote = false) {
@@ -776,7 +779,7 @@ function undoDemolishPanel(panel, isRemote = false) {
             });
         }
 
-        statusText.innerText = "STRUCTURE DESTROYED!";
+        statusText.innerText = "PANEL DEMOLISHED!";
         statusText.style.color = "#ff9900";
         setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2000);
     }
@@ -987,7 +990,7 @@ function updateStatusUI() {
 
     if (matchStarted && statusText.innerText !== "STATUS: MATCH STARTED!") {
         if (selectedNum !== null) {
-            statusText.innerText = `ACTIVE COMMAND: CANNON #${selectedNum} [RMB = FIRE AT STRUCTURES]`;
+            statusText.innerText = `ACTIVE COMMAND: CANNON #${selectedNum} [RMB = AIM & FIRE]`;
         } else {
             statusText.innerText = "STATUS: STANDBY (CLICK CANNON TO SELECT | RMB PANEL TO BUILD)";
         }
@@ -1043,7 +1046,7 @@ function spawnProjectile(sourceCan, target, isRemote = false) {
         velocity: new THREE.Vector3(vx, vy, vz),
         gravity,
         life: 0,
-        maxLife: 500,
+        maxLife: 600,
         isRemote
     });
 
@@ -1143,7 +1146,7 @@ function updateMinimap() {
 }
 
 // =================================================================
-// DEDICATED LMB UNIT MOVEMENT & RMB CANNON TARGETING ON PANELS
+// DEDICATED LMB UNIT MOVEMENT & RMB CANNON TARGETING
 // =================================================================
 window.onmousedown = (e) => {
     if (!matchStarted || matchOver) return;
@@ -1162,9 +1165,6 @@ window.onmousedown = (e) => {
         return;
     }
 
-    // -------------------------------------------------------------
-    // LEFT MOUSE BUTTON (LMB): CANNON TOGGLE, MARCH & PUMP ACTION
-    // -------------------------------------------------------------
     if (e.button === 0) {
         raycaster.setFromCamera(mouse, camera);
 
@@ -1234,16 +1234,13 @@ window.onmousedown = (e) => {
         }
     }
 
-    // -------------------------------------------------------------
-    // RIGHT MOUSE BUTTON (RMB): SHOOT PANELS OR SELECT TO BUILD
-    // -------------------------------------------------------------
     if (e.button === 2) {
         e.preventDefault();
         raycaster.setFromCamera(mouse, camera);
 
         const selectedCannon = cannons.find(c => c.userData.selected);
 
-        // CASE 1: CANNON IS SELECTED -> FIRE AT TARGET (PANELS, OPPONENTS, GROUND)
+        // CASE 1: CANNON IS SELECTED -> FIRE AT TARGET (BOUNCES OFF ALL PANELS)
         if (selectedCannon) {
             const combatHits = raycaster.intersectObjects([ground, river, ...bridges, ...worldPanels, ...gameWalls, ...opponentCannons], true);
             if (combatHits.length > 0) {
@@ -1393,7 +1390,7 @@ window.onresize = () => {
 };
 
 // =================================================================
-// DELTA-TIME ANIMATION LOOP + PROJECTILE IMPACT DESTRUCTION
+// DELTA-TIME ANIMATION LOOP + KINETIC BOUNCE ACROSS ALL PANELS
 // =================================================================
 function animate() {
     requestAnimationFrame(animate);
@@ -1431,7 +1428,7 @@ function animate() {
             }
         }
 
-        // Shotgun Glow & Hover Loop
+        // Shotgun Hover & Recoil Loop
         raycaster.setFromCamera(mouse, camera);
         const gunIntersects = raycaster.intersectObjects(shotgunHandles, true);
         let currentHover = null;
@@ -1548,7 +1545,7 @@ function animate() {
         });
 
         // -------------------------------------------------------------
-        // PROJECTILE COMBAT: DAMAGE PANELS, WALLS & CANNONS
+        // PROJECTILE COMBAT: CLEAN BOUNCE OFF PANELS, DEFLECTION & RICOCHET
         // -------------------------------------------------------------
         for (let i = activeProjectiles.length - 1; i >= 0; i--) {
             const p = activeProjectiles[i];
@@ -1562,35 +1559,21 @@ function animate() {
             const rayDir = p.velocity.clone().normalize();
             const rayLen = frameVel.length() + 0.3;
 
-            // 1. Structure Collisions (Panels, Walls, Ramps)
+            // Structure Collisions: Panels (Air & Ground), Walls, Bridges
             const structRay = new THREE.Raycaster(prevPos, rayDir, 0, rayLen);
             const structHits = structRay.intersectObjects([...worldPanels, ...gameWalls, ...bridges], true);
             
             if (structHits.length > 0) {
                 const hit = structHits[0];
-                let hitPanel = hit.object;
-                while (hitPanel && !hitPanel.userData.isPanel && hitPanel.parent) {
-                    hitPanel = hitPanel.parent;
-                }
-
-                // Direct hit on destructible panel
-                if (hitPanel && hitPanel.userData.isPanel) {
-                    damagePanel(hitPanel, 50, false);
-                    scene.remove(p.mesh);
-                    activeProjectiles.splice(i, 1);
-                    continue;
-                }
-
-                // Bounce off perimeter castle walls / bridges
                 if (hit.face) {
                     const normal = hit.face.normal.clone().applyQuaternion(hit.object.quaternion);
-                    p.velocity.reflect(normal).multiplyScalar(0.7);
-                    p.mesh.position.copy(hit.point).add(normal.multiplyScalar(0.1));
+                    p.velocity.reflect(normal).multiplyScalar(0.75);
+                    p.mesh.position.copy(hit.point).add(normal.multiplyScalar(0.2));
                     continue;
                 }
             }
 
-            // 2. Unit Hit Collision
+            // Direct Unit Hits
             const targetCannons = p.isRemote ? cannons : opponentCannons;
             let hitTarget = null;
             for (let can of targetCannons) {
