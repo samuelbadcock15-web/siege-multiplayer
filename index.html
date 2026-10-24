@@ -93,7 +93,7 @@
   .modal-content { background: #111; border: 3px solid #ffd700; padding: 30px; border-radius: 12px; text-align: center; width: 450px; box-shadow: 0 0 50px rgba(255,215,0,0.4); color: white; }
   .modal-content h1 { font-size: 28px; margin-top: 0; letter-spacing: 3px; }
   .stats-box { background: #222; border: 1px solid #444; padding: 15px; margin: 20px 0; text-align: left; font-size: 13px; line-height: 1.6; }
-  #restart-btn { background: #ffd700; color: black; border: none; padding: 12px 25px; font-size: 15px; font-weight: bold; cursor: pointer; border-radius: 6px; letter-spacing: 1px; transition: 0.2s; }
+  #restart-btn { background: #ffd700; color: black; border: none; padding: 12px 25px; font-size: 15px; font-weight: bold; cursor: border; border-radius: 6px; letter-spacing: 1px; transition: 0.2s; }
   #restart-btn:hover { background: #fff; box-shadow: 0 0 15px #ffd700; }
 </style>
 <script src="/socket.io/socket.io.js"></script>
@@ -103,7 +103,7 @@
 <div id="lobby-screen">
     <div class="lobby-header">
         <h1>CLEAR HORIZONS</h1>
-        <p>12-Gauge Shotgun Building Siege | Ready up to deploy!</p>
+        <p>Vertical Shotgun Siege | Ready up to deploy!</p>
     </div>
     <div id="lobbies-grid"></div>
 </div>
@@ -111,7 +111,7 @@
 <div id="match-countdown">
     <div style="font-size: 20px; color: #ffd700; font-weight: bold;" id="countdown-role-text">COMMAND ROLE ASSIGNED</div>
     <div id="countdown-num">3</div>
-    <div style="color: #aaa; font-size: 14px;">Distributing 12-gauge building charges...</div>
+    <div style="color: #aaa; font-size: 14px;">Deploying forces to frontier positions...</div>
 </div>
 
 <div id="minimap-container"><canvas id="minimap"></canvas></div>
@@ -141,9 +141,9 @@
 </div>
 
 <div id="mode-legend">
-  <div class="legend-item"><div class="legend-dot" style="background:#22c55e;"></div>Mode 1: Floor</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#0ea5e9;"></div>Mode 2: Walls</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#f97316;"></div>Mode 3: Ramps</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#22c55e;"></div>Mode 1: Floor (Horizontal Shotguns)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#0ea5e9;"></div>Mode 2: Walls (Vertical Skyward Shotguns)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f97316;"></div>Mode 3: Ramps (Angled Ascent Shotguns)</div>
   <div class="legend-item" style="color: #ffd700; border-left: 1px solid #444; padding-left: 12px;">
     [WHEEL] Change Mode | [PUMP SHOTGUN] Fire Panel
   </div>
@@ -381,7 +381,7 @@ function createShotgunHandle(dirVector, modeColor, id) {
     const brass = new THREE.Mesh(new THREE.CylinderGeometry(0.092, 0.092, 0.12, 12), brassMat);
     brass.position.y = -0.15;
     shellGroup.add(hull, brass);
-    shellGroup.scale.set(0.001, 0.001, 0.001); // Hidden inside tube initially
+    shellGroup.scale.set(0.001, 0.001, 0.001);
     shellGroup.position.set(0, 0.3, -0.2);
 
     // 5. Muzzle Flash Particle System
@@ -424,13 +424,36 @@ function renderPanelHandles(panel) {
     const half = PANEL_SIZE / 2;
     const color = mode === 1 ? 0x22c55e : (mode === 2 ? 0x0ea5e9 : 0xf97316);
 
-    const configs = [
-        { id: 'north', dir: new THREE.Vector3(0, 0, -1), offset: new THREE.Vector3(0, 1.2, -half) },
-        { id: 'south', dir: new THREE.Vector3(0, 0, 1),  offset: new THREE.Vector3(0, 1.2, half) },
-        { id: 'east',  dir: new THREE.Vector3(1, 0, 0),  offset: new THREE.Vector3(half, 1.2, 0) },
-        { id: 'west',  dir: new THREE.Vector3(-1, 0, 0), offset: new THREE.Vector3(-half, 1.2, 0) },
-        { id: 'up',    dir: new THREE.Vector3(0, 1, 0),  offset: new THREE.Vector3(0, 2.4, 0) }
-    ];
+    let configs = [];
+
+    if (mode === 1) {
+        // MODE 1 (Floor): Horizontal shotguns pointing outward to expand the floor
+        configs = [
+            { id: 'north', dir: new THREE.Vector3(0, 0, -1), offset: new THREE.Vector3(0, 1.2, -half) },
+            { id: 'south', dir: new THREE.Vector3(0, 0, 1),  offset: new THREE.Vector3(0, 1.2, half) },
+            { id: 'east',  dir: new THREE.Vector3(1, 0, 0),  offset: new THREE.Vector3(half, 1.2, 0) },
+            { id: 'west',  dir: new THREE.Vector3(-1, 0, 0), offset: new THREE.Vector3(-half, 1.2, 0) },
+            { id: 'up',    dir: new THREE.Vector3(0, 1, 0),  offset: new THREE.Vector3(0, 2.4, 0) }
+        ];
+    } else if (mode === 2) {
+        // MODE 2 (Wall): Shotguns sit in the MIDDLE of each perimeter edge pointing STRAIGHT UP!
+        configs = [
+            { id: 'north', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 0.8, -half) },
+            { id: 'south', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 0.8, half) },
+            { id: 'east',  dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(half, 0.8, 0) },
+            { id: 'west',  dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(-half, 0.8, 0) },
+            { id: 'up',    dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 2.4, 0) } // Roof / High Flat
+        ];
+    } else if (mode === 3) {
+        // MODE 3 (Ramp): Shotguns point angled up along the ascent direction
+        configs = [
+            { id: 'north', dir: new THREE.Vector3(0, Math.sin(RAMP_ANGLE), -Math.cos(RAMP_ANGLE)), offset: new THREE.Vector3(0, 1.2, -half) },
+            { id: 'south', dir: new THREE.Vector3(0, Math.sin(RAMP_ANGLE), Math.cos(RAMP_ANGLE)),  offset: new THREE.Vector3(0, 1.2, half) },
+            { id: 'east',  dir: new THREE.Vector3(Math.cos(RAMP_ANGLE), Math.sin(RAMP_ANGLE), 0),  offset: new THREE.Vector3(half, 1.2, 0) },
+            { id: 'west',  dir: new THREE.Vector3(-Math.cos(RAMP_ANGLE), Math.sin(RAMP_ANGLE), 0), offset: new THREE.Vector3(-half, 1.2, 0) },
+            { id: 'up',    dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 2.4, 0) }
+        ];
+    }
 
     configs.forEach(cfg => {
         const gun = createShotgunHandle(cfg.dir, color, cfg.id);
@@ -519,6 +542,7 @@ function triggerBranchBuild(parentPanel, gunId) {
     } 
     else if (mode === 2) {
         buildType = 'wall';
+        // Spawn vertical wall shooting up from edge
         newPos.y += (WALL_HEIGHT / 2);
         if (gunId === 'north') { newPos.z -= (PANEL_SIZE / 2); newRot.y = 0; }
         if (gunId === 'south') { newPos.z += (PANEL_SIZE / 2); newRot.y = 0; }
@@ -527,13 +551,31 @@ function triggerBranchBuild(parentPanel, gunId) {
         if (gunId === 'up')    { buildType = 'floor'; newPos.y = basePos.y + WALL_HEIGHT; }
     } 
     else if (mode === 3) {
+        // --- MODE 3: CORRECTED 180° RAMP ORIENTATION ---
+        // Bottom lip starts flush with the floor panel, top lip climbs to upper tier (+8 height)
         buildType = 'ramp';
         newPos.y += (WALL_HEIGHT / 2);
-        if (gunId === 'north') { newPos.z -= PANEL_SIZE; newRot.x = -RAMP_ANGLE; }
-        if (gunId === 'south') { newPos.z += PANEL_SIZE; newRot.x = RAMP_ANGLE; }
-        if (gunId === 'east')  { newPos.x += PANEL_SIZE; newRot.z = -RAMP_ANGLE; }
-        if (gunId === 'west')  { newPos.x -= PANEL_SIZE; newRot.z = RAMP_ANGLE; }
-        if (gunId === 'up')    { buildType = 'floor'; newPos.y = basePos.y + WALL_HEIGHT; }
+
+        if (gunId === 'north') {
+            newPos.z -= PANEL_SIZE;
+            newRot.x = RAMP_ANGLE; // Inverted so bottom touches floor edge, top ascends to north
+        }
+        if (gunId === 'south') {
+            newPos.z += PANEL_SIZE;
+            newRot.x = -RAMP_ANGLE; // Inverted so bottom touches floor edge, top ascends to south
+        }
+        if (gunId === 'east') {
+            newPos.x += PANEL_SIZE;
+            newRot.z = RAMP_ANGLE; // Inverted so bottom touches floor edge, top ascends to east
+        }
+        if (gunId === 'west') {
+            newPos.x -= PANEL_SIZE;
+            newRot.z = -RAMP_ANGLE; // Inverted so bottom touches floor edge, top ascends to west
+        }
+        if (gunId === 'up') {
+            buildType = 'floor';
+            newPos.y = basePos.y + WALL_HEIGHT;
+        }
     }
 
     const spawned = placePanel(buildType, newPos, newRot);
@@ -927,7 +969,7 @@ window.onmousemove = (e) => {
                     pumpBar.style.width = '0%';
                     pumpBar.style.background = '#ffd700';
 
-                    // Rebind to forward shotgun on new panel
+                    // Rebind to corresponding shotgun on new panel
                     const nextGun = shotgunHandles.find(g => g.userData.arrowId === firedGunId);
                     pumpingShotgun = nextGun || null;
                     if (!pumpingShotgun) pumpHud.style.display = 'none';
@@ -939,7 +981,6 @@ window.onmousemove = (e) => {
 
 window.onmouseup = (e) => {
     if (e.button === 0 && pumpingShotgun) {
-        // Reset slide & hide unchambered shell
         pumpingShotgun.userData.pumpSlide.position.y = pumpingShotgun.userData.initialPumpY;
         pumpingShotgun.userData.shellGroup.scale.set(0.001, 0.001, 0.001);
         pumpingShotgun.position.copy(pumpingShotgun.userData.originalLocalPos);
