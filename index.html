@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Siege - Clear Horizons Spring-Loaded & Undo Edition</title>
+<title>Siege - Clear Horizons Wall-Correction Edition</title>
 <style>
   body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Courier New', Courier, monospace; cursor: crosshair; user-select: none; }
   #ui { position: absolute; top: 15px; left: 15px; color: white; background: rgba(15, 15, 20, 0.95); padding: 18px; border-radius: 8px; border: 2px solid #ffd700; width: 440px; z-index: 101; box-shadow: 0 0 30px rgba(0,0,0,0.7); display: none; }
@@ -131,7 +131,7 @@
 <div id="lobby-screen">
     <div class="lobby-header">
         <h1>CLEAR HORIZONS</h1>
-        <p>Spring-Loaded Shotgun & Demolition Combat | Ready up to deploy!</p>
+        <p>Spring-Loaded Modular Combat Siege | Ready up to deploy!</p>
     </div>
     <div id="lobbies-grid"></div>
 </div>
@@ -172,7 +172,7 @@
   <div style="font-size: 10px; margin-top: 15px; color: #aaa; border-top: 1px solid #333; padding-top: 8px; line-height: 1.4;">
     [LMB Cannon] Select / Deselect | [LMB Ground/Panel] March<br>
     [RMB on Panel] Select Panel | [Wheel] Cycle Floor / Wall / Ramp<br>
-    [PULL BACK & RELEASE] Spring fires new panel forward!<br>
+    [PULL BACK & RELEASE] Spring fires new panel / wall / floor!<br>
     [PUSH OPPOSITE & RELEASE] Undoes / Demolishes panel!
   </div>
   <span id="status" class="sys">STATUS: STANDBY</span>
@@ -180,7 +180,7 @@
 
 <div id="mode-legend">
   <div class="legend-item"><div class="legend-dot" style="background:#22c55e;"></div>Floor Mode</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#0ea5e9;"></div>Wall Mode</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#0ea5e9;"></div>Wall Mode (Vertical Up Shotguns)</div>
   <div class="legend-item"><div class="legend-dot" style="background:#f97316;"></div>Ramp Mode</div>
   <div class="legend-item" style="color: #ffd700; border-left: 1px solid #444; padding-left: 12px;">
     Pull Back = Build | Push Forward = Undo / Demolish
@@ -346,7 +346,7 @@ for (let i = 0; i < 60; i++) {
 }
 
 // =================================================================
-// MODULAR 3D SNAP BUILDING ENGINE + RIVER DEMARCATION
+// MODULAR 3D SNAP BUILDING ENGINE - CORRECTED WALL GEOMETRIES
 // =================================================================
 const PANEL_SIZE = 12;
 const WALL_HEIGHT = 8;
@@ -363,6 +363,14 @@ function isWithinMyBuildingTerritory(targetZ, panelDepth = PANEL_SIZE) {
     }
 }
 
+// Explicit geometries to avoid rotation confusion
+const panelGeometries = {
+    floor: new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, PANEL_SIZE),
+    wall_x: new THREE.BoxGeometry(PANEL_SIZE, WALL_HEIGHT, PANEL_THICKNESS), // Spans along X (North/South)
+    wall_z: new THREE.BoxGeometry(PANEL_THICKNESS, WALL_HEIGHT, PANEL_SIZE), // Spans along Z (East/West)
+    ramp: new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, RAMP_DIAG)
+};
+
 const panelMaterials = {
     floor: new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.8 }),
     wall: new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.7 }),
@@ -374,13 +382,10 @@ const shotgunHandles = [];
 let activeBasePanel = null;
 let hoveredShotgun = null;
 
-// =================================================================
-// SPRING-LOADED & REVERSE-UNDO PUMP ACTION MECHANIC
-// =================================================================
 let pumpingShotgun = null;
 let pumpStartMouse = { x: 0, y: 0 };
 let currentAction = 'none'; // 'none' | 'fire' | 'undo'
-let currentProgress = 0.0;  // 0.0 to 1.0
+let currentProgress = 0.0;
 let isActionFullyCharged = false;
 
 const pumpHud = document.getElementById('pump-hud');
@@ -473,7 +478,7 @@ function renderPanelHandles(panel) {
     clearShotgunHandles();
     if (!panel) return;
 
-    const isRamp = panel.userData.panelType === 'ramp';
+    const pType = panel.userData.panelType;
     const mode = panel.userData.buildMode || 1;
     const pos = panel.position.clone();
     const half = PANEL_SIZE / 2;
@@ -481,7 +486,8 @@ function renderPanelHandles(panel) {
 
     let configs = [];
 
-    if (isRamp) {
+    // --- CASE A: SELECTED OBJECT IS A RAMP ---
+    if (pType === 'ramp') {
         const segs = panel.userData.rampSegments || 1;
         const totalRun = PANEL_SIZE * segs;
         const totalRise = WALL_HEIGHT * segs;
@@ -505,7 +511,6 @@ function renderPanelHandles(panel) {
             isLevelOut: false
         });
 
-        // Exact Summit Lip Mount
         const topCenterOffset = new THREE.Vector3(
             dirX * (totalRun / 4),
             totalRise / 4 + 0.6,
@@ -520,7 +525,29 @@ function renderPanelHandles(panel) {
             isLevelOut: true
         });
     }
+    // --- CASE B: SELECTED OBJECT IS AN EXISTING WALL PANEL ---
+    else if (pType === 'wall_x' || pType === 'wall_z') {
+        // Vertical Shotgun on top crest of wall to extend height or add crenellations
+        configs.push({
+            id: 'up',
+            dir: new THREE.Vector3(0, 1, 0),
+            offset: new THREE.Vector3(0, (WALL_HEIGHT / 2) + 0.6, 0),
+            isExtender: false,
+            isLevelOut: false
+        });
+        
+        // Roof cap shotgun from the top
+        configs.push({
+            id: 'wall_cap_floor',
+            dir: new THREE.Vector3(0, 1, 0),
+            offset: new THREE.Vector3(0, (WALL_HEIGHT / 2) + 2.0, 0),
+            isExtender: false,
+            isLevelOut: true
+        });
+    }
+    // --- CASE C: FLOOR PANELS (GROUND OR AIR) ---
     else if (mode === 1) {
+        // Floor expansion: purely horizontal outward shotguns
         configs = [
             { id: 'north', dir: new THREE.Vector3(0, 0, -1), offset: new THREE.Vector3(0, 1.2, -half), isExtender: false, isLevelOut: false },
             { id: 'south', dir: new THREE.Vector3(0, 0, 1),  offset: new THREE.Vector3(0, 1.2, half), isExtender: false, isLevelOut: false },
@@ -529,14 +556,16 @@ function renderPanelHandles(panel) {
             { id: 'up',    dir: new THREE.Vector3(0, 1, 0),  offset: new THREE.Vector3(0, 2.4, 0), isExtender: false, isLevelOut: false }
         ];
     } else if (mode === 2) {
+        // WALL MODE: ALL 4 PERIMETER SHOTGUNS POINT STRAIGHT UPWARDS FROM THE EDGES!
         configs = [
-            { id: 'north', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 0.8, -half), isExtender: false, isLevelOut: false },
-            { id: 'south', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 0.8, half), isExtender: false, isLevelOut: false },
-            { id: 'east',  dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(half, 0.8, 0), isExtender: false, isLevelOut: false },
-            { id: 'west',  dir: new THREE.Vector3(-1, 0, 0), offset: new THREE.Vector3(-half, 0.8, 0), isExtender: false, isLevelOut: false },
-            { id: 'up',    dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 2.4, 0), isExtender: false, isLevelOut: false }
+            { id: 'wall_north', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 0.8, -half), isExtender: false, isLevelOut: false },
+            { id: 'wall_south', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 0.8, half), isExtender: false, isLevelOut: false },
+            { id: 'wall_east',  dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(half, 0.8, 0), isExtender: false, isLevelOut: false },
+            { id: 'wall_west',  dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(-half, 0.8, 0), isExtender: false, isLevelOut: false },
+            { id: 'up',         dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 2.4, 0), isExtender: false, isLevelOut: false }
         ];
     } else if (mode === 3) {
+        // RAMP MODE: Angled ascent shotguns
         configs = [
             { id: 'north', dir: new THREE.Vector3(0, Math.sin(RAMP_ANGLE), -Math.cos(RAMP_ANGLE)), offset: new THREE.Vector3(0, 1.2, -half), isExtender: false, isLevelOut: false },
             { id: 'south', dir: new THREE.Vector3(0, Math.sin(RAMP_ANGLE), Math.cos(RAMP_ANGLE)),  offset: new THREE.Vector3(0, 1.2, half), isExtender: false, isLevelOut: false },
@@ -556,9 +585,11 @@ function renderPanelHandles(panel) {
 }
 
 function updatePanelVisualMode(panel) {
-    const isRamp = panel.userData.panelType === 'ramp';
-    if (isRamp) {
+    const pType = panel.userData.panelType;
+    if (pType === 'ramp') {
         panel.material.color.setHex(0x52361b);
+    } else if (pType === 'wall_x' || pType === 'wall_z') {
+        panel.material.color.setHex(0x1e2e4a); // Distinct dark slate blue wall
     } else {
         const mode = panel.userData.buildMode || 1;
         if (mode === 1) panel.material.color.setHex(0x1e3a1e);
@@ -576,7 +607,8 @@ function selectPanel(panel) {
 
 function cyclePanelMode(delta) {
     if (!activeBasePanel) return;
-    if (activeBasePanel.userData.panelType === 'ramp') return;
+    const pType = activeBasePanel.userData.panelType;
+    if (pType === 'ramp' || pType === 'wall_x' || pType === 'wall_z') return;
     let mode = activeBasePanel.userData.buildMode || 1;
     if (delta > 0) mode = mode === 3 ? 1 : mode + 1;
     else mode = mode === 1 ? 3 : mode - 1;
@@ -584,8 +616,10 @@ function cyclePanelMode(delta) {
     updatePanelVisualMode(activeBasePanel);
 }
 
+// Clean panel instantiator
 function placePanel(type, position, rotation, isRemote = false, customId = null) {
-    const mat = panelMaterials[type].clone();
+    let matKey = type.startsWith('wall') ? 'wall' : type;
+    const mat = panelMaterials[matKey].clone();
     let mesh;
 
     if (type === 'ramp') {
@@ -601,9 +635,7 @@ function placePanel(type, position, rotation, isRemote = false, customId = null)
             permanent: true
         };
     } else {
-        const geo = type === 'floor' 
-            ? new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, PANEL_SIZE)
-            : new THREE.BoxGeometry(PANEL_SIZE, WALL_HEIGHT, PANEL_THICKNESS);
+        const geo = panelGeometries[type] || panelGeometries.floor;
         mesh = new THREE.Mesh(geo, mat);
         mesh.userData = {
             isPanel: true,
@@ -676,13 +708,9 @@ function extendRampDirectly(rampMesh, isRemote = false) {
     renderPanelHandles(rampMesh);
 }
 
-// ==========================================
-// DEMOLISH & UNDO ENGINE
-// ==========================================
 function undoDemolishPanel(panel, isRemote = false) {
     if (!panel) return;
 
-    // If it is a telescoping ramp with multiple segments, shrink it by 1
     if (panel.userData.panelType === 'ramp' && (panel.userData.rampSegments || 1) > 1) {
         panel.userData.rampSegments -= 1;
         const segs = panel.userData.rampSegments;
@@ -710,7 +738,6 @@ function undoDemolishPanel(panel, isRemote = false) {
         }
         renderPanelHandles(panel);
     } else {
-        // Remove panel completely
         const idToRemove = panel.userData.id;
         scene.remove(panel);
         const idx = worldPanels.indexOf(panel);
@@ -753,6 +780,7 @@ socket.on('opponent_build', (data) => {
     );
 });
 
+// FIXED TRIGGER BRANCH BUILD FOR WALLS & FLOORS
 function triggerBranchBuild(parentPanel, gunId) {
     if (gunId === 'ramp_extend' && parentPanel.userData.panelType === 'ramp') {
         extendRampDirectly(parentPanel);
@@ -777,12 +805,22 @@ function triggerBranchBuild(parentPanel, gunId) {
         }
 
         if (!isWithinMyBuildingTerritory(flatPos.z, PANEL_SIZE)) {
-            statusText.innerText = "CANNOT BUILD INTO ENEMY TERRITORY! (HALFWAY RIVER LIMIT)";
+            statusText.innerText = "CANNOT BUILD INTO ENEMY TERRITORY!";
             statusText.style.color = "#ff4444";
             setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2500);
             return;
         }
 
+        const levelFloor = placePanel('floor', flatPos, new THREE.Euler(0, 0, 0));
+        activeBasePanel = levelFloor;
+        selectPanel(levelFloor);
+        return;
+    }
+
+    // Extending roof cap from the top of a wall
+    if (gunId === 'wall_cap_floor') {
+        const flatPos = parentPanel.position.clone();
+        flatPos.y += (WALL_HEIGHT / 2) + (PANEL_THICKNESS / 2);
         const levelFloor = placePanel('floor', flatPos, new THREE.Euler(0, 0, 0));
         activeBasePanel = levelFloor;
         selectPanel(levelFloor);
@@ -796,23 +834,43 @@ function triggerBranchBuild(parentPanel, gunId) {
     let buildType = 'floor';
     let checkDepth = PANEL_SIZE;
 
-    if (mode === 1) {
+    // -------------------------------------------------------------
+    // EXPLICIT WALL CONSTRUCTION (MODE 2): ERECTS VERTICAL WALLS
+    // -------------------------------------------------------------
+    if (gunId === 'wall_north') {
+        buildType = 'wall_x'; // Width along X, Height Y, Depth Z
+        newPos.y += (WALL_HEIGHT / 2);
+        newPos.z -= (PANEL_SIZE / 2);
+        checkDepth = PANEL_THICKNESS;
+    } 
+    else if (gunId === 'wall_south') {
+        buildType = 'wall_x';
+        newPos.y += (WALL_HEIGHT / 2);
+        newPos.z += (PANEL_SIZE / 2);
+        checkDepth = PANEL_THICKNESS;
+    } 
+    else if (gunId === 'wall_east') {
+        buildType = 'wall_z'; // Spans along Z, Height Y, Depth X
+        newPos.y += (WALL_HEIGHT / 2);
+        newPos.x += (PANEL_SIZE / 2);
+        checkDepth = PANEL_SIZE;
+    } 
+    else if (gunId === 'wall_west') {
+        buildType = 'wall_z';
+        newPos.y += (WALL_HEIGHT / 2);
+        newPos.x -= (PANEL_SIZE / 2);
+        checkDepth = PANEL_SIZE;
+    }
+    // -------------------------------------------------------------
+    // MODE 1 & 3: EXPAND FLOORS OR RAMPS
+    // -------------------------------------------------------------
+    else if (mode === 1) {
         buildType = 'floor';
         if (gunId === 'north') newPos.z -= PANEL_SIZE;
         if (gunId === 'south') newPos.z += PANEL_SIZE;
         if (gunId === 'east')  newPos.x += PANEL_SIZE;
         if (gunId === 'west')  newPos.x -= PANEL_SIZE;
         if (gunId === 'up')    newPos.y += WALL_HEIGHT;
-    } 
-    else if (mode === 2) {
-        buildType = 'wall';
-        checkDepth = PANEL_THICKNESS;
-        newPos.y += (WALL_HEIGHT / 2);
-        if (gunId === 'north') { newPos.z -= (PANEL_SIZE / 2); newRot.y = 0; }
-        if (gunId === 'south') { newPos.z += (PANEL_SIZE / 2); newRot.y = 0; }
-        if (gunId === 'east')  { newPos.x += (PANEL_SIZE / 2); newRot.y = Math.PI / 2; }
-        if (gunId === 'west')  { newPos.x -= (PANEL_SIZE / 2); newRot.y = Math.PI / 2; }
-        if (gunId === 'up')    { buildType = 'floor'; newPos.y = basePos.y + WALL_HEIGHT; checkDepth = PANEL_SIZE; }
     } 
     else if (mode === 3) {
         buildType = 'ramp';
@@ -1169,9 +1227,6 @@ window.onmousedown = (e) => {
     }
 };
 
-// =================================================================
-// SPRING-LOADED CHARGE & REVERSE-UNDO MOUSE TRACKING
-// =================================================================
 window.onmousemove = (e) => {
     mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
@@ -1206,10 +1261,8 @@ window.onmousemove = (e) => {
                 const pullBackDistance = -dragAlongAxis;
                 currentProgress = Math.min(1.0, pullBackDistance / 60);
 
-                // Slide compresses backwards
                 pumpSlide.position.y = initialY - (currentProgress * 1.1);
 
-                // Shell emerges visibly from underneath magazine
                 const shellScale = Math.min(1.0, currentProgress * 1.5);
                 shellGroup.scale.set(shellScale, shellScale, shellScale);
                 shellGroup.position.set(0, 0.4 + (currentProgress * 0.2), -0.1 + (currentProgress * 0.2));
@@ -1220,7 +1273,7 @@ window.onmousemove = (e) => {
                     isActionFullyCharged = true;
                     pumpText.innerText = pumpingShotgun.userData.isRampExtender 
                         ? "★ FULLY COCKED! RELEASE LMB TO EXTEND RAMP! ★"
-                        : "★ SPRING CHARGED! RELEASE LMB TO FIRE PANEL! ★";
+                        : "★ SPRING CHARGED! RELEASE LMB TO FIRE! ★";
                     pumpText.style.color = "#00ff00";
                     pumpBar.style.background = '#00ff00';
                 } else {
@@ -1238,15 +1291,13 @@ window.onmousemove = (e) => {
                 const pushForwardDistance = dragAlongAxis;
                 currentProgress = Math.min(1.0, pushForwardDistance / 60);
 
-                // Slide rams opposite past front stop
                 pumpSlide.position.y = initialY + (currentProgress * 0.8);
-
-                shellGroup.scale.set(0.001, 0.001, 0.001); // Shell retracted
+                shellGroup.scale.set(0.001, 0.001, 0.001);
                 pumpBar.style.width = `${currentProgress * 100}%`;
 
                 if (currentProgress >= 1.0) {
                     isActionFullyCharged = true;
-                    pumpText.innerText = "⚠ UNDO CHARGED! RELEASE LMB TO DEMOLISH PANEL! ⚠";
+                    pumpText.innerText = "⚠ UNDO CHARGED! RELEASE LMB TO DEMOLISH! ⚠";
                     pumpText.style.color = "#ff3300";
                     pumpBar.style.background = '#ff0033';
                 } else {
@@ -1260,29 +1311,20 @@ window.onmousemove = (e) => {
     }
 };
 
-// =================================================================
-// SPRING RELEASE ON MOUSE UP: SLAM & FIRE OR UNDO
-// =================================================================
 window.onmouseup = (e) => {
     if (e.button === 0 && pumpingShotgun && activeBasePanel) {
         const firedGunId = pumpingShotgun.userData.arrowId;
 
-        // 1. RELEASE CHARGED SPRING -> SLAM FORWARD & FIRE NEW PANEL / EXTEND
         if (currentAction === 'fire' && isActionFullyCharged) {
             pumpingShotgun.userData.recoilTimer = 1.0;
             pumpingShotgun.userData.flash.material.opacity = 1.0;
-
             triggerBranchBuild(activeBasePanel, firedGunId);
-        }
-        // 2. RELEASE CHARGED UNDO -> REVERSE DISCHARGE & DEMOLISH PANEL
-        else if (currentAction === 'undo' && isActionFullyCharged) {
+        } else if (currentAction === 'undo' && isActionFullyCharged) {
             pumpingShotgun.userData.recoilTimer = 1.0;
             pumpingShotgun.userData.flash.material.opacity = 1.0;
-
             undoDemolishPanel(activeBasePanel);
         }
 
-        // Reset and clear shotgun pump state
         pumpingShotgun.userData.pumpSlide.position.y = pumpingShotgun.userData.initialPumpY;
         pumpingShotgun.userData.shellGroup.scale.set(0.001, 0.001, 0.001);
         pumpingShotgun.position.copy(pumpingShotgun.userData.originalLocalPos);
@@ -1384,10 +1426,8 @@ function animate() {
                 gun.userData.flash.material.opacity = Math.max(0, gun.userData.flash.material.opacity - dt * 10);
             }
 
-            // OBVIOUS CHARGE GLOW STATES
             if (gun === pumpingShotgun) {
                 if (isActionFullyCharged) {
-                    // Blatantly Obvious Fully Charged Lock Glow
                     const lockGlow = currentAction === 'fire' ? 0x00ff00 : 0xff0000;
                     gun.userData.steelMat.emissive.setHex(lockGlow);
                     gun.userData.steelMat.emissiveIntensity = 1.0 + (pulse * 0.5);
