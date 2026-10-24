@@ -24,8 +24,8 @@ for (let i = 1; i <= 6; i++) {
     rooms[roomId] = {
         id: roomId,
         name: `Arena 0${i}`,
-        players: {}, // socketId: { playerIndex: 1|2, team: 'blue'|'dark', ready: false }
-        status: 'open' // 'open' | 'in_game'
+        players: {},
+        status: 'open'
     };
 }
 
@@ -77,8 +77,6 @@ function removePlayerFromCurrentRoom(socket) {
 
 io.on('connection', (socket) => {
     totalOnlinePlayers++;
-    console.log('Player connected:', socket.id);
-
     socket.emit('lobbies_update', getLobbiesSummary());
     broadcastLobbyState();
 
@@ -180,16 +178,8 @@ io.on('connection', (socket) => {
         io.to(data.roomId).emit('restart_game');
     });
 
-    socket.on('send_chat', (data) => {
-        io.to(data.roomId).emit('receive_chat', {
-            sender: data.sender,
-            message: data.message
-        });
-    });
-
     socket.on('disconnect', () => {
         totalOnlinePlayers = Math.max(0, totalOnlinePlayers - 1);
-        console.log('Player disconnected:', socket.id);
         removePlayerFromCurrentRoom(socket);
         broadcastLobbyState();
     });
