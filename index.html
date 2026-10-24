@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Siege - Clear Horizons Ledge-Protected Edition</title>
+<title>Siege - Clear Horizons Spring-Loaded & Undo Edition</title>
 <style>
   body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Courier New', Courier, monospace; cursor: crosshair; user-select: none; }
   #ui { position: absolute; top: 15px; left: 15px; color: white; background: rgba(15, 15, 20, 0.95); padding: 18px; border-radius: 8px; border: 2px solid #ffd700; width: 440px; z-index: 101; box-shadow: 0 0 30px rgba(0,0,0,0.7); display: none; }
@@ -16,7 +16,7 @@
   .info-column { flex: 1; font-size: 11px; }
   .info-column h3 { margin: 0 0 5px 0; color: #ffd700; font-size: 13px; }
   
-  /* Modular Mode Legend & Pump Indicator */
+  /* Modular Mode Legend & Spring HUD */
   #mode-legend {
     position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
     background: rgba(10, 14, 25, 0.95); border: 2px solid #ffd700; border-radius: 8px;
@@ -25,16 +25,18 @@
   }
   .legend-item { display: flex; align-items: center; gap: 8px; }
   .legend-dot { width: 12px; height: 12px; border-radius: 3px; }
+  
   #pump-hud {
     display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
     pointer-events: none; z-index: 300; text-align: center; font-weight: bold;
-    color: #ffd700; text-shadow: 0 0 10px rgba(0,0,0,0.8);
+    text-shadow: 0 0 12px rgba(0,0,0,0.9);
   }
+  #pump-text { font-size: 18px; letter-spacing: 2px; }
   #pump-bar-container {
-    width: 170px; height: 10px; background: rgba(0,0,0,0.7); border: 1px solid #ffd700;
-    border-radius: 5px; margin: 6px auto 0; overflow: hidden;
+    width: 220px; height: 14px; background: rgba(0,0,0,0.8); border: 2px solid #ffd700;
+    border-radius: 7px; margin: 8px auto 0; overflow: hidden;
   }
-  #pump-bar { width: 0%; height: 100%; background: #00ff00; transition: width 0.05s linear; }
+  #pump-bar { width: 0%; height: 100%; background: #00ff00; transition: width 0.04s linear; }
 
   /* CAMERA ALTITUDE SLIDER */
   #camera-altitude-control {
@@ -129,7 +131,7 @@
 <div id="lobby-screen">
     <div class="lobby-header">
         <h1>CLEAR HORIZONS</h1>
-        <p>Ground-Locked Physics & Air-Bridge Siege | Ready up to deploy!</p>
+        <p>Spring-Loaded Shotgun & Demolition Combat | Ready up to deploy!</p>
     </div>
     <div id="lobbies-grid"></div>
 </div>
@@ -168,10 +170,10 @@
     </div>
   </div>
   <div style="font-size: 10px; margin-top: 15px; color: #aaa; border-top: 1px solid #333; padding-top: 8px; line-height: 1.4;">
-    [LMB Cannon] Select (Click Again or Press ESC to Deselect!)<br>
-    [LMB Surface] March (Cannons stay on panels; will not fall off edges!)<br>
+    [LMB Cannon] Select / Deselect | [LMB Ground/Panel] March<br>
     [RMB on Panel] Select Panel | [Wheel] Cycle Floor / Wall / Ramp<br>
-    [River Rules] Build up to midpoint ribbon (Z=0) to connect bridges!
+    [PULL BACK & RELEASE] Spring fires new panel forward!<br>
+    [PUSH OPPOSITE & RELEASE] Undoes / Demolishes panel!
   </div>
   <span id="status" class="sys">STATUS: STANDBY</span>
 </div>
@@ -181,12 +183,12 @@
   <div class="legend-item"><div class="legend-dot" style="background:#0ea5e9;"></div>Wall Mode</div>
   <div class="legend-item"><div class="legend-dot" style="background:#f97316;"></div>Ramp Mode</div>
   <div class="legend-item" style="color: #ffd700; border-left: 1px solid #444; padding-left: 12px;">
-    [Ledge Protection] Cannons stay on panels; guide down ramps to ground!
+    Pull Back = Build | Push Forward = Undo / Demolish
   </div>
 </div>
 
 <div id="pump-hud">
-  <div id="pump-text">RACK SHOTGUN TO BUILD</div>
+  <div id="pump-text">PULL BACK TO CHARGE SPRING</div>
   <div id="pump-bar-container"><div id="pump-bar"></div></div>
 </div>
 
@@ -372,10 +374,14 @@ const shotgunHandles = [];
 let activeBasePanel = null;
 let hoveredShotgun = null;
 
+// =================================================================
+// SPRING-LOADED & REVERSE-UNDO PUMP ACTION MECHANIC
+// =================================================================
 let pumpingShotgun = null;
 let pumpStartMouse = { x: 0, y: 0 };
-let pumpCocked = false;
-let pumpProgress = 0;
+let currentAction = 'none'; // 'none' | 'fire' | 'undo'
+let currentProgress = 0.0;  // 0.0 to 1.0
+let isActionFullyCharged = false;
 
 const pumpHud = document.getElementById('pump-hud');
 const pumpBar = document.getElementById('pump-bar');
@@ -499,6 +505,7 @@ function renderPanelHandles(panel) {
             isLevelOut: false
         });
 
+        // Exact Summit Lip Mount
         const topCenterOffset = new THREE.Vector3(
             dirX * (totalRun / 4),
             totalRise / 4 + 0.6,
@@ -526,7 +533,7 @@ function renderPanelHandles(panel) {
             { id: 'north', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 0.8, -half), isExtender: false, isLevelOut: false },
             { id: 'south', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 0.8, half), isExtender: false, isLevelOut: false },
             { id: 'east',  dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(half, 0.8, 0), isExtender: false, isLevelOut: false },
-            { id: 'west',  dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(-half, 0.8, 0), isExtender: false, isLevelOut: false },
+            { id: 'west',  dir: new THREE.Vector3(-1, 0, 0), offset: new THREE.Vector3(-half, 0.8, 0), isExtender: false, isLevelOut: false },
             { id: 'up',    dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 2.4, 0), isExtender: false, isLevelOut: false }
         ];
     } else if (mode === 3) {
@@ -668,6 +675,67 @@ function extendRampDirectly(rampMesh, isRemote = false) {
 
     renderPanelHandles(rampMesh);
 }
+
+// ==========================================
+// DEMOLISH & UNDO ENGINE
+// ==========================================
+function undoDemolishPanel(panel, isRemote = false) {
+    if (!panel) return;
+
+    // If it is a telescoping ramp with multiple segments, shrink it by 1
+    if (panel.userData.panelType === 'ramp' && (panel.userData.rampSegments || 1) > 1) {
+        panel.userData.rampSegments -= 1;
+        const segs = panel.userData.rampSegments;
+        const newLength = RAMP_DIAG * segs;
+        panel.userData.rampLength = newLength;
+
+        panel.geometry.dispose();
+        panel.geometry = new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, newLength);
+
+        panel.position.sub(new THREE.Vector3(0, WALL_HEIGHT / 2, 0));
+        if (Math.abs(panel.rotation.x) > 0.1) {
+            const signZ = panel.rotation.x > 0 ? -1 : 1;
+            panel.position.z -= signZ * (PANEL_SIZE / 2);
+        }
+        if (Math.abs(panel.rotation.z) > 0.1) {
+            const signX = panel.rotation.z > 0 ? 1 : -1;
+            panel.position.x -= signX * (PANEL_SIZE / 2);
+        }
+
+        if (!isRemote) {
+            socket.emit('extend_ramp', {
+                roomId: currentRoomId,
+                id: panel.userData.id
+            });
+        }
+        renderPanelHandles(panel);
+    } else {
+        // Remove panel completely
+        const idToRemove = panel.userData.id;
+        scene.remove(panel);
+        const idx = worldPanels.indexOf(panel);
+        if (idx !== -1) worldPanels.splice(idx, 1);
+
+        clearShotgunHandles();
+        activeBasePanel = null;
+
+        if (!isRemote) {
+            socket.emit('remove_panel', {
+                roomId: currentRoomId,
+                id: idToRemove
+            });
+        }
+
+        statusText.innerText = "PANEL UNDONE / DEMOLISHED!";
+        statusText.style.color = "#ff9900";
+        setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2000);
+    }
+}
+
+socket.on('opponent_remove_panel', (data) => {
+    const p = worldPanels.find(x => x.userData.id === data.id);
+    if (p) undoDemolishPanel(p, true);
+});
 
 socket.on('opponent_extend_ramp', (data) => {
     const r = worldPanels.find(p => p.userData.id === data.id);
@@ -1014,13 +1082,10 @@ window.onmousedown = (e) => {
         return;
     }
 
-    // -------------------------------------------------------------
-    // LEFT MOUSE BUTTON (LMB): CANNON TOGGLE, MARCH & PUMP ACTION
-    // -------------------------------------------------------------
     if (e.button === 0) {
         raycaster.setFromCamera(mouse, camera);
 
-        // 1. Check if user is clicking & pumping a Shotgun Handle
+        // 1. Check if user is clicking a Shotgun Handle
         const gunIntersects = raycaster.intersectObjects(shotgunHandles, true);
         if (gunIntersects.length > 0) {
             let hitObj = gunIntersects[0].object;
@@ -1028,21 +1093,15 @@ window.onmousedown = (e) => {
             if (hitObj.userData.isShotgunHandle && activeBasePanel) {
                 pumpingShotgun = hitObj;
                 pumpStartMouse = { x: e.clientX, y: e.clientY };
-                pumpCocked = false;
-                pumpProgress = 0;
-                pumpHud.style.display = 'block';
+                currentAction = 'none';
+                currentProgress = 0.0;
+                isActionFullyCharged = false;
 
-                if (hitObj.userData.isRampExtender) {
-                    pumpText.innerText = "RACK SLIDE TO EXTEND RAMP...";
-                    pumpBar.style.background = '#ff8800';
-                } else if (hitObj.userData.isRampLevelOut) {
-                    pumpText.innerText = "RACK SLIDE TO LEVEL OUT FLAT AIR-FLOOR...";
-                    pumpBar.style.background = '#00ff88';
-                } else {
-                    pumpText.innerText = "RACK SLIDE BACK TO LOAD SHELL...";
-                    pumpBar.style.background = '#ffd700';
-                }
+                pumpHud.style.display = 'block';
+                pumpText.innerText = "PULL BACK TO CHARGE SPRING...";
+                pumpText.style.color = "#ffd700";
                 pumpBar.style.width = '0%';
+                pumpBar.style.background = '#ffd700';
                 return;
             }
         }
@@ -1092,9 +1151,6 @@ window.onmousedown = (e) => {
         }
     }
 
-    // -------------------------------------------------------------
-    // RIGHT MOUSE BUTTON (RMB): SELECT PANELS OR FIRE ARTILLERY
-    // -------------------------------------------------------------
     if (e.button === 2) {
         e.preventDefault();
         raycaster.setFromCamera(mouse, camera);
@@ -1113,11 +1169,13 @@ window.onmousedown = (e) => {
     }
 };
 
+// =================================================================
+// SPRING-LOADED CHARGE & REVERSE-UNDO MOUSE TRACKING
+// =================================================================
 window.onmousemove = (e) => {
     mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
 
-    // --- SHOTGUN PUMP ACTION & SHELL CHAMBERING ---
     if (pumpingShotgun && activeBasePanel) {
         const gunWorldPos = pumpingShotgun.position.clone();
         const dirEndpoint = gunWorldPos.clone().add(pumpingShotgun.userData.dirVector.clone().multiplyScalar(4));
@@ -1140,68 +1198,98 @@ window.onmousemove = (e) => {
             const shellGroup = pumpingShotgun.userData.shellGroup;
             const initialY = pumpingShotgun.userData.initialPumpY;
 
-            // STAGE 1: PULL BACK
-            if (!pumpCocked) {
-                const cockAmount = Math.max(0, Math.min(50, -dragAlongAxis));
-                pumpProgress = cockAmount / 50;
-                pumpBar.style.width = `${pumpProgress * 50}%`;
+            // -------------------------------------------------------------
+            // DIRECTION A: PULLING BACKWARDS (SPRING-LOADED FIRE / EXTEND)
+            // -------------------------------------------------------------
+            if (dragAlongAxis < 0) {
+                currentAction = 'fire';
+                const pullBackDistance = -dragAlongAxis;
+                currentProgress = Math.min(1.0, pullBackDistance / 60);
 
-                pumpSlide.position.y = initialY - (pumpProgress * 0.9);
+                // Slide compresses backwards
+                pumpSlide.position.y = initialY - (currentProgress * 1.1);
 
-                const shellScale = Math.min(1.0, pumpProgress * 1.5);
+                // Shell emerges visibly from underneath magazine
+                const shellScale = Math.min(1.0, currentProgress * 1.5);
                 shellGroup.scale.set(shellScale, shellScale, shellScale);
-                shellGroup.position.set(0, 0.4 + (pumpProgress * 0.2), -0.1 + (pumpProgress * 0.2));
+                shellGroup.position.set(0, 0.4 + (currentProgress * 0.2), -0.1 + (currentProgress * 0.2));
 
-                if (pumpProgress >= 1.0) {
-                    pumpCocked = true;
-                    if (pumpingShotgun.userData.isRampExtender) {
-                        pumpText.innerText = "HYDRAULIC CHARGED! PUSH FORWARD TO EXTEND RAMP!";
-                    } else if (pumpingShotgun.userData.isRampLevelOut) {
-                        pumpText.innerText = "CHAMBERED! PUSH FORWARD TO LEVEL OUT AIR-FLOOR!";
-                    } else {
-                        pumpText.innerText = "SHELL CHAMBERED! PUSH FORWARD TO FIRE!";
-                    }
+                pumpBar.style.width = `${currentProgress * 100}%`;
+
+                if (currentProgress >= 1.0) {
+                    isActionFullyCharged = true;
+                    pumpText.innerText = pumpingShotgun.userData.isRampExtender 
+                        ? "★ FULLY COCKED! RELEASE LMB TO EXTEND RAMP! ★"
+                        : "★ SPRING CHARGED! RELEASE LMB TO FIRE PANEL! ★";
+                    pumpText.style.color = "#00ff00";
                     pumpBar.style.background = '#00ff00';
+                } else {
+                    isActionFullyCharged = false;
+                    pumpText.innerText = "PULL BACK FURTHER TO LOCK SPRING...";
+                    pumpText.style.color = "#ffd700";
+                    pumpBar.style.background = '#ffd700';
                 }
             } 
-            // STAGE 2: PUSH FORWARD
-            else {
-                const forwardAmount = Math.max(0, dragAlongAxis);
-                const fireProgress = Math.min(1.0, forwardAmount / 40);
-                pumpBar.style.width = `${50 + fireProgress * 50}%`;
+            // -------------------------------------------------------------
+            // DIRECTION B: PUSHING FORWARD (REVERSE UNDO / DEMOLISH)
+            // -------------------------------------------------------------
+            else if (dragAlongAxis > 0) {
+                currentAction = 'undo';
+                const pushForwardDistance = dragAlongAxis;
+                currentProgress = Math.min(1.0, pushForwardDistance / 60);
 
-                pumpSlide.position.y = (initialY - 0.9) + (fireProgress * 0.9);
-                shellGroup.position.y = 0.6 + (fireProgress * 0.9);
-                shellGroup.position.z = 0.1 - (fireProgress * 0.2);
+                // Slide rams opposite past front stop
+                pumpSlide.position.y = initialY + (currentProgress * 0.8);
 
-                if (fireProgress >= 1.0) {
-                    const firedGunId = pumpingShotgun.userData.arrowId;
-                    pumpingShotgun.userData.recoilTimer = 1.0;
-                    pumpingShotgun.userData.flash.material.opacity = 1.0;
+                shellGroup.scale.set(0.001, 0.001, 0.001); // Shell retracted
+                pumpBar.style.width = `${currentProgress * 100}%`;
 
-                    triggerBranchBuild(activeBasePanel, firedGunId);
-
-                    pumpStartMouse = { x: e.clientX, y: e.clientY };
-                    pumpCocked = false;
-                    pumpProgress = 0;
-                    pumpBar.style.width = '0%';
-                    pumpBar.style.background = '#ffd700';
-
-                    const nextGun = shotgunHandles.find(g => g.userData.arrowId === firedGunId);
-                    pumpingShotgun = nextGun || null;
-                    if (!pumpingShotgun) pumpHud.style.display = 'none';
+                if (currentProgress >= 1.0) {
+                    isActionFullyCharged = true;
+                    pumpText.innerText = "⚠ UNDO CHARGED! RELEASE LMB TO DEMOLISH PANEL! ⚠";
+                    pumpText.style.color = "#ff3300";
+                    pumpBar.style.background = '#ff0033';
+                } else {
+                    isActionFullyCharged = false;
+                    pumpText.innerText = "PUSH FORWARD TO CHARGE UNDO / DEMOLISH...";
+                    pumpText.style.color = "#ff8800";
+                    pumpBar.style.background = '#ff8800';
                 }
             }
         }
     }
 };
 
+// =================================================================
+// SPRING RELEASE ON MOUSE UP: SLAM & FIRE OR UNDO
+// =================================================================
 window.onmouseup = (e) => {
-    if (e.button === 0 && pumpingShotgun) {
+    if (e.button === 0 && pumpingShotgun && activeBasePanel) {
+        const firedGunId = pumpingShotgun.userData.arrowId;
+
+        // 1. RELEASE CHARGED SPRING -> SLAM FORWARD & FIRE NEW PANEL / EXTEND
+        if (currentAction === 'fire' && isActionFullyCharged) {
+            pumpingShotgun.userData.recoilTimer = 1.0;
+            pumpingShotgun.userData.flash.material.opacity = 1.0;
+
+            triggerBranchBuild(activeBasePanel, firedGunId);
+        }
+        // 2. RELEASE CHARGED UNDO -> REVERSE DISCHARGE & DEMOLISH PANEL
+        else if (currentAction === 'undo' && isActionFullyCharged) {
+            pumpingShotgun.userData.recoilTimer = 1.0;
+            pumpingShotgun.userData.flash.material.opacity = 1.0;
+
+            undoDemolishPanel(activeBasePanel);
+        }
+
+        // Reset and clear shotgun pump state
         pumpingShotgun.userData.pumpSlide.position.y = pumpingShotgun.userData.initialPumpY;
         pumpingShotgun.userData.shellGroup.scale.set(0.001, 0.001, 0.001);
         pumpingShotgun.position.copy(pumpingShotgun.userData.originalLocalPos);
         pumpingShotgun = null;
+        currentAction = 'none';
+        currentProgress = 0.0;
+        isActionFullyCharged = false;
         pumpHud.style.display = 'none';
     }
 };
@@ -1233,7 +1321,7 @@ window.onresize = () => {
 };
 
 // =================================================================
-// DELTA-TIME ANIMATION LOOP + STRICT LEDGE DROP PREVENTION
+// DELTA-TIME ANIMATION LOOP + OBVIOUS CHARGE GLOW
 // =================================================================
 function animate() {
     requestAnimationFrame(animate);
@@ -1296,23 +1384,35 @@ function animate() {
                 gun.userData.flash.material.opacity = Math.max(0, gun.userData.flash.material.opacity - dt * 10);
             }
 
-            if (isHovered) {
+            // OBVIOUS CHARGE GLOW STATES
+            if (gun === pumpingShotgun) {
+                if (isActionFullyCharged) {
+                    // Blatantly Obvious Fully Charged Lock Glow
+                    const lockGlow = currentAction === 'fire' ? 0x00ff00 : 0xff0000;
+                    gun.userData.steelMat.emissive.setHex(lockGlow);
+                    gun.userData.steelMat.emissiveIntensity = 1.0 + (pulse * 0.5);
+                    const s = 1.35 + (pulse * 0.08);
+                    gun.scale.set(s, s, s);
+                } else {
+                    const chargingGlow = currentAction === 'fire' ? 0xffaa00 : 0xff5500;
+                    gun.userData.steelMat.emissive.setHex(chargingGlow);
+                    gun.userData.steelMat.emissiveIntensity = 0.5 + (currentProgress * 0.4);
+                    gun.scale.set(1.2, 1.2, 1.2);
+                }
+            } else if (isHovered) {
                 const glowHex = gun.userData.isRampLevelOut ? 0x00ffaa : (gun.userData.isRampExtender ? 0xff6600 : 0xffaa00);
                 gun.userData.steelMat.emissive.setHex(glowHex);
                 gun.userData.steelMat.emissiveIntensity = 0.5 + (pulse * 0.4);
-                if (!pumpingShotgun) {
-                    const s = 1.25 + (pulse * 0.05);
-                    gun.scale.set(s, s, s);
-                }
+                gun.scale.set(1.25, 1.25, 1.25);
             } else {
                 gun.userData.steelMat.emissive.setHex(0x000000);
                 gun.userData.steelMat.emissiveIntensity = 0.0;
-                if (!pumpingShotgun) gun.scale.set(1, 1, 1);
+                gun.scale.set(1, 1, 1);
             }
         });
 
         // -------------------------------------------------------------
-        // CANNON PATHING & STRICT LEDGE-CLAMPING / ANTI-FALL LOGIC
+        // CANNON PATHING & STRICT LEDGE-CLAMPING
         // -------------------------------------------------------------
         [...cannons, ...opponentCannons].forEach(can => {
             can.userData.barrelPivot.rotation.x = -can.userData.angle;
@@ -1330,8 +1430,6 @@ function animate() {
                 const nextX = can.position.x + moveDir.x * moveStep;
                 const nextZ = can.position.z + moveDir.z * moveStep;
 
-                // 1. FORWARD PROBE: Check the surface directly underneath NEXT step
-                // Cast from slightly above the cannon's current height (Y + 2.0)
                 const probeOrigin = new THREE.Vector3(nextX, can.position.y + 2.0, nextZ);
                 const probeRay = new THREE.Raycaster(probeOrigin, new THREE.Vector3(0, -1, 0), 0, 50.0);
                 const hits = probeRay.intersectObjects([ground, ...worldPanels, ...bridges], true);
@@ -1343,18 +1441,11 @@ function animate() {
                     const surfaceY = hits[0].point.y + 0.8;
                     const heightDelta = surfaceY - can.position.y;
 
-                    // If cannon is in the air (elevated > 2.0) and the surface below next step is a steep drop
-                    // (more than 1.8 units down, e.g. off the edge of a sky panel to the ground),
-                    // IT STOPS IMMEDIATELY AT THE EDGE. It will not fall or teleport off.
                     if (can.position.y > 2.0 && heightDelta < -1.8) {
-                        canStep = false; // Blocked by ledge!
-                    } 
-                    // Prevent climbing steep cliffs/walls
-                    else if (heightDelta > 1.8) {
-                        canStep = false; // Blocked by wall!
-                    } 
-                    // Gentle slope (ramp incline/decline) or flat surface: allow movement!
-                    else {
+                        canStep = false;
+                    } else if (heightDelta > 1.8) {
+                        canStep = false;
+                    } else {
                         canStep = true;
                         targetY = surfaceY;
                     }
@@ -1366,7 +1457,6 @@ function animate() {
                     can.position.y += (targetY - can.position.y) * 0.35 * dt60;
                     can.lookAt(can.userData.targetPos.x, can.position.y, can.userData.targetPos.z);
                 } else {
-                    // Stop target navigation when hitting a ledge edge
                     can.userData.targetPos.x = can.position.x;
                     can.userData.targetPos.z = can.position.z;
                 }
