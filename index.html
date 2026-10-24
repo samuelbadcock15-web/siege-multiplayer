@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Siege - Clear Horizons Modular Edition</title>
+<title>Siege - Clear Horizons Pump-Action Edition</title>
 <style>
   body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Courier New', Courier, monospace; cursor: crosshair; user-select: none; }
   #ui { position: absolute; top: 15px; left: 15px; color: white; background: rgba(15, 15, 20, 0.95); padding: 18px; border-radius: 8px; border: 2px solid #ffd700; width: 440px; z-index: 101; box-shadow: 0 0 30px rgba(0,0,0,0.7); display: none; }
@@ -16,16 +16,26 @@
   .info-column { flex: 1; font-size: 11px; }
   .info-column h3 { margin: 0 0 5px 0; color: #ffd700; font-size: 13px; }
   
-  /* Modular Mode Legend */
+  /* Modular Mode Legend & Pump Indicator */
   #mode-legend {
     position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-    background: rgba(10, 14, 25, 0.92); border: 2px solid #ffd700; border-radius: 8px;
-    padding: 10px 20px; display: none; gap: 20px; z-index: 200; align-items: center; color: white;
-    font-size: 11px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    background: rgba(10, 14, 25, 0.95); border: 2px solid #ffd700; border-radius: 8px;
+    padding: 10px 22px; display: none; gap: 18px; z-index: 200; align-items: center; color: white;
+    font-size: 11px; box-shadow: 0 4px 20px rgba(0,0,0,0.6);
   }
   .legend-item { display: flex; align-items: center; gap: 8px; }
   .legend-dot { width: 12px; height: 12px; border-radius: 3px; }
-  
+  #pump-hud {
+    display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    pointer-events: none; z-index: 300; text-align: center; font-weight: bold;
+    color: #ffd700; text-shadow: 0 0 10px rgba(0,0,0,0.8);
+  }
+  #pump-bar-container {
+    width: 140px; height: 10px; background: rgba(0,0,0,0.7); border: 1px solid #ffd700;
+    border-radius: 5px; margin: 6px auto 0; overflow: hidden;
+  }
+  #pump-bar { width: 0%; height: 100%; background: #00ff00; transition: width 0.05s linear; }
+
   /* --- 6-ROOM LOBBY SYSTEM --- */
   #lobby-screen { 
     position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; 
@@ -93,7 +103,7 @@
 <div id="lobby-screen">
     <div class="lobby-header">
         <h1>CLEAR HORIZONS</h1>
-        <p>Modular Combat Siege | Select an arena and ready up!</p>
+        <p>Modular Pump-Action Combat Siege | Ready up to deploy!</p>
     </div>
     <div id="lobbies-grid"></div>
 </div>
@@ -101,7 +111,7 @@
 <div id="match-countdown">
     <div style="font-size: 20px; color: #ffd700; font-weight: bold;" id="countdown-role-text">COMMAND ROLE ASSIGNED</div>
     <div id="countdown-num">3</div>
-    <div style="color: #aaa; font-size: 14px;">Deploying forces to defensive perimeter...</div>
+    <div style="color: #aaa; font-size: 14px;">Deploying garrison to frontlines...</div>
 </div>
 
 <div id="minimap-container"><canvas id="minimap"></canvas></div>
@@ -123,17 +133,23 @@
   </div>
   <div style="font-size: 10px; margin-top: 15px; color: #aaa; border-top: 1px solid #333; padding-top: 8px; line-height: 1.4;">
     [W,S,A,D] Move/Rotate Cam | [Q,E] Strafe | [Scroll] Zoom<br>
-    [LMB Ground] Place Base Floor / Select Unit<br>
-    [LMB Panel] 1x Green (Floor) | 2x Blue (Walls) | 3x Orange (Ramp)<br>
-    [LMB Arrows] Snap-Build Direction | [RMB] Aim & Fire
+    [LMB Ground] Place Base Floor / Select Cannon<br>
+    [LMB Panel] 1x Green (Floor) | 2x Blue (Walls) | 3x Orange (Ramps)<br>
+    [Hold LMB Arrow + PUMP Drag] Cock back & push forward to build!
   </div>
   <span id="status" class="sys">STATUS: STANDBY</span>
 </div>
 
 <div id="mode-legend">
-  <div class="legend-item"><div class="legend-dot" style="background:#00ff00;"></div>1-Click: Floor Grid</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#00aaff;"></div>2-Click: Defensive Walls</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#ff8800;"></div>3-Click: Ascent Ramps</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#22c55e;"></div>1-Click: Floor Grid</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#0ea5e9;"></div>2-Click: Defensive Walls</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f97316;"></div>3-Click: Ascent Ramps</div>
+  <div class="legend-item" style="color: #ffd700; border-left: 1px solid #444; padding-left: 12px;">★ PUMP ARROWS TO BUILD</div>
+</div>
+
+<div id="pump-hud">
+  <div id="pump-text">PUMP TO BUILD</div>
+  <div id="pump-bar-container"><div id="pump-bar"></div></div>
 </div>
 
 <div id="game-over-modal">
@@ -271,7 +287,7 @@ for (let i = 0; i < 60; i++) {
 }
 
 // =================================================================
-// MODULAR 3D SNAP BUILDING ENGINE
+// MODULAR 3D SNAP BUILDING ENGINE + PUMP ACTION
 // =================================================================
 const PANEL_SIZE = 12;
 const WALL_HEIGHT = 8;
@@ -300,24 +316,72 @@ const modeColors = {
 const worldPanels = [];
 const arrowHandles = [];
 let activeBasePanel = null;
+let hoveredArrow = null;
 let panelClickCounter = 0;
 let panelClickTimer = null;
+
+// PUMP STATE
+let pumpingArrow = null;
+let pumpStartMouse = { x: 0, y: 0 };
+let pumpCocked = false;
+let pumpProgress = 0; // 0 to 1
+
+const pumpHud = document.getElementById('pump-hud');
+const pumpBar = document.getElementById('pump-bar');
+const pumpText = document.getElementById('pump-text');
 
 function clearArrowHandles() {
     arrowHandles.forEach(h => scene.remove(h));
     arrowHandles.length = 0;
+    hoveredArrow = null;
+    pumpingArrow = null;
+    pumpHud.style.display = 'none';
 }
 
 function createArrowIndicator(dirVector, colorHex, id) {
     const arrowGroup = new THREE.Group();
-    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 2.5), new THREE.MeshBasicMaterial({ color: colorHex }));
-    shaft.position.y = 1.25;
-    const cone = new THREE.Mesh(new THREE.ConeGeometry(0.8, 1.5, 12), new THREE.MeshBasicMaterial({ color: colorHex }));
-    cone.position.y = 3.0;
+    
+    // Core Mesh
+    const shaftMat = new THREE.MeshStandardMaterial({ 
+        color: colorHex, 
+        emissive: 0x000000, 
+        roughness: 0.3,
+        metalness: 0.8
+    });
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 2.8, 16), shaftMat);
+    shaft.position.y = 1.4;
 
-    arrowGroup.add(shaft, cone);
+    const coneMat = new THREE.MeshStandardMaterial({ 
+        color: colorHex, 
+        emissive: 0x000000, 
+        roughness: 0.3,
+        metalness: 0.8
+    });
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(0.9, 1.8, 16), coneMat);
+    cone.position.y = 3.3;
+
+    // Outer Aura Glow Ring
+    const ringGeo = new THREE.TorusGeometry(0.9, 0.08, 8, 24);
+    const ringMat = new THREE.MeshBasicMaterial({ color: 0xffff00, transparent: true, opacity: 0.0 });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = 1.4;
+
+    arrowGroup.add(shaft, cone, ring);
     arrowGroup.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dirVector.clone().normalize());
-    arrowGroup.userData = { isArrowHandle: true, arrowId: id };
+
+    arrowGroup.userData = { 
+        isArrowHandle: true, 
+        arrowId: id,
+        dirVector: dirVector.clone().normalize(),
+        baseColor: colorHex,
+        shaftMat: shaftMat,
+        coneMat: coneMat,
+        ringMat: ringMat,
+        originalLocalPos: new THREE.Vector3(),
+        recoilTimer: 0
+    };
+
     return arrowGroup;
 }
 
@@ -341,6 +405,7 @@ function renderPanelHandles(panel) {
     configs.forEach(cfg => {
         const arrow = createArrowIndicator(cfg.dir, color, cfg.id);
         arrow.position.copy(pos).add(cfg.offset);
+        arrow.userData.originalLocalPos.copy(arrow.position);
         scene.add(arrow);
         arrowHandles.push(arrow);
     });
@@ -391,7 +456,6 @@ function triggerBranchBuild(parentPanel, arrowId) {
     let buildType = 'floor';
 
     if (mode === 1) {
-        // Floor Extensions
         buildType = 'floor';
         if (arrowId === 'north') newPos.z -= PANEL_SIZE;
         if (arrowId === 'south') newPos.z += PANEL_SIZE;
@@ -400,7 +464,6 @@ function triggerBranchBuild(parentPanel, arrowId) {
         if (arrowId === 'up')    newPos.y += WALL_HEIGHT;
     } 
     else if (mode === 2) {
-        // Wall Extensions
         buildType = 'wall';
         newPos.y += (WALL_HEIGHT / 2);
         if (arrowId === 'north') { newPos.z -= (PANEL_SIZE / 2); newRot.y = 0; }
@@ -413,7 +476,6 @@ function triggerBranchBuild(parentPanel, arrowId) {
         }
     } 
     else if (mode === 3) {
-        // Ramp Extensions
         buildType = 'ramp';
         newPos.y += (WALL_HEIGHT / 2);
         if (arrowId === 'north') {
@@ -440,6 +502,7 @@ function triggerBranchBuild(parentPanel, arrowId) {
 
     const spawned = placePanel(buildType, newPos, newRot);
     activeBasePanel = spawned;
+    spawned.userData.buildMode = mode; // Inherit mode
     renderPanelHandles(spawned);
 }
 
@@ -451,13 +514,13 @@ function handlePanelClick(panel) {
         activeBasePanel = panel;
         if (panelClickCounter === 1) {
             panel.userData.buildMode = 1;
-            panel.material.color.setHex(0x1e3a1e); // Floor hint
+            panel.material.color.setHex(0x1e3a1e);
         } else if (panelClickCounter === 2) {
             panel.userData.buildMode = 2;
-            panel.material.color.setHex(0x1e2e4a); // Wall hint
+            panel.material.color.setHex(0x1e2e4a);
         } else if (panelClickCounter >= 3) {
             panel.userData.buildMode = 3;
-            panel.material.color.setHex(0x4a2a12); // Ramp hint
+            panel.material.color.setHex(0x4a2a12);
         }
         renderPanelHandles(panel);
         panelClickCounter = 0;
@@ -673,7 +736,9 @@ function updateMinimap() {
     });
 }
 
-// Window Interactions
+// =================================================================
+// WINDOW INTERACTIONS & PUMP ACTION BUILD CONTROLS
+// =================================================================
 window.onmousedown = (e) => {
     if (!matchStarted || matchOver) return;
     if (e.target.closest('#ui') || e.target.closest('#lobby-screen') || e.target.closest('#mode-legend')) return;
@@ -694,13 +759,20 @@ window.onmousedown = (e) => {
     if (e.button === 0) {
         raycaster.setFromCamera(mouse, camera);
 
-        // 1. Check Snap Arrows
+        // 1. Engage Arrow for Hold & Pump Action
         const arrowIntersects = raycaster.intersectObjects(arrowHandles, true);
         if (arrowIntersects.length > 0) {
             let hitObj = arrowIntersects[0].object;
             while (hitObj.parent && !hitObj.userData.isArrowHandle) hitObj = hitObj.parent;
             if (hitObj.userData.isArrowHandle && activeBasePanel) {
-                triggerBranchBuild(activeBasePanel, hitObj.userData.arrowId);
+                pumpingArrow = hitObj;
+                pumpStartMouse = { x: e.clientX, y: e.clientY };
+                pumpCocked = false;
+                pumpProgress = 0;
+                pumpHud.style.display = 'block';
+                pumpText.innerText = "PULL BACK TO COCK...";
+                pumpBar.style.width = '0%';
+                pumpBar.style.background = '#ffd700';
                 return;
             }
         }
@@ -736,7 +808,6 @@ window.onmousedown = (e) => {
                 selected.userData.targetPos.set(pt.x, selected.position.y, pt.z);
                 socket.emit('player_move', { roomId: currentRoomId, id: selected.userData.id, tx: pt.x, tz: pt.z });
             } else {
-                // Check player boundary before building
                 const isMySide = myPlayerIndex === 1 ? (pt.z > riverWidth / 2) : (pt.z < -riverWidth / 2);
                 if (isMySide) {
                     const snapX = Math.round(pt.x / PANEL_SIZE) * PANEL_SIZE;
@@ -763,6 +834,92 @@ window.onmousedown = (e) => {
 window.onmousemove = (e) => {
     mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+    // --- PUMP ACTION RECOIL & FIRE CALCULATOR ---
+    if (pumpingArrow && activeBasePanel) {
+        // Project arrow direction to 2D screen coordinate vector
+        const arrowWorldPos = pumpingArrow.position.clone();
+        const dirEndpoint = arrowWorldPos.clone().add(pumpingArrow.userData.dirVector.clone().multiplyScalar(4));
+
+        const screenStart = arrowWorldPos.project(camera);
+        const screenEnd = dirEndpoint.project(camera);
+
+        const screenVec = new THREE.Vector2(
+            (screenEnd.x - screenStart.x) * window.innerWidth / 2,
+            -(screenEnd.y - screenStart.y) * window.innerHeight / 2
+        );
+        const screenLen = screenVec.length();
+
+        if (screenLen > 1) {
+            screenVec.normalize();
+
+            // Measure mouse drag along the arrow axis
+            const mouseDrag = new THREE.Vector2(e.clientX - pumpStartMouse.x, e.clientY - pumpStartMouse.y);
+            const dragAlongAxis = mouseDrag.dot(screenVec);
+
+            // STAGE 1: PULL BACK (COCKING)
+            if (!pumpCocked) {
+                // Dragging in reverse of arrow direction
+                const cockAmount = Math.max(0, Math.min(50, -dragAlongAxis));
+                pumpProgress = cockAmount / 50;
+                pumpBar.style.width = `${pumpProgress * 50}%`;
+
+                // Visually compress arrow into chamber
+                const pullBackVec = pumpingArrow.userData.dirVector.clone().multiplyScalar(-pumpProgress * 1.5);
+                pumpingArrow.position.copy(pumpingArrow.userData.originalLocalPos).add(pullBackVec);
+                pumpingArrow.scale.set(1.2, 1.2 - (pumpProgress * 0.4), 1.2);
+
+                if (pumpProgress >= 1.0) {
+                    pumpCocked = true;
+                    pumpText.innerText = "COCKED! NOW PUSH FORWARD TO FIRE!";
+                    pumpBar.style.background = '#00ff00';
+                }
+            } 
+            // STAGE 2: PUSH FORWARD (PUMPING & FIRING)
+            else {
+                // Dragging forward past origin
+                const forwardAmount = Math.max(0, dragAlongAxis);
+                const fireProgress = Math.min(1.0, forwardAmount / 40);
+                pumpBar.style.width = `${50 + fireProgress * 50}%`;
+
+                const forwardVec = pumpingArrow.userData.dirVector.clone().multiplyScalar(fireProgress * 2.5);
+                pumpingArrow.position.copy(pumpingArrow.userData.originalLocalPos).add(forwardVec);
+                pumpingArrow.scale.set(1.4, 1.4 + (fireProgress * 0.3), 1.4);
+
+                if (fireProgress >= 1.0) {
+                    // --- FIRE SNAP! ---
+                    const firedArrowId = pumpingArrow.userData.arrowId;
+                    pumpingArrow.userData.recoilTimer = 1.0;
+                    
+                    // Spawn panel
+                    triggerBranchBuild(activeBasePanel, firedArrowId);
+
+                    // Re-arm for continuous pumping without letting go of LMB!
+                    pumpStartMouse = { x: e.clientX, y: e.clientY };
+                    pumpCocked = false;
+                    pumpProgress = 0;
+                    pumpText.innerText = "CHAMBERED! PULL BACK TO COCK...";
+                    pumpBar.style.width = '0%';
+                    pumpBar.style.background = '#ffd700';
+
+                    // Rebind to corresponding arrow on new panel
+                    const nextArrow = arrowHandles.find(a => a.userData.arrowId === firedArrowId);
+                    pumpingArrow = nextArrow || null;
+                    if (!pumpingArrow) pumpHud.style.display = 'none';
+                }
+            }
+        }
+    }
+};
+
+window.onmouseup = (e) => {
+    if (e.button === 0 && pumpingArrow) {
+        // Released without completing pump: snap arrow back
+        pumpingArrow.position.copy(pumpingArrow.userData.originalLocalPos);
+        pumpingArrow.scale.set(1, 1, 1);
+        pumpingArrow = null;
+        pumpHud.style.display = 'none';
+    }
 };
 
 window.onkeydown = (e) => { keys[e.key.toLowerCase()] = true; };
@@ -780,13 +937,14 @@ window.onresize = () => {
 };
 
 // =================================================================
-// DELTA-TIME ANIMATION LOOP
+// DELTA-TIME ANIMATION LOOP + ARROW GLOW
 // =================================================================
 function animate() {
     requestAnimationFrame(animate);
 
     const dt = Math.min(clock.getDelta(), 0.1);
     const dt60 = dt * 60;
+    const time = clock.getElapsedTime();
 
     clouds.forEach(c => {
         c.mesh.position.x += c.speed * dt60;
@@ -815,6 +973,48 @@ function animate() {
                 camera.position.z = nextPos.z;
             }
         }
+
+        // --- ARROW HOVER & GLOW UPDATE ---
+        raycaster.setFromCamera(mouse, camera);
+        const arrowIntersects = raycaster.intersectObjects(arrowHandles, true);
+        let currentHover = null;
+
+        if (arrowIntersects.length > 0) {
+            let hitObj = arrowIntersects[0].object;
+            while (hitObj.parent && !hitObj.userData.isArrowHandle) hitObj = hitObj.parent;
+            if (hitObj.userData.isArrowHandle) currentHover = hitObj;
+        }
+
+        arrowHandles.forEach(arrow => {
+            const isHovered = (arrow === currentHover) || (arrow === pumpingArrow);
+            const pulse = (Math.sin(time * 8) + 1) * 0.5;
+
+            if (arrow.userData.recoilTimer > 0) {
+                arrow.userData.recoilTimer = Math.max(0, arrow.userData.recoilTimer - dt * 5);
+            }
+
+            if (isHovered) {
+                // Bright Electric Yellow Gold Glow
+                arrow.userData.shaftMat.emissive.setHex(0xffea00);
+                arrow.userData.shaftMat.emissiveIntensity = 0.6 + (pulse * 0.4);
+                arrow.userData.coneMat.emissive.setHex(0xffea00);
+                arrow.userData.coneMat.emissiveIntensity = 0.8 + (pulse * 0.4);
+                arrow.userData.ringMat.opacity = 0.7 + (pulse * 0.3);
+
+                if (!pumpingArrow) {
+                    const targetScale = 1.3 + (pulse * 0.08);
+                    arrow.scale.set(targetScale, targetScale, targetScale);
+                }
+            } else {
+                // Normal Unselected State
+                arrow.userData.shaftMat.emissive.setHex(0x000000);
+                arrow.userData.shaftMat.emissiveIntensity = 0.0;
+                arrow.userData.coneMat.emissive.setHex(0x000000);
+                arrow.userData.coneMat.emissiveIntensity = 0.0;
+                arrow.userData.ringMat.opacity = 0.0;
+                if (!pumpingArrow) arrow.scale.set(1, 1, 1);
+            }
+        });
 
         // Cannon Pathing & Ramp Climbing
         [...cannons, ...opponentCannons].forEach(can => {
