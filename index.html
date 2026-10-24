@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Siege - Clear Horizons Altitude Slider Edition</title>
+<title>Siege - Clear Horizons River Demarcation Edition</title>
 <style>
   body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Courier New', Courier, monospace; cursor: crosshair; user-select: none; }
   #ui { position: absolute; top: 15px; left: 15px; color: white; background: rgba(15, 15, 20, 0.95); padding: 18px; border-radius: 8px; border: 2px solid #ffd700; width: 440px; z-index: 101; box-shadow: 0 0 30px rgba(0,0,0,0.7); display: none; }
@@ -36,78 +36,30 @@
   }
   #pump-bar { width: 0%; height: 100%; background: #00ff00; transition: width 0.05s linear; }
 
-  /* --- CAMERA ALTITUDE ELEVATION SLIDER (RIGHT HAND SIDE) --- */
+  /* CAMERA ALTITUDE SLIDER */
   #camera-altitude-control {
-    position: absolute;
-    right: 25px;
-    top: 240px;
-    bottom: 80px;
-    width: 60px;
-    background: rgba(10, 14, 25, 0.92);
-    border: 2px solid #ffd700;
-    border-radius: 10px;
-    display: none;
-    flex-direction: column;
-    align-items: center;
-    justify-content: space-between;
-    padding: 15px 5px;
-    box-sizing: border-box;
-    z-index: 250;
-    box-shadow: 0 0 25px rgba(0,0,0,0.7);
+    position: absolute; right: 25px; top: 240px; bottom: 80px; width: 60px;
+    background: rgba(10, 14, 25, 0.92); border: 2px solid #ffd700; border-radius: 10px;
+    display: none; flex-direction: column; align-items: center; justify-content: space-between;
+    padding: 15px 5px; box-sizing: border-box; z-index: 250; box-shadow: 0 0 25px rgba(0,0,0,0.7);
     color: #ffd700;
   }
-  .alt-header {
-    font-size: 10px;
-    font-weight: bold;
-    text-align: center;
-    letter-spacing: 1px;
-    line-height: 1.2;
-  }
-  .alt-value-display {
-    font-size: 11px;
-    font-weight: bold;
-    color: #00ffcc;
-    margin: 5px 0;
-  }
-  .alt-slider-wrapper {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    margin: 10px 0;
-  }
+  .alt-header { font-size: 10px; font-weight: bold; text-align: center; letter-spacing: 1px; line-height: 1.2; }
+  .alt-value-display { font-size: 11px; font-weight: bold; color: #00ffcc; margin: 5px 0; }
+  .alt-slider-wrapper { flex: 1; display: flex; align-items: center; justify-content: center; width: 100%; margin: 10px 0; }
   #altitude-slider {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 260px;
-    height: 8px;
-    background: #1e293b;
-    border-radius: 4px;
-    outline: none;
-    transform: rotate(-90deg);
-    cursor: pointer;
-    border: 1px solid #444;
+    -webkit-appearance: none; appearance: none; width: 260px; height: 8px;
+    background: #1e293b; border-radius: 4px; outline: none; transform: rotate(-90deg);
+    cursor: pointer; border: 1px solid #444;
   }
   #altitude-slider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    background: #ffd700;
-    cursor: pointer;
-    box-shadow: 0 0 10px #ffd700;
+    -webkit-appearance: none; appearance: none; width: 22px; height: 22px;
+    border-radius: 50%; background: #ffd700; cursor: pointer; box-shadow: 0 0 10px #ffd700;
     border: 2px solid #ffffff;
   }
   #altitude-slider::-moz-range-thumb {
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    background: #ffd700;
-    cursor: pointer;
-    box-shadow: 0 0 10px #ffd700;
-    border: 2px solid #ffffff;
+    width: 22px; height: 22px; border-radius: 50%; background: #ffd700; cursor: pointer;
+    box-shadow: 0 0 10px #ffd700; border: 2px solid #ffffff;
   }
 
   /* --- 6-ROOM LOBBY SYSTEM --- */
@@ -177,7 +129,7 @@
 <div id="lobby-screen">
     <div class="lobby-header">
         <h1>CLEAR HORIZONS</h1>
-        <p>Tactical Air-Bridge & Ramp Combat | Ready up to deploy!</p>
+        <p>Tactical Demarcated River Combat | Ready up to deploy!</p>
     </div>
     <div id="lobbies-grid"></div>
 </div>
@@ -185,12 +137,12 @@
 <div id="match-countdown">
     <div style="font-size: 20px; color: #ffd700; font-weight: bold;" id="countdown-role-text">COMMAND ROLE ASSIGNED</div>
     <div id="countdown-num">3</div>
-    <div style="color: #aaa; font-size: 14px;">Deploying forces to frontier positions...</div>
+    <div style="color: #aaa; font-size: 14px;">Fortifying frontline river boundaries...</div>
 </div>
 
 <div id="minimap-container"><canvas id="minimap"></canvas></div>
 
-<!-- CAMERA ALTITUDE SLIDER (RIGHT HAND SIDE) -->
+<!-- CAMERA ALTITUDE SLIDER -->
 <div id="camera-altitude-control">
   <div class="alt-header">ALT<br>SKY</div>
   <div class="alt-slider-wrapper">
@@ -216,11 +168,10 @@
     </div>
   </div>
   <div style="font-size: 10px; margin-top: 15px; color: #aaa; border-top: 1px solid #333; padding-top: 8px; line-height: 1.4;">
-    [W,S,A,D] Move/Rotate Cam | [Q,E] Strafe<br>
-    [Right Slider] Change Camera Flight Altitude Level<br>
-    [LMB] Select Cannon & March onto Ground, Panels & Ramps<br>
+    [W,S,A,D] Move Cam | [Q,E] Strafe | [Slider] Altitude Level<br>
+    [LMB] Select Cannon & March across Ground, Panels & Ramps<br>
     [RMB on Panel] Select Panel | [Wheel] Cycle Floor / Wall / Ramp<br>
-    [Hold LMB on Shotgun] Pull back & push forward to build/extend!
+    [River Rules] Build up to river midpoint (Z=0) to meet opponent!
   </div>
   <span id="status" class="sys">STATUS: STANDBY</span>
 </div>
@@ -230,7 +181,7 @@
   <div class="legend-item"><div class="legend-dot" style="background:#0ea5e9;"></div>Wall Mode</div>
   <div class="legend-item"><div class="legend-dot" style="background:#f97316;"></div>Ramp Mode</div>
   <div class="legend-item" style="color: #ffd700; border-left: 1px solid #444; padding-left: 12px;">
-    [RMB] Select Panel | [HORIZONTAL SHOTGUN ON RAMP] Level Out Flat Air-Floor!
+    [Z=0 Midpoint Boundary] Build halfway into river to connect!
   </div>
 </div>
 
@@ -265,8 +216,6 @@ let gameInitialized = false;
 let matchStarted = false;
 
 const clock = new THREE.Clock();
-
-// Target altitude variable maintained by the right-hand slider
 let targetCameraAltitude = 5.0;
 
 // Scene, Camera, Renderer
@@ -286,7 +235,7 @@ const ctx = minimapCanvas.getContext('2d');
 minimapCanvas.width = 200;
 minimapCanvas.height = 200;
 
-// Wire up the right-hand altitude slider
+// Altitude Slider Bindings
 const altitudeSlider = document.getElementById('altitude-slider');
 const altValText = document.getElementById('alt-val-text');
 const altitudeControlBox = document.getElementById('camera-altitude-control');
@@ -311,11 +260,21 @@ const gridHelper = new THREE.GridHelper(boardSize, 12, 0xffd700, 0x224422);
 gridHelper.position.y = 0.02;
 scene.add(gridHelper);
 
+// River: Width = 30 (Z: -15 to +15), Midpoint Demarcation Centerline at Z = 0
 const riverWidth = 30;
 const river = new THREE.Mesh(new THREE.PlaneGeometry(boardSize, riverWidth), new THREE.MeshStandardMaterial({ color: 0x0077be, transparent: true, opacity: 0.8 }));
 river.rotation.x = -Math.PI / 2;
 river.position.y = 0.01;
 scene.add(river);
+
+// River Centerline Marker Ribbon (Z = 0)
+const centerRibbon = new THREE.Mesh(
+    new THREE.PlaneGeometry(boardSize, 0.4),
+    new THREE.MeshBasicMaterial({ color: 0xffd700, transparent: true, opacity: 0.4 })
+);
+centerRibbon.rotation.x = -Math.PI / 2;
+centerRibbon.position.set(0, 0.03, 0);
+scene.add(centerRibbon);
 
 const bridgeMat = new THREE.MeshStandardMaterial({ color: 0x5c4033, roughness: 0.8 });
 const bridgeWidth = 16;
@@ -387,13 +346,26 @@ for (let i = 0; i < 60; i++) {
 }
 
 // =================================================================
-// MODULAR 3D SNAP BUILDING ENGINE + HORIZONTAL RAMP LEVEL-OUT
+// MODULAR 3D SNAP BUILDING ENGINE + RIVER BOUNDARY RULES
 // =================================================================
 const PANEL_SIZE = 12;
 const WALL_HEIGHT = 8;
 const PANEL_THICKNESS = 1.0;
 const RAMP_DIAG = Math.hypot(PANEL_SIZE, WALL_HEIGHT);
 const RAMP_ANGLE = Math.atan2(WALL_HEIGHT, PANEL_SIZE);
+
+// TERRITORY CHECK: Allows building across home side up to the river centerline (Z = 0)
+// With a small 0.1 buffer so panels can sit right against Z = 0
+function isWithinMyBuildingTerritory(targetZ, panelDepth = PANEL_SIZE) {
+    const halfDepth = panelDepth / 2;
+    if (myPlayerIndex === 1) {
+        // Player 1 (Blue) starts South (+Z): can build halfway across river, up to Z = 0
+        return (targetZ - halfDepth) >= -0.1;
+    } else {
+        // Player 2 (Dark) starts North (-Z): can build halfway across river, down to Z = 0
+        return (targetZ + halfDepth) <= 0.1;
+    }
+}
 
 const panelMaterials = {
     floor: new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.8 }),
@@ -511,32 +483,39 @@ function renderPanelHandles(panel) {
     let configs = [];
 
     if (isRamp) {
-        const rampUpSlope = new THREE.Vector3(0, 1, 0).applyEuler(panel.rotation);
-        const inclineVector = new THREE.Vector3().crossVectors(new THREE.Vector3(1, 0, 0).applyEuler(panel.rotation), rampUpSlope).normalize();
-        
-        // 1. UNDERSIDE EXTENDER SHOTGUN
+        const segs = panel.userData.rampSegments || 1;
+        const totalRun = PANEL_SIZE * segs;
+        const totalRise = WALL_HEIGHT * segs;
+
+        let dirX = 0, dirZ = 0;
+        if (Math.abs(panel.rotation.x) > 0.1) {
+            dirZ = panel.rotation.x > 0 ? -1 : 1;
+        } else if (Math.abs(panel.rotation.z) > 0.1) {
+            dirX = panel.rotation.z > 0 ? 1 : -1;
+        }
+
+        const horizontalDir = new THREE.Vector3(dirX, 0, dirZ).normalize();
+        const inclineSlope = new THREE.Vector3(dirX * Math.cos(RAMP_ANGLE), Math.sin(RAMP_ANGLE), dirZ * Math.cos(RAMP_ANGLE)).normalize();
+
         const undersideOffset = new THREE.Vector3(0, -1.2, 0).applyEuler(panel.rotation);
         configs.push({
             id: 'ramp_extend',
-            dir: inclineVector.clone().negate(),
+            dir: inclineSlope,
             offset: undersideOffset,
             isExtender: true,
             isLevelOut: false
         });
 
-        // 2. HORIZONTAL LEVEL-OUT SHOTGUN: Sits right on the summit lip pointing completely FLAT
-        let horizontalDir = new THREE.Vector3(0, 0, 0);
-        if (Math.abs(panel.rotation.x) > 0.1) {
-            horizontalDir.set(0, 0, panel.rotation.x > 0 ? -1 : 1);
-        } else if (Math.abs(panel.rotation.z) > 0.1) {
-            horizontalDir.set(panel.rotation.z > 0 ? 1 : -1, 0, 0);
-        }
+        const topCenterOffset = new THREE.Vector3(
+            dirX * (totalRun / 4),
+            totalRise / 4 + 0.6,
+            dirZ * (totalRun / 4)
+        );
 
-        const topLipOffset = inclineVector.clone().multiplyScalar(panel.userData.rampLength / 2);
         configs.push({
             id: 'ramp_level_flat',
             dir: horizontalDir,
-            offset: topLipOffset.clone().add(new THREE.Vector3(0, 0.6, 0)),
+            offset: topCenterOffset,
             isExtender: false,
             isLevelOut: true
         });
@@ -654,6 +633,21 @@ function placePanel(type, position, rotation, isRemote = false, customId = null)
 }
 
 function extendRampDirectly(rampMesh, isRemote = false) {
+    // Check if extending crosses into opponent territory across Z = 0
+    if (!isRemote) {
+        let testZ = rampMesh.position.z;
+        if (Math.abs(rampMesh.rotation.x) > 0.1) {
+            const signZ = rampMesh.rotation.x > 0 ? -1 : 1;
+            testZ += signZ * (PANEL_SIZE / 2);
+        }
+        if (!isWithinMyBuildingTerritory(testZ, PANEL_SIZE)) {
+            statusText.innerText = "CANNOT EXTEND RAMP INTO ENEMY TERRITORY!";
+            statusText.style.color = "#ff4444";
+            setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2500);
+            return;
+        }
+    }
+
     rampMesh.userData.rampSegments = (rampMesh.userData.rampSegments || 1) + 1;
     const segs = rampMesh.userData.rampSegments;
     const newLength = RAMP_DIAG * segs;
@@ -705,6 +699,7 @@ function triggerBranchBuild(parentPanel, gunId) {
         return;
     }
 
+    // LEVEL-OUT HORIZONTAL AIR-FLOOR
     if (gunId === 'ramp_level_flat' && parentPanel.userData.panelType === 'ramp') {
         const segs = parentPanel.userData.rampSegments || 1;
         const totalRise = WALL_HEIGHT * segs;
@@ -722,6 +717,14 @@ function triggerBranchBuild(parentPanel, gunId) {
             flatPos.x += dirX * ((totalRun / 2) + (PANEL_SIZE / 2));
         }
 
+        // River Territory Validation: Cannot cross river midpoint
+        if (!isWithinMyBuildingTerritory(flatPos.z, PANEL_SIZE)) {
+            statusText.innerText = "CANNOT BUILD INTO ENEMY TERRITORY! (HALFWAY RIVER LIMIT)";
+            statusText.style.color = "#ff4444";
+            setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2500);
+            return;
+        }
+
         const levelFloor = placePanel('floor', flatPos, new THREE.Euler(0, 0, 0));
         activeBasePanel = levelFloor;
         selectPanel(levelFloor);
@@ -733,6 +736,7 @@ function triggerBranchBuild(parentPanel, gunId) {
     let newPos = basePos.clone();
     let newRot = new THREE.Euler(0, 0, 0);
     let buildType = 'floor';
+    let checkDepth = PANEL_SIZE;
 
     if (mode === 1) {
         buildType = 'floor';
@@ -744,12 +748,13 @@ function triggerBranchBuild(parentPanel, gunId) {
     } 
     else if (mode === 2) {
         buildType = 'wall';
+        checkDepth = PANEL_THICKNESS;
         newPos.y += (WALL_HEIGHT / 2);
         if (gunId === 'north') { newPos.z -= (PANEL_SIZE / 2); newRot.y = 0; }
         if (gunId === 'south') { newPos.z += (PANEL_SIZE / 2); newRot.y = 0; }
         if (gunId === 'east')  { newPos.x += (PANEL_SIZE / 2); newRot.y = Math.PI / 2; }
         if (gunId === 'west')  { newPos.x -= (PANEL_SIZE / 2); newRot.y = Math.PI / 2; }
-        if (gunId === 'up')    { buildType = 'floor'; newPos.y = basePos.y + WALL_HEIGHT; }
+        if (gunId === 'up')    { buildType = 'floor'; newPos.y = basePos.y + WALL_HEIGHT; checkDepth = PANEL_SIZE; }
     } 
     else if (mode === 3) {
         buildType = 'ramp';
@@ -759,6 +764,14 @@ function triggerBranchBuild(parentPanel, gunId) {
         if (gunId === 'east')  { newPos.x += PANEL_SIZE; newRot.z = RAMP_ANGLE; }
         if (gunId === 'west')  { newPos.x -= PANEL_SIZE; newRot.z = -RAMP_ANGLE; }
         if (gunId === 'up')    { buildType = 'floor'; newPos.y = basePos.y + WALL_HEIGHT; }
+    }
+
+    // Demarcation River Boundary Enforcement: Stops players crossing Z = 0
+    if (!isWithinMyBuildingTerritory(newPos.z, checkDepth)) {
+        statusText.innerText = "CANNOT BUILD INTO ENEMY TERRITORY! (HALFWAY RIVER LIMIT)";
+        statusText.style.color = "#ff4444";
+        setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2500);
+        return;
     }
 
     const spawned = placePanel(buildType, newPos, newRot);
@@ -949,6 +962,16 @@ function updateMinimap() {
     ctx.fillStyle = '#0077be';
     ctx.fillRect(Math.min(pRiver1.x, pRiver2.x), Math.min(pRiver1.y, pRiver2.y), Math.abs(pRiver2.x - pRiver1.x), Math.abs(pRiver2.y - pRiver1.y));
 
+    // Draw midpoint dividing line across minimap
+    const pMid1 = toMap(-boardSize / 2, 0);
+    const pMid2 = toMap(boardSize / 2, 0);
+    ctx.strokeStyle = '#ffd700';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(pMid1.x, pMid1.y);
+    ctx.lineTo(pMid2.x, pMid2.y);
+    ctx.stroke();
+
     ctx.fillStyle = '#5c4033';
     bridgeXPositions.forEach(bx => {
         const p1 = toMap(bx - bridgeWidth / 2, -bridgeLength / 2);
@@ -1001,7 +1024,7 @@ window.onmousedown = (e) => {
     if (e.button === 0) {
         raycaster.setFromCamera(mouse, camera);
 
-        // 1. Engage Shotgun Handle
+        // 1. Check if clicking & pumping a Shotgun Handle
         const gunIntersects = raycaster.intersectObjects(shotgunHandles, true);
         if (gunIntersects.length > 0) {
             let hitObj = gunIntersects[0].object;
@@ -1052,12 +1075,16 @@ window.onmousedown = (e) => {
                 selected.userData.targetPos.set(pt.x, pt.y + 0.8, pt.z);
                 socket.emit('player_move', { roomId: currentRoomId, id: selected.userData.id, tx: pt.x, tz: pt.z });
             } else if (worldPanels.length === 0) {
-                const isMySide = myPlayerIndex === 1 ? (pt.z > riverWidth / 2) : (pt.z < -riverWidth / 2);
-                if (isMySide) {
-                    const snapX = Math.round(pt.x / PANEL_SIZE) * PANEL_SIZE;
-                    const snapZ = Math.round(pt.z / PANEL_SIZE) * PANEL_SIZE;
+                // Initial root panel on ground: must adhere to river territory boundary
+                const snapX = Math.round(pt.x / PANEL_SIZE) * PANEL_SIZE;
+                const snapZ = Math.round(pt.z / PANEL_SIZE) * PANEL_SIZE;
+                if (isWithinMyBuildingTerritory(snapZ, PANEL_SIZE)) {
                     const rootPanel = placePanel('floor', new THREE.Vector3(snapX, PANEL_THICKNESS / 2, snapZ), new THREE.Euler(0, 0, 0));
                     selectPanel(rootPanel);
+                } else {
+                    statusText.innerText = "CANNOT PLACE BASE IN ENEMY HALF OF RIVER!";
+                    statusText.style.color = "#ff4444";
+                    setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2500);
                 }
             } else {
                 clearShotgunHandles();
@@ -1073,14 +1100,12 @@ window.onmousedown = (e) => {
         e.preventDefault();
         raycaster.setFromCamera(mouse, camera);
 
-        // 1. Right Click on ANY Panel selects it and opens its shotguns
         const panelHits = raycaster.intersectObjects(worldPanels, false);
         if (panelHits.length > 0) {
             selectPanel(panelHits[0].object);
             return;
         }
 
-        // 2. Right Click without hitting a panel fires selected cannon
         const combatHits = raycaster.intersectObjects([ground, river, ...bridges, ...worldPanels, ...gameWalls, ...opponentCannons], true);
         if (combatHits.length > 0) {
             const selected = cannons.find(c => c.userData.selected);
@@ -1220,10 +1245,8 @@ function animate() {
     });
 
     if (matchStarted && !matchOver) {
-        // Smoothly interpolate camera elevation toward slider altitude
         camera.position.y += (targetCameraAltitude - camera.position.y) * 0.15 * dt60;
 
-        // Camera Planar Controls at the chosen altitude level
         const camSpeed = 1.2 * dt60;
         const moveVector = new THREE.Vector3(0, 0, 0);
         if (keys['w']) moveVector.z -= camSpeed;
