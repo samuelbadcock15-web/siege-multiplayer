@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Siege - Clear Horizons River Demarcation Edition</title>
+<title>Siege - Clear Horizons Grounded Physics Edition</title>
 <style>
   body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Courier New', Courier, monospace; cursor: crosshair; user-select: none; }
   #ui { position: absolute; top: 15px; left: 15px; color: white; background: rgba(15, 15, 20, 0.95); padding: 18px; border-radius: 8px; border: 2px solid #ffd700; width: 440px; z-index: 101; box-shadow: 0 0 30px rgba(0,0,0,0.7); display: none; }
@@ -62,7 +62,7 @@
     box-shadow: 0 0 10px #ffd700; border: 2px solid #ffffff;
   }
 
-  /* --- 6-ROOM LOBBY SYSTEM --- */
+  /* 6-ROOM LOBBY SYSTEM */
   #lobby-screen { 
     position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; 
     background: radial-gradient(circle at center, #1b2033 0%, #0a0c13 100%); 
@@ -129,7 +129,7 @@
 <div id="lobby-screen">
     <div class="lobby-header">
         <h1>CLEAR HORIZONS</h1>
-        <p>Tactical Demarcated River Combat | Ready up to deploy!</p>
+        <p>Ground-Locked Physics & Air-Bridge Siege | Ready up to deploy!</p>
     </div>
     <div id="lobbies-grid"></div>
 </div>
@@ -137,7 +137,7 @@
 <div id="match-countdown">
     <div style="font-size: 20px; color: #ffd700; font-weight: bold;" id="countdown-role-text">COMMAND ROLE ASSIGNED</div>
     <div id="countdown-num">3</div>
-    <div style="color: #aaa; font-size: 14px;">Fortifying frontline river boundaries...</div>
+    <div style="color: #aaa; font-size: 14px;">Locking wheel tracks to ground surface...</div>
 </div>
 
 <div id="minimap-container"><canvas id="minimap"></canvas></div>
@@ -168,10 +168,10 @@
     </div>
   </div>
   <div style="font-size: 10px; margin-top: 15px; color: #aaa; border-top: 1px solid #333; padding-top: 8px; line-height: 1.4;">
-    [W,S,A,D] Move Cam | [Q,E] Strafe | [Slider] Altitude Level<br>
-    [LMB] Select Cannon & March across Ground, Panels & Ramps<br>
+    [LMB Cannon] Select (Click Again or Press ESC to Deselect!)<br>
+    [LMB Surface] March Troops (Ramps must be climbed physically!)<br>
     [RMB on Panel] Select Panel | [Wheel] Cycle Floor / Wall / Ramp<br>
-    [River Rules] Build up to river midpoint (Z=0) to meet opponent!
+    [River Rules] Build up to midpoint ribbon (Z=0) to connect bridges!
   </div>
   <span id="status" class="sys">STATUS: STANDBY</span>
 </div>
@@ -181,7 +181,7 @@
   <div class="legend-item"><div class="legend-dot" style="background:#0ea5e9;"></div>Wall Mode</div>
   <div class="legend-item"><div class="legend-dot" style="background:#f97316;"></div>Ramp Mode</div>
   <div class="legend-item" style="color: #ffd700; border-left: 1px solid #444; padding-left: 12px;">
-    [Z=0 Midpoint Boundary] Build halfway into river to connect!
+    [LMB Toggle] Select/Deselect Cannon | Cannons cannot jump into sky!
   </div>
 </div>
 
@@ -260,14 +260,12 @@ const gridHelper = new THREE.GridHelper(boardSize, 12, 0xffd700, 0x224422);
 gridHelper.position.y = 0.02;
 scene.add(gridHelper);
 
-// River: Width = 30 (Z: -15 to +15), Midpoint Demarcation Centerline at Z = 0
 const riverWidth = 30;
 const river = new THREE.Mesh(new THREE.PlaneGeometry(boardSize, riverWidth), new THREE.MeshStandardMaterial({ color: 0x0077be, transparent: true, opacity: 0.8 }));
 river.rotation.x = -Math.PI / 2;
 river.position.y = 0.01;
 scene.add(river);
 
-// River Centerline Marker Ribbon (Z = 0)
 const centerRibbon = new THREE.Mesh(
     new THREE.PlaneGeometry(boardSize, 0.4),
     new THREE.MeshBasicMaterial({ color: 0xffd700, transparent: true, opacity: 0.4 })
@@ -346,7 +344,7 @@ for (let i = 0; i < 60; i++) {
 }
 
 // =================================================================
-// MODULAR 3D SNAP BUILDING ENGINE + RIVER BOUNDARY RULES
+// MODULAR 3D SNAP BUILDING ENGINE + RIVER DEMARCATION
 // =================================================================
 const PANEL_SIZE = 12;
 const WALL_HEIGHT = 8;
@@ -354,15 +352,11 @@ const PANEL_THICKNESS = 1.0;
 const RAMP_DIAG = Math.hypot(PANEL_SIZE, WALL_HEIGHT);
 const RAMP_ANGLE = Math.atan2(WALL_HEIGHT, PANEL_SIZE);
 
-// TERRITORY CHECK: Allows building across home side up to the river centerline (Z = 0)
-// With a small 0.1 buffer so panels can sit right against Z = 0
 function isWithinMyBuildingTerritory(targetZ, panelDepth = PANEL_SIZE) {
     const halfDepth = panelDepth / 2;
     if (myPlayerIndex === 1) {
-        // Player 1 (Blue) starts South (+Z): can build halfway across river, up to Z = 0
         return (targetZ - halfDepth) >= -0.1;
     } else {
-        // Player 2 (Dark) starts North (-Z): can build halfway across river, down to Z = 0
         return (targetZ + halfDepth) <= 0.1;
     }
 }
@@ -378,7 +372,6 @@ const shotgunHandles = [];
 let activeBasePanel = null;
 let hoveredShotgun = null;
 
-// PUMP STATE
 let pumpingShotgun = null;
 let pumpStartMouse = { x: 0, y: 0 };
 let pumpCocked = false;
@@ -506,6 +499,7 @@ function renderPanelHandles(panel) {
             isLevelOut: false
         });
 
+        // Exact Summit Lip Mount
         const topCenterOffset = new THREE.Vector3(
             dirX * (totalRun / 4),
             totalRise / 4 + 0.6,
@@ -633,7 +627,6 @@ function placePanel(type, position, rotation, isRemote = false, customId = null)
 }
 
 function extendRampDirectly(rampMesh, isRemote = false) {
-    // Check if extending crosses into opponent territory across Z = 0
     if (!isRemote) {
         let testZ = rampMesh.position.z;
         if (Math.abs(rampMesh.rotation.x) > 0.1) {
@@ -699,7 +692,6 @@ function triggerBranchBuild(parentPanel, gunId) {
         return;
     }
 
-    // LEVEL-OUT HORIZONTAL AIR-FLOOR
     if (gunId === 'ramp_level_flat' && parentPanel.userData.panelType === 'ramp') {
         const segs = parentPanel.userData.rampSegments || 1;
         const totalRise = WALL_HEIGHT * segs;
@@ -717,7 +709,6 @@ function triggerBranchBuild(parentPanel, gunId) {
             flatPos.x += dirX * ((totalRun / 2) + (PANEL_SIZE / 2));
         }
 
-        // River Territory Validation: Cannot cross river midpoint
         if (!isWithinMyBuildingTerritory(flatPos.z, PANEL_SIZE)) {
             statusText.innerText = "CANNOT BUILD INTO ENEMY TERRITORY! (HALFWAY RIVER LIMIT)";
             statusText.style.color = "#ff4444";
@@ -766,7 +757,6 @@ function triggerBranchBuild(parentPanel, gunId) {
         if (gunId === 'up')    { buildType = 'floor'; newPos.y = basePos.y + WALL_HEIGHT; }
     }
 
-    // Demarcation River Boundary Enforcement: Stops players crossing Z = 0
     if (!isWithinMyBuildingTerritory(newPos.z, checkDepth)) {
         statusText.innerText = "CANNOT BUILD INTO ENEMY TERRITORY! (HALFWAY RIVER LIMIT)";
         statusText.style.color = "#ff4444";
@@ -833,6 +823,14 @@ function updateUnitCountsDisplay() {
     }
 }
 
+function deselectAllCannons() {
+    cannons.forEach(c => {
+        c.userData.selected = false;
+        c.userData.barrel.material.emissive.set(0x000000);
+    });
+    updateStatusUI();
+}
+
 function updateStatusUI() {
     let selectedNum = null;
     cannons.forEach(can => {
@@ -842,7 +840,7 @@ function updateStatusUI() {
 
     if (matchStarted && statusText.innerText !== "STATUS: MATCH STARTED!") {
         if (selectedNum !== null) {
-            statusText.innerText = `ACTIVE COMMAND: CANNON #${selectedNum}`;
+            statusText.innerText = `ACTIVE COMMAND: CANNON #${selectedNum} (LMB ON IT TO DESELECT)`;
         } else {
             statusText.innerText = "STATUS: STANDBY (CLICK CANNON TO SELECT)";
         }
@@ -962,7 +960,6 @@ function updateMinimap() {
     ctx.fillStyle = '#0077be';
     ctx.fillRect(Math.min(pRiver1.x, pRiver2.x), Math.min(pRiver1.y, pRiver2.y), Math.abs(pRiver2.x - pRiver1.x), Math.abs(pRiver2.y - pRiver1.y));
 
-    // Draw midpoint dividing line across minimap
     const pMid1 = toMap(-boardSize / 2, 0);
     const pMid2 = toMap(boardSize / 2, 0);
     ctx.strokeStyle = '#ffd700';
@@ -999,7 +996,7 @@ function updateMinimap() {
 }
 
 // =================================================================
-// DEDICATED LMB UNIT MOVEMENT & RMB PANEL SELECTION
+// DEDICATED LMB UNIT MOVEMENT & TOGGLE DESELECT / RMB PANEL SELECT
 // =================================================================
 window.onmousedown = (e) => {
     if (!matchStarted || matchOver) return;
@@ -1019,12 +1016,12 @@ window.onmousedown = (e) => {
     }
 
     // -------------------------------------------------------------
-    // LEFT MOUSE BUTTON (LMB): TROOP MARCH & SHOTGUN PUMPING
+    // LEFT MOUSE BUTTON (LMB): CANNON TOGGLE, MARCH & PUMP ACTION
     // -------------------------------------------------------------
     if (e.button === 0) {
         raycaster.setFromCamera(mouse, camera);
 
-        // 1. Check if clicking & pumping a Shotgun Handle
+        // 1. Check if user is clicking & pumping a Shotgun Handle
         const gunIntersects = raycaster.intersectObjects(shotgunHandles, true);
         if (gunIntersects.length > 0) {
             let hitObj = gunIntersects[0].object;
@@ -1051,31 +1048,37 @@ window.onmousedown = (e) => {
             }
         }
 
-        // 2. Select Cannon
+        // 2. Cannon Selection & TOGGLE DESELECTION
         let clickedCannon = null;
         cannons.forEach(can => {
             if (raycaster.intersectObject(can, true).length > 0) clickedCannon = can;
         });
 
         if (clickedCannon) {
-            cannons.forEach(c => c.userData.selected = false);
-            clickedCannon.userData.selected = true;
+            if (clickedCannon.userData.selected) {
+                // Clicking the already selected cannon TOGGLES IT OFF (Deselect)
+                clickedCannon.userData.selected = false;
+            } else {
+                // Select clicked cannon, deselect others
+                cannons.forEach(c => c.userData.selected = false);
+                clickedCannon.userData.selected = true;
+            }
             clearShotgunHandles();
             activeBasePanel = null;
             updateStatusUI();
             return;
         }
 
-        // 3. Move Units across Ground, Panels & Elevated Ramps
+        // 3. March Units across Ground, Ramps & Walkways
         const walkableHits = raycaster.intersectObjects([ground, ...worldPanels, ...bridges], true);
         if (walkableHits.length > 0) {
             const pt = walkableHits[0].point;
             const selected = cannons.find(c => c.userData.selected);
             if (selected) {
-                selected.userData.targetPos.set(pt.x, pt.y + 0.8, pt.z);
+                // Move command: sets planar X, Z target. Elevation is handled by physical contact step
+                selected.userData.targetPos.set(pt.x, selected.position.y, pt.z);
                 socket.emit('player_move', { roomId: currentRoomId, id: selected.userData.id, tx: pt.x, tz: pt.z });
             } else if (worldPanels.length === 0) {
-                // Initial root panel on ground: must adhere to river territory boundary
                 const snapX = Math.round(pt.x / PANEL_SIZE) * PANEL_SIZE;
                 const snapZ = Math.round(pt.z / PANEL_SIZE) * PANEL_SIZE;
                 if (isWithinMyBuildingTerritory(snapZ, PANEL_SIZE)) {
@@ -1087,6 +1090,7 @@ window.onmousedown = (e) => {
                     setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2500);
                 }
             } else {
+                // Clicked open ground without unit selected: deselect building handles
                 clearShotgunHandles();
                 activeBasePanel = null;
             }
@@ -1216,7 +1220,15 @@ window.onwheel = (e) => {
     camera.updateProjectionMatrix();
 };
 
-window.onkeydown = (e) => { keys[e.key.toLowerCase()] = true; };
+window.onkeydown = (e) => { 
+    keys[e.key.toLowerCase()] = true;
+    // Press ESC to deselect any active cannon or active panel handles
+    if (e.key === 'Escape') {
+        deselectAllCannons();
+        clearShotgunHandles();
+        activeBasePanel = null;
+    }
+};
 window.onkeyup = (e) => { keys[e.key.toLowerCase()] = false; };
 window.onblur = () => { for (let k in keys) keys[k] = false; };
 window.oncontextmenu = (e) => e.preventDefault();
@@ -1227,7 +1239,7 @@ window.onresize = () => {
 };
 
 // =================================================================
-// DELTA-TIME ANIMATION LOOP + PERSISTENT ALTITUDE CAMERA
+// DELTA-TIME ANIMATION LOOP + GROUNDED PHYSICAL CLIMBING
 // =================================================================
 function animate() {
     requestAnimationFrame(animate);
@@ -1305,27 +1317,49 @@ function animate() {
             }
         });
 
-        // Cannon Pathing & Ramp Climbing
+        // -------------------------------------------------------------
+        // CANNON PATHING & PHYSICAL ANTI-TELEPORT GROUND ELEVATION
+        // -------------------------------------------------------------
         [...cannons, ...opponentCannons].forEach(can => {
             can.userData.barrelPivot.rotation.x = -can.userData.angle;
-            const distToTarget = can.position.distanceTo(can.userData.targetPos);
+            
+            // Planar distance check on XZ
+            const planarDist = Math.hypot(can.userData.targetPos.x - can.position.x, can.userData.targetPos.z - can.position.z);
 
-            if (distToTarget > 0.1) {
-                const moveDir = new THREE.Vector3().subVectors(can.userData.targetPos, can.position).normalize();
-                const moveStep = Math.min(0.5 * dt60, distToTarget);
-                const nextPos = can.position.clone().addScaledVector(moveDir, moveStep);
+            if (planarDist > 0.1) {
+                const moveDir = new THREE.Vector3(
+                    can.userData.targetPos.x - can.position.x,
+                    0,
+                    can.userData.targetPos.z - can.position.z
+                ).normalize();
 
-                can.position.x = nextPos.x;
-                can.position.z = nextPos.z;
+                const moveStep = Math.min(0.5 * dt60, planarDist);
+                const nextX = can.position.x + moveDir.x * moveStep;
+                const nextZ = can.position.z + moveDir.z * moveStep;
+
+                can.position.x = nextX;
+                can.position.z = nextZ;
                 can.lookAt(can.userData.targetPos.x, can.position.y, can.userData.targetPos.z);
 
-                const downRay = new THREE.Raycaster(new THREE.Vector3(can.position.x, 250, can.position.z), new THREE.Vector3(0, -1, 0), 0, 300);
+                // --- ANTI-TELEPORT ELEVATION CHECK ---
+                // Cast downward strictly from slightly above the cannon's current wheels (Y + 2.0)
+                // This ensures overhead sky ramps/floors are NEVER hit while rolling underneath!
+                const stepRayOrigin = new THREE.Vector3(can.position.x, can.position.y + 2.0, can.position.z);
+                const downRay = new THREE.Raycaster(stepRayOrigin, new THREE.Vector3(0, -1, 0), 0, 50.0);
                 const elevateHits = downRay.intersectObjects([ground, ...worldPanels, ...bridges], true);
+
                 if (elevateHits.length > 0) {
-                    const targetY = elevateHits[0].point.y + 0.8;
-                    can.position.y += (targetY - can.position.y) * 0.3 * dt60;
+                    const hitGroundY = elevateHits[0].point.y + 0.8;
+                    const heightDelta = hitGroundY - can.position.y;
+
+                    // Clamped climb step: Only climb if incline is gentle (e.g. ramp foot)
+                    // If height delta > 1.8 units (wall/overhead cliff), do NOT snap up!
+                    if (heightDelta <= 1.8) {
+                        can.position.y += heightDelta * 0.35 * dt60;
+                    }
                 }
 
+                // River Hazard Check
                 if (Math.abs(can.position.z) < (riverWidth / 2) - 1.5 && can.position.y < 2.0) {
                     const onBridge = bridgeXPositions.some(bx => Math.abs(can.position.x - bx) <= (bridgeWidth / 2));
                     if (!onBridge) {
