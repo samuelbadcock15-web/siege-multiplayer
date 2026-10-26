@@ -1421,7 +1421,7 @@ function updateStatusUI() {
 }
 
 function calculateBallistics(sourceCan, target) {
-  const start = new THREE.Vector3(0, 2.5, 0);
+  const start = new THREE.Vector3(0, 3.0, 0);
   sourceCan.userData.barrelPivot.localToWorld(start);
 
   const maxAllowedRange = Math.abs(sourceCan.userData.startZ || 120) * 1.5;
@@ -1444,18 +1444,33 @@ function calculateBallistics(sourceCan, target) {
 }
 
 function checkMuzzleObstruction(sourceCan, muzzlePos) {
-  const barrelDir = new THREE.Vector3(0, 1, 0).applyQuaternion(sourceCan.userData.barrelPivot.quaternion).normalize();
-  const muzzleRay = new THREE.Raycaster(muzzlePos, barrelDir, 0, 1.2);
   const obstacles = [...worldPanels, ...gameWalls];
-  const hits = muzzleRay.intersectObjects(obstacles, true);
-  return hits.length > 0;
+  const raycasterCheck = new THREE.Raycaster();
+  
+  const pivotPos = new THREE.Vector3(0, 0.5, 0);
+  sourceCan.userData.barrelPivot.localToWorld(pivotPos);
+  
+  const barrelDir = new THREE.Vector3(0, 1, 0).applyQuaternion(sourceCan.userData.barrelPivot.quaternion).normalize();
+  
+  raycasterCheck.set(pivotPos, barrelDir);
+  const hits = raycasterCheck.intersectObjects(obstacles, true);
+  if (hits.length > 0 && hits[0].distance < 3.0) return true;
+
+  const muzzleSphere = new THREE.Sphere(muzzlePos, 0.4);
+  for (let w of obstacles) {
+    if (new THREE.Box3().setFromObject(w).intersectsSphere(muzzleSphere)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function updateTrajectoryArc(sourceCan, target) {
   const originalRot = sourceCan.quaternion.clone();
   sourceCan.lookAt(target.x, sourceCan.position.y, target.z);
 
-  const muzzlePos = new THREE.Vector3(0, 2.5, 0);
+  const muzzlePos = new THREE.Vector3(0, 3.0, 0);
   sourceCan.userData.barrelPivot.localToWorld(muzzlePos);
 
   if (checkMuzzleObstruction(sourceCan, muzzlePos)) {
@@ -1488,7 +1503,7 @@ function updateTrajectoryArc(sourceCan, target) {
 function spawnProjectile(sourceCan, target, isRemote = false) {
   if (!matchStarted || matchOver) return;
 
-  const muzzleCheck = new THREE.Vector3(0, 2.5, 0);
+  const muzzleCheck = new THREE.Vector3(0, 3.0, 0);
   sourceCan.userData.barrelPivot.localToWorld(muzzleCheck);
 
   if (checkMuzzleObstruction(sourceCan, muzzleCheck)) {
@@ -2216,14 +2231,14 @@ function animate() {
     ([...cannons, ...opponentCannons]).forEach(can => {
       const forwardDir = new THREE.Vector3(0, 0, 1).applyQuaternion(can.quaternion).normalize();
       
-      const muzzlePos = new THREE.Vector3(0, 2.5, 0);
+      const muzzlePos = new THREE.Vector3(0, 3.0, 0);
       can.userData.barrelPivot.localToWorld(muzzlePos);
 
       let pushTries = 0;
       while ((checkSphereWallCollision(muzzlePos, 0.4) || checkSphereWallCollision(can.position, 1.2)) && pushTries < 15) {
         can.position.addScaledVector(forwardDir, -0.2);
         can.userData.targetPos.copy(can.position);
-        muzzlePos.set(0, 2.5, 0);
+        muzzlePos.set(0, 3.0, 0);
         can.userData.barrelPivot.localToWorld(muzzlePos);
         pushTries++;
       }
@@ -2249,7 +2264,7 @@ function animate() {
         );
         
         const prospectiveMuzzle = prospectivePos.clone().add(
-          new THREE.Vector3(0, 0.5, 2.6).applyQuaternion(prospectiveQuat)
+          new THREE.Vector3(0, 0.5, 3.0).applyQuaternion(prospectiveQuat)
         );
 
         const hitsWallAhead = checkSphereWallCollision(prospectiveMuzzle, 0.45) || 
