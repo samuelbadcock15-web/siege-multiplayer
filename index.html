@@ -1444,27 +1444,11 @@ function calculateBallistics(sourceCan, target) {
 }
 
 function checkMuzzleObstruction(sourceCan, muzzlePos) {
-  const wallObstacles = [...worldPanels.filter(p => p.userData.panelType.startsWith('wall')), ...gameWalls];
-  const muzzleSphere = new THREE.Sphere(muzzlePos, 0.3);
-  for (let w of wallObstacles) {
-    if (new THREE.Box3().setFromObject(w).intersectsSphere(muzzleSphere)) {
-      return true;
-    }
-  }
-
-  // Targeted check for the low end of ramps (prevents shooting through the tight tip where clearance is low)
-  const ramps = worldPanels.filter(p => p.userData.panelType === 'ramp');
-  for (let r of ramps) {
-    const rampBox = new THREE.Box3().setFromObject(r);
-    if (rampBox.containsPoint(muzzlePos)) {
-      const distToRampOrigin = sourceCan.position.distanceTo(r.position);
-      if (distToRampOrigin < PANEL_SIZE * 0.75) {
-        return true;
-      }
-    }
-  }
-
-  return false;
+  const barrelDir = new THREE.Vector3(0, 1, 0).applyQuaternion(sourceCan.userData.barrelPivot.quaternion).normalize();
+  const muzzleRay = new THREE.Raycaster(muzzlePos, barrelDir, 0, 1.5);
+  const allObstacles = [...worldPanels, ...gameWalls];
+  const hits = muzzleRay.intersectObjects(allObstacles, true);
+  return hits.length > 0;
 }
 
 function updateTrajectoryArc(sourceCan, target) {
@@ -1477,7 +1461,7 @@ function updateTrajectoryArc(sourceCan, target) {
   if (checkMuzzleObstruction(sourceCan, muzzlePos)) {
     sourceCan.quaternion.copy(originalRot);
     trajectoryLine.visible = false;
-    statusText.innerText = "BARREL JAMMED AGAINST OBSTACLE!";
+    statusText.innerText = "BARREL BLOCKED BY OBSTACLE!";
     statusText.style.color = "#ff4444";
     return;
   }
@@ -1508,7 +1492,7 @@ function spawnProjectile(sourceCan, target, isRemote = false) {
   sourceCan.userData.barrelPivot.localToWorld(muzzleCheck);
 
   if (checkMuzzleObstruction(sourceCan, muzzleCheck)) {
-    statusText.innerText = "CANNOT FIRE: BARREL IS JAMMED!";
+    statusText.innerText = "CANNOT FIRE: BARREL IS BLOCKED!";
     statusText.style.color = "#ff4444";
     setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2000);
     return;
@@ -1850,7 +1834,7 @@ function handlePointerMove(clientX, clientY) {
       if (pushForwardAmt >= 1.0) {
         const firedGunId = pumpingShotgun.userData.arrowId;
         const muzzlePos = new THREE.Vector3(0, 3.0, 0);
-        pumpingShotgun.userData.barrelPivot.localToWorld(muzzlePos); // fallback or relative
+        pumpingShotgun.userData.barrelPivot.localToWorld(muzzlePos);
         spawnShotgunBlast(muzzlePos, pumpingShotgun.userData.dirVector, false);
 
         pumpingShotgun.userData.recoilTimer = 1.0;
