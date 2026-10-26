@@ -1634,6 +1634,7 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
   mouse.y = -(clientY / window.innerHeight) * 2 + 1;
   raycaster.setFromCamera(mouse, camera);
 
+  // STEP 1: MUST PLACE STARTING BASE SQUARE BEFORE ANYTHING ELSE
   if (!myBasePanelPlaced) {
     const groundHits = raycaster.intersectObject(ground, false);
     if (groundHits.length > 0) {
@@ -1672,17 +1673,33 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
 
     const panelHits = raycaster.intersectObjects(worldPanels, false);
     if (panelHits.length > 0) {
-      selectPanel(panelHits[0].object);
+      const hitPanel = panelHits[0].object;
+      if (isWithinMyBuildingTerritory(hitPanel.position.z, PANEL_SIZE)) {
+        selectPanel(hitPanel);
+      } else {
+        statusText.innerText = "CANNOT SELECT ENEMY PANELS!";
+        statusText.style.color = "#ff4444";
+        setTimeout(() => updateStatusUI(), 2000);
+      }
       return true;
     }
     return false;
   }
 
+  // 1. Check shotgun handles with strict territory ownership verification
   const gunIntersects = raycaster.intersectObjects(shotgunHandles, true);
   if (gunIntersects.length > 0) {
     let hitObj = gunIntersects[0].object;
     while (hitObj.parent && !hitObj.userData.isShotgunHandle) hitObj = hitObj.parent;
+    
     if (hitObj.userData.isShotgunHandle && activeBasePanel) {
+      if (!isWithinMyBuildingTerritory(hitObj.position.z, PANEL_SIZE)) {
+        statusText.innerText = "CANNOT USE ENEMY SHOTGUNS!";
+        statusText.style.color = "#ff4444";
+        setTimeout(() => updateStatusUI(), 2000);
+        return false;
+      }
+
       pumpingShotgun = hitObj;
       pumpStage = 'idle';
 
@@ -1713,6 +1730,7 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
     }
   }
 
+  // 2. Check Cannon Click
   let clickedCannon = null;
   for (let can of cannons) {
     if (raycaster.intersectObject(can, true).length > 0) {
@@ -1733,6 +1751,7 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
     return true;
   }
 
+  // 3. Ground / Panels / Bridges
   const walkableHits = raycaster.intersectObjects([ground, ...worldPanels, ...bridges], true);
   if (walkableHits.length > 0) {
     const pt = walkableHits[0].point;
@@ -1743,7 +1762,13 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
       socket.emit('player_move', { roomId: currentRoomId, id: selectedCannon.userData.id, tx: pt.x, tz: pt.z });
       return true;
     } else if (hitObj.userData && hitObj.userData.isPanel) {
-      selectPanel(hitObj);
+      if (isWithinMyBuildingTerritory(hitObj.position.z, PANEL_SIZE)) {
+        selectPanel(hitObj);
+      } else {
+        statusText.innerText = "CANNOT SELECT ENEMY PANELS!";
+        statusText.style.color = "#ff4444";
+        setTimeout(() => updateStatusUI(), 2000);
+      }
       return true;
     } else {
       if (!activeBasePanel) {
