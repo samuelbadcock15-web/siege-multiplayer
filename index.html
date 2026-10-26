@@ -1444,22 +1444,23 @@ function calculateBallistics(sourceCan, target) {
 }
 
 function checkMuzzleObstruction(sourceCan, muzzlePos) {
-  const obstacles = [...worldPanels, ...gameWalls];
-  const raycasterCheck = new THREE.Raycaster();
-  
-  const pivotPos = new THREE.Vector3(0, 0.5, 0);
-  sourceCan.userData.barrelPivot.localToWorld(pivotPos);
-  
-  const barrelDir = new THREE.Vector3(0, 1, 0).applyQuaternion(sourceCan.userData.barrelPivot.quaternion).normalize();
-  
-  raycasterCheck.set(pivotPos, barrelDir);
-  const hits = raycasterCheck.intersectObjects(obstacles, true);
-  if (hits.length > 0 && hits[0].distance < 3.0) return true;
-
-  const muzzleSphere = new THREE.Sphere(muzzlePos, 0.4);
-  for (let w of obstacles) {
+  const wallObstacles = [...worldPanels.filter(p => p.userData.panelType.startsWith('wall')), ...gameWalls];
+  const muzzleSphere = new THREE.Sphere(muzzlePos, 0.3);
+  for (let w of wallObstacles) {
     if (new THREE.Box3().setFromObject(w).intersectsSphere(muzzleSphere)) {
       return true;
+    }
+  }
+
+  // Targeted check for the low end of ramps (prevents shooting through the tight tip where clearance is low)
+  const ramps = worldPanels.filter(p => p.userData.panelType === 'ramp');
+  for (let r of ramps) {
+    const rampBox = new THREE.Box3().setFromObject(r);
+    if (rampBox.containsPoint(muzzlePos)) {
+      const distToRampOrigin = sourceCan.position.distanceTo(r.position);
+      if (distToRampOrigin < PANEL_SIZE * 0.75) {
+        return true;
+      }
     }
   }
 
@@ -1848,7 +1849,8 @@ function handlePointerMove(clientX, clientY) {
 
       if (pushForwardAmt >= 1.0) {
         const firedGunId = pumpingShotgun.userData.arrowId;
-        const muzzlePos = pumpingShotgun.position.clone().add(pumpingShotgun.userData.dirVector.clone().multiplyScalar(3.2));
+        const muzzlePos = new THREE.Vector3(0, 3.0, 0);
+        pumpingShotgun.userData.barrelPivot.localToWorld(muzzlePos); // fallback or relative
         spawnShotgunBlast(muzzlePos, pumpingShotgun.userData.dirVector, false);
 
         pumpingShotgun.userData.recoilTimer = 1.0;
@@ -1895,7 +1897,7 @@ function handlePointerMove(clientX, clientY) {
       pumpText.style.color = "#ff3300";
 
       if (pullBackAmt >= 1.0) {
-        const muzzlePos = pumpingShotgun.position.clone().add(pumpingShotgun.userData.dirVector.clone().multiplyScalar(3.2));
+        const muzzlePos = new THREE.Vector3(0, 3.0, 0);
         spawnShotgunBlast(muzzlePos, pumpingShotgun.userData.dirVector, true);
 
         const ejectPos = pumpingShotgun.position.clone().add(new THREE.Vector3(0, 0.5, 0));
@@ -1930,14 +1932,14 @@ function handlePointerUp() {
   if (pumpingShotgun) {
     if (pumpStage === 'pull_back_primed') {
       const firedGunId = pumpingShotgun.userData.arrowId;
-      const muzzlePos = pumpingShotgun.position.clone().add(pumpingShotgun.userData.dirVector.clone().multiplyScalar(3.2));
+      const muzzlePos = new THREE.Vector3(0, 3.0, 0);
       spawnShotgunBlast(muzzlePos, pumpingShotgun.userData.dirVector, false);
 
       pumpingShotgun.userData.recoilTimer = 1.0;
       pumpingShotgun.userData.flash.material.opacity = 1.0;
       triggerBranchBuild(activeBasePanel, firedGunId);
     } else if (pumpStage === 'push_forward_primed') {
-      const muzzlePos = pumpingShotgun.position.clone().add(pumpingShotgun.userData.dirVector.clone().multiplyScalar(3.2));
+      const muzzlePos = new THREE.Vector3(0, 3.0, 0);
       spawnShotgunBlast(muzzlePos, pumpingShotgun.userData.dirVector, true);
 
       const ejectPos = pumpingShotgun.position.clone().add(new THREE.Vector3(0, 0.5, 0));
