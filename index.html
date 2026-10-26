@@ -870,17 +870,6 @@ function renderPanelHandles(panel) {
       isExtender: false,
       isLevelOut: true
     });
-
-    // 4 additional downward shotguns for ramps not on ground level
-    if (panel.position.y > 2.0) {
-      const downAngle = -RAMP_ANGLE;
-      configs.push(
-        { id: 'down_north', dir: new THREE.Vector3(0, Math.sin(downAngle), -Math.cos(downAngle)), offset: new THREE.Vector3(0, -1.2, -half), isExtender: false, isLevelOut: false },
-        { id: 'down_south', dir: new THREE.Vector3(0, Math.sin(downAngle), Math.cos(downAngle)), offset: new THREE.Vector3(0, -1.2, half), isExtender: false, isLevelOut: false },
-        { id: 'down_east',  dir: new THREE.Vector3(Math.cos(downAngle), Math.sin(downAngle), 0), offset: new THREE.Vector3(half, -1.2, 0), isExtender: false, isLevelOut: false },
-        { id: 'down_west',  dir: new THREE.Vector3(-Math.cos(downAngle), Math.sin(downAngle), 0), offset: new THREE.Vector3(-half, -1.2, 0), isExtender: false, isLevelOut: false }
-      );
-    }
   }
   else if (pType === 'wall_x') {
     const halfH = WALL_HEIGHT / 2;
@@ -918,6 +907,7 @@ function renderPanelHandles(panel) {
     ];
   }
   else if (mode === 3) {
+    // 4 Upward Ramps from the 4 edges
     configs = [
       { id: 'north', dir: new THREE.Vector3(0, Math.sin(RAMP_ANGLE), -Math.cos(RAMP_ANGLE)), offset: new THREE.Vector3(0, 1.2, -half), isExtender: false, isLevelOut: false },
       { id: 'south', dir: new THREE.Vector3(0, Math.sin(RAMP_ANGLE), Math.cos(RAMP_ANGLE)),  offset: new THREE.Vector3(0, 1.2, half), isExtender: false, isLevelOut: false },
@@ -925,6 +915,15 @@ function renderPanelHandles(panel) {
       { id: 'west',  dir: new THREE.Vector3(-Math.cos(RAMP_ANGLE), Math.sin(RAMP_ANGLE), 0), offset: new THREE.Vector3(-half, 1.2, 0), isExtender: false, isLevelOut: false },
       { id: 'up',    dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 2.4, 0), isExtender: false, isLevelOut: false }
     ];
+
+    // 4 Downward Ramps sharing the exact same 4 edge connection points, angled down to form an "X"
+    const downAngle = -RAMP_ANGLE;
+    configs.push(
+      { id: 'down_north', dir: new THREE.Vector3(0, Math.sin(downAngle), -Math.cos(downAngle)), offset: new THREE.Vector3(0, 1.2, -half), isExtender: false, isLevelOut: false },
+      { id: 'down_south', dir: new THREE.Vector3(0, Math.sin(downAngle), Math.cos(downAngle)),  offset: new THREE.Vector3(0, 1.2, half),  isExtender: false, isLevelOut: false },
+      { id: 'down_east',  dir: new THREE.Vector3(Math.cos(downAngle), Math.sin(downAngle), 0),  offset: new THREE.Vector3(half, 1.2, 0),  isExtender: false, isLevelOut: false },
+      { id: 'down_west',  dir: new THREE.Vector3(-Math.cos(downAngle), Math.sin(downAngle), 0), offset: new THREE.Vector3(-half, 1.2, 0), isExtender: false, isLevelOut: false }
+    );
   }
 
   configs.forEach(cfg => {
@@ -1199,19 +1198,19 @@ function triggerBranchBuild(parentPanel, gunId) {
     newPos.y = basePos.y - WALL_HEIGHT;
 
     if (dirKey === 'north') {
-      newPos.z -= (PANEL_SIZE / 2);
+      newPos.z -= PANEL_SIZE;
       newRot.set(0, 0, 0);
       rampDir = new THREE.Vector3(0, 0, -1);
     } else if (dirKey === 'south') {
-      newPos.z += (PANEL_SIZE / 2);
+      newPos.z += PANEL_SIZE;
       newRot.set(0, Math.PI, 0);
       rampDir = new THREE.Vector3(0, 0, 1);
     } else if (dirKey === 'east') {
-      newPos.x += (PANEL_SIZE / 2);
+      newPos.x += PANEL_SIZE;
       newRot.set(0, -Math.PI / 2, 0);
       rampDir = new THREE.Vector3(1, 0, 0);
     } else if (dirKey === 'west') {
-      newPos.x -= (PANEL_SIZE / 2);
+      newPos.x -= PANEL_SIZE;
       newRot.set(0, Math.PI / 2, 0);
       rampDir = new THREE.Vector3(-1, 0, 0);
     }
