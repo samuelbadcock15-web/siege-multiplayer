@@ -89,7 +89,7 @@
   }
   .dpad-btn:active { background: #ffd700; color: #000; transform: scale(0.92); }
 
-  /* Dedicated Look Pad (Bottom Right Center) */
+  /* Dedicated Look Pad */
   #panel-lookpad {
     position: absolute; bottom: 35px; right: 175px; width: 135px; height: 135px;
     border-radius: 24px; background: rgba(15, 23, 42, 0.9); border: 2.5px dashed #00ffcc;
@@ -357,7 +357,7 @@ let matchOver = false;
 let gameInitialized = false;
 let matchStarted = false;
 
-// Independent base placement enforcement
+// Independent base placement per team
 let myBasePanelPlaced = false;
 
 const clock = new THREE.Clock();
@@ -523,21 +523,22 @@ const light = new THREE.DirectionalLight(0xffffff, 1.5);
 light.position.set(100, 100, 50);
 scene.add(light, new THREE.AmbientLight(0x606060));
 
-// Board Boundaries & River
+// Board Boundaries & River (DoubleSide prevents reverse angle raycast misses for Player 2)
 const boardSize = 600;
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(boardSize, boardSize), new THREE.MeshStandardMaterial({ color: 0x3a5a2a }));
+const groundMat = new THREE.MeshStandardMaterial({ color: 0x3a5a2a, side: THREE.DoubleSide });
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(boardSize, boardSize), groundMat);
 ground.rotation.x = -Math.PI / 2;
 scene.add(ground);
 
 const riverWidth = 30;
-const river = new THREE.Mesh(new THREE.PlaneGeometry(boardSize, riverWidth), new THREE.MeshStandardMaterial({ color: 0x0077be, transparent: true, opacity: 0.8 }));
+const river = new THREE.Mesh(new THREE.PlaneGeometry(boardSize, riverWidth), new THREE.MeshStandardMaterial({ color: 0x0077be, transparent: true, opacity: 0.8, side: THREE.DoubleSide }));
 river.rotation.x = -Math.PI / 2;
 river.position.y = 0.01;
 scene.add(river);
 
 const centerRibbon = new THREE.Mesh(
   new THREE.PlaneGeometry(boardSize, 0.4),
-  new THREE.MeshBasicMaterial({ color: 0xffd700, transparent: true, opacity: 0.4 })
+  new THREE.MeshBasicMaterial({ color: 0xffd700, transparent: true, opacity: 0.4, side: THREE.DoubleSide })
 );
 centerRibbon.rotation.x = -Math.PI / 2;
 centerRibbon.position.set(0, 0.03, 0);
@@ -623,9 +624,9 @@ const RAMP_ANGLE = Math.atan2(WALL_HEIGHT, PANEL_SIZE);
 function isWithinMyBuildingTerritory(targetZ, panelDepth = PANEL_SIZE) {
   const halfDepth = panelDepth / 2;
   if (myPlayerIndex === 1) {
-    return (targetZ - halfDepth) >= 5.0; // South Territory
+    return (targetZ - halfDepth) >= 5.0; // South Territory (Blue)
   } else {
-    return (targetZ + halfDepth) <= -5.0; // North Territory
+    return (targetZ + halfDepth) <= -5.0; // North Territory (Dark)
   }
 }
 
@@ -635,9 +636,6 @@ const panelGeometries = {
   wall_z: new THREE.BoxGeometry(PANEL_THICKNESS, WALL_HEIGHT, PANEL_SIZE)
 };
 
-// -------------------------------------------------------------
-// RAMP GEOMETRY: (0,0,0) is bottom connecting edge, slopes up away along -Z
-// -------------------------------------------------------------
 function createAlignedRampGeometry(length) {
   const geo = new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, length);
   geo.rotateX(RAMP_ANGLE);
@@ -658,9 +656,7 @@ const panelMaterials = {
 const worldPanels = [];
 const shotgunHandles = [];
 
-// -------------------------------------------------------------
-// DYNAMIC SHOTGUN PARTICLES & EJECTING SHELL ENGINE
-// -------------------------------------------------------------
+// Shotgun Particle Effects
 const shotgunShards = [];
 const ejectedShells = [];
 
@@ -710,7 +706,6 @@ function spawnShotgunBlast(muzzlePos, forwardDir) {
   }
 }
 
-// Spawns a physical shotgun cartridge ejecting out the receiver port on Undo/Demolish
 function spawnEjectedShell(gunGroup, isLevelOut = false, isExtender = false) {
   const shellObj = new THREE.Group();
 
@@ -726,11 +721,9 @@ function spawnEjectedShell(gunGroup, isLevelOut = false, isExtender = false) {
   brass.position.y = -0.15;
   shellObj.add(hull, brass);
 
-  // Position at gun's ejection port (local offset to world)
   const portLocal = new THREE.Vector3(0.35, 0.4, 0.05);
   shellObj.position.copy(gunGroup.position).add(portLocal.applyQuaternion(gunGroup.quaternion));
 
-  // Compute ejection velocity: flips out to the right and upward from receiver with tumble
   const rightDir = new THREE.Vector3(1, 0, 0).applyQuaternion(gunGroup.quaternion);
   const upDir = new THREE.Vector3(0, 1, 0).applyQuaternion(gunGroup.quaternion);
   const backDir = new THREE.Vector3(0, 0, -1).applyQuaternion(gunGroup.quaternion);
@@ -745,14 +738,10 @@ function spawnEjectedShell(gunGroup, isLevelOut = false, isExtender = false) {
   ejectedShells.push({
     mesh: shellObj,
     velocity: velocity,
-    rotSpeed: new THREE.Vector3(
-      0.3 + Math.random() * 0.3,
-      0.2 + Math.random() * 0.3,
-      0.2 + Math.random() * 0.3
-    ),
+    rotSpeed: new THREE.Vector3(0.3 + Math.random() * 0.3, 0.2 + Math.random() * 0.3, 0.2 + Math.random() * 0.3),
     groundY: Math.max(0.2, gunGroup.position.y - 1.5),
     life: 0,
-    maxLife: 60, // Lasts ~1 second to tumble, bounce, and vanish
+    maxLife: 60,
     bounces: 0
   });
 }
@@ -1398,7 +1387,7 @@ function updateStatusUI() {
   if (!matchStarted) return;
 
   if (!myBasePanelPlaced) {
-    statusText.innerText = "★ OBJECTIVE 1: TAP/CLICK YOUR SIDE OF THE GRASS TO BUILD YOUR STARTING BASE SQUARE! ★";
+    statusText.innerText = "★ STEP 1: CLICK/TAP YOUR SIDE OF THE GRASS TO BUILD YOUR BASE SQUARE! ★";
     statusText.style.color = "#ffd700";
     return;
   }
@@ -1641,8 +1630,10 @@ function updateMinimap() {
 }
 
 // -------------------------------------------------------------
-// EXACT RAYCAST ENGINE: NO INVISIBLE PROXIMITY THEFT
+// UNIFIED ENGINE: BULLETPROOF GROUND & INTERACTIVE HIT DETECTION
 // -------------------------------------------------------------
+const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0); // Mathematical y=0 plane
+
 function handlePointerDown(clientX, clientY, isSecondary = false) {
   if (!matchStarted || matchOver) return false;
 
@@ -1650,13 +1641,16 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
   mouse.y = -(clientY / window.innerHeight) * 2 + 1;
   raycaster.setFromCamera(mouse, camera);
 
-  // STEP 1: MUST PLACE STARTING BASE SQUARE BEFORE ANYTHING ELSE
+  // -------------------------------------------------------------
+  // STEP 1: MANDATORY STARTING BASE SQUARE (UNFAILING RAY-PLANE MATH)
+  // -------------------------------------------------------------
   if (!myBasePanelPlaced) {
-    const groundHits = raycaster.intersectObject(ground, false);
-    if (groundHits.length > 0) {
-      const pt = groundHits[0].point;
-      const snapX = Math.round(pt.x / PANEL_SIZE) * PANEL_SIZE;
-      const snapZ = Math.round(pt.z / PANEL_SIZE) * PANEL_SIZE;
+    const intersectionPoint = new THREE.Vector3();
+    const hitGround = raycaster.ray.intersectPlane(groundPlane, intersectionPoint);
+
+    if (hitGround) {
+      const snapX = Math.round(intersectionPoint.x / PANEL_SIZE) * PANEL_SIZE;
+      const snapZ = Math.round(intersectionPoint.z / PANEL_SIZE) * PANEL_SIZE;
 
       if (isWithinMyBuildingTerritory(snapZ, PANEL_SIZE)) {
         const rootSquare = placePanel('floor', new THREE.Vector3(snapX, PANEL_THICKNESS / 2, snapZ), new THREE.Euler(0, 0, 0), false, null, null, true);
@@ -1665,9 +1659,10 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
         updateStatusUI();
         return true;
       } else {
-        statusText.innerText = "MUST PLACE BASE SQUARE ON YOUR SIDE OF THE RIVER!";
+        const sideMsg = myPlayerIndex === 1 ? "SOUTH (Z > 0)" : "NORTH (Z < 0)";
+        statusText.innerText = `MUST PLACE BASE SQUARE ON YOUR SIDE (${sideMsg})!`;
         statusText.style.color = "#ff4444";
-        setTimeout(() => updateStatusUI(), 2000);
+        setTimeout(() => updateStatusUI(), 2200);
         return false;
       }
     }
@@ -1731,7 +1726,7 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
     }
   }
 
-  // 2. Check Cannon Click: EXACT VISIBLE OBJECT CHECK
+  // 2. Check Cannon Click: EXACT VISIBLE MESH INTERSECTION
   let clickedCannon = null;
   for (let can of cannons) {
     if (raycaster.intersectObject(can, true).length > 0) {
@@ -1752,7 +1747,7 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
     return true;
   }
 
-  // 3. Ground / Panels / Bridges
+  // 3. Ground / Panels / Bridges (Selection & Movement)
   const walkableHits = raycaster.intersectObjects([ground, ...worldPanels, ...bridges], true);
   if (walkableHits.length > 0) {
     const pt = walkableHits[0].point;
@@ -1881,7 +1876,6 @@ function handlePointerMove(clientX, clientY) {
       pumpText.style.color = "#ff3300";
 
       if (pullBackAmt >= 1.0) {
-        // EJECT SHOTGUN SHELL CASING ON UNDO / DEMOLISH!
         spawnEjectedShell(
           pumpingShotgun,
           pumpingShotgun.userData.isRampLevelOut,
@@ -1903,9 +1897,6 @@ function handlePointerMove(clientX, clientY) {
   }
 }
 
-// -------------------------------------------------------------
-// DUAL TRIGGER POINTER UP: FIRE OR EJECT CASING
-// -------------------------------------------------------------
 function handlePointerUp() {
   if (isAimingCannon) {
     const selectedCannon = cannons.find(c => c.userData.selected);
@@ -1927,7 +1918,6 @@ function handlePointerUp() {
       pumpingShotgun.userData.flash.material.opacity = 1.0;
       triggerBranchBuild(activeBasePanel, firedGunId);
     } else if (pumpStage === 'push_forward_primed') {
-      // Eject spent cartridge casing tumbling out receiver port on release!
       spawnEjectedShell(
         pumpingShotgun,
         pumpingShotgun.userData.isRampLevelOut,
@@ -2018,7 +2008,10 @@ window.addEventListener('touchstart', (e) => {
     handlePointerDown(t.clientX, t.clientY, false);
     touchHandledOnDown = true;
   } else {
-    if (!activeBasePanel) {
+    // If panel is not placed, allow clean tap on grass; else allow screen looking
+    if (!myBasePanelPlaced) {
+      isTouchLooking = false;
+    } else if (!activeBasePanel) {
       isTouchLooking = true;
     }
   }
@@ -2051,7 +2044,8 @@ window.addEventListener('touchmove', (e) => {
 window.addEventListener('touchend', (e) => {
   lastTouchTime = Date.now();
 
-  if (!touchHandledOnDown && touchTotalDist < 15 && !pumpingShotgun && !isAimingCannon) {
+  // Clean tap (< 18px drift) triggers pointerdown once
+  if (!touchHandledOnDown && touchTotalDist < 18 && !pumpingShotgun && !isAimingCannon) {
     handlePointerDown(touchStartPos.x, touchStartPos.y, false);
   }
 
@@ -2155,14 +2149,12 @@ function animate() {
   for (let i = ejectedShells.length - 1; i >= 0; i--) {
     const es = ejectedShells[i];
     es.mesh.position.addScaledVector(es.velocity, dt60);
-    es.velocity.y -= 0.02 * dt60; // Gravity
+    es.velocity.y -= 0.02 * dt60;
 
-    // Tumbling rotation
     es.mesh.rotation.x += es.rotSpeed.x * dt60;
     es.mesh.rotation.y += es.rotSpeed.y * dt60;
     es.mesh.rotation.z += es.rotSpeed.z * dt60;
 
-    // Ground bounce physics
     if (es.mesh.position.y <= es.groundY && es.velocity.y < 0) {
       es.velocity.y = -es.velocity.y * 0.45;
       es.velocity.x *= 0.7;
