@@ -627,10 +627,10 @@ function createAlignedRampGeometry(length, isDownward = false) {
   const rise = WALL_HEIGHT * (length / RAMP_DIAG);
   if (isDownward) {
     geo.rotateX(-RAMP_ANGLE);
-    geo.translate(0, -rise / 2, -run / 2);
+    geo.translate(0, -PANEL_THICKNESS / 2, -run / 2);
   } else {
     geo.rotateX(RAMP_ANGLE);
-    geo.translate(0, rise / 2, -run / 2);
+    geo.translate(0, PANEL_THICKNESS / 2, -run / 2);
   }
   geo.computeBoundingBox();
   geo.computeBoundingSphere();
@@ -1188,17 +1188,15 @@ function triggerBranchBuild(parentPanel, gunId) {
     return;
   }
 
-if (gunId.startsWith('down_')) {
+  if (gunId.startsWith('down_')) {
     const dirKey = gunId.replace('down_', '');
     const basePos = parentPanel.position.clone();
     let newPos = basePos.clone();
     let newRot = new THREE.Euler(0, 0, 0);
     let rampDir = null;
 
-    // Drop down by one wall height
     newPos.y = basePos.y - WALL_HEIGHT;
 
-    // Fix: Offset by half the panel size (PANEL_SIZE / 2) to snap correctly right against the edge
     if (dirKey === 'north') {
       newPos.z -= (PANEL_SIZE / 2);
       newRot.set(0, 0, 0);
@@ -1224,7 +1222,6 @@ if (gunId.startsWith('down_')) {
       return;
     }
 
-    // Pass true for isDownward so the geometry slopes downwards properly
     const spawned = placePanel('ramp', newPos, newRot, false, null, rampDir, false, true);
     activeBasePanel = spawned;
     selectPanel(spawned);
