@@ -865,6 +865,14 @@ function renderPanelHandles(panel) {
       isExtender: false,
       isLevelOut: true
     });
+
+    // 4 additional cardinal shotguns for all non-ground level ramps
+    configs.push(
+      { id: 'north', dir: new THREE.Vector3(0, 0, -1), offset: new THREE.Vector3(0, 1.2, -half), isExtender: false, isLevelOut: false },
+      { id: 'south', dir: new THREE.Vector3(0, 0, 1),  offset: new THREE.Vector3(0, 1.2, half), isExtender: false, isLevelOut: false },
+      { id: 'east',  dir: new THREE.Vector3(1, 0, 0),  offset: new THREE.Vector3(half, 1.2, 0), isExtender: false, isLevelOut: false },
+      { id: 'west',  dir: new THREE.Vector3(-1, 0, 0), offset: new THREE.Vector3(-half, 1.2, 0), isExtender: false, isLevelOut: false }
+    );
   }
   else if (pType === 'wall_x') {
     const halfH = WALL_HEIGHT / 2;
@@ -1219,8 +1227,8 @@ function triggerBranchBuild(parentPanel, gunId) {
     if (gunId === 'west')  newPos.x -= PANEL_SIZE;
     if (gunId === 'up')    newPos.y += WALL_HEIGHT;
   } 
-  else if (parentPanel.userData.buildMode === 3) {
-    buildType = 'ramp';
+  else if (parentPanel.userData.buildMode === 3 || pType === 'ramp') {
+    buildType = pType === 'ramp' ? 'ramp' : 'ramp';
     newPos.y = basePos.y;
 
     if (gunId === 'north') {
@@ -2234,7 +2242,7 @@ function animate() {
         );
 
         const hitsWallAhead = checkSphereWallCollision(prospectiveMuzzle, 0.45) || 
-                            checkSphereWallCollision(prospectivePos, 1.25);
+                              checkSphereWallCollision(prospectivePos, 1.25);
 
         if (hitsWallAhead) {
           can.userData.targetPos.copy(can.position);
@@ -2259,7 +2267,6 @@ function animate() {
             if (nextX < rampBox.min.x - 0.5 || nextX > rampBox.max.x + 0.5 || nextZ < rampBox.min.z - 0.5 || nextZ > rampBox.max.z + 0.5) {
               continue;
             }
-            // Block walking into the high/back underside of the ramp from ground level
             if (hit.point.y > can.position.y + 1.5) {
               break;
             }
