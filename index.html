@@ -307,8 +307,8 @@
     </div>
   </div>
   <div style="font-size: 9.5px; margin-top: 10px; color: #aaa; border-top: 1px solid #333; padding-top: 6px; line-height: 1.3;">
-    [PC & Mobile] Tap/Click Grass = Build 1st Base Square | Deselect Button = Exit Build<br>
-    [Shotgun Racking] Pull Back & Release TO FIRE - OR - Pull Back & Push Forward!<br>
+    [PC & Mobile] Click/Tap Cannon = Select/Deselect | Click/Tap Ground = Move<br>
+    [Building] Tap/Click Grass = Build 1st Base Square | Shotgun Handles = Rack & Fire<br>
     [Mobile] D-Pad = Move | Drag Screen = Look | Dedicated Look Pad = Inspect Panel
   </div>
   <span id="status" class="sys">STATUS: STANDBY</span>
@@ -628,8 +628,12 @@ const panelGeometries = {
   wall_z: new THREE.BoxGeometry(PANEL_THICKNESS, WALL_HEIGHT, PANEL_SIZE)
 };
 
+// -------------------------------------------------------------
+// RAMP GEOMETRY: (0,0,0) is bottom connecting edge, slopes up away along -Z
+// -------------------------------------------------------------
 function createAlignedRampGeometry(length) {
   const geo = new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, length);
+  // Slopes upward in forward (-Z) direction away from connecting edge
   geo.rotateX(RAMP_ANGLE);
   const run = PANEL_SIZE * (length / RAMP_DIAG);
   const rise = WALL_HEIGHT * (length / RAMP_DIAG);
@@ -772,6 +776,7 @@ function renderPanelHandles(panel) {
 
     const inclineSlope = forward.clone().multiplyScalar(Math.cos(RAMP_ANGLE)).add(new THREE.Vector3(0, Math.sin(RAMP_ANGLE), 0)).normalize();
 
+    // Extender handle placed slightly up the incline
     const extenderPos = panel.position.clone()
       .addScaledVector(forward, 2.0 * Math.cos(RAMP_ANGLE))
       .add(new THREE.Vector3(0, 2.0 * Math.sin(RAMP_ANGLE) + 1.2, 0));
@@ -784,6 +789,7 @@ function renderPanelHandles(panel) {
       isLevelOut: false
     });
 
+    // Summit level-out handle placed right at top summit edge
     const summitPos = panel.position.clone()
       .addScaledVector(forward, totalRun)
       .add(new THREE.Vector3(0, totalRise + 0.6, 0));
@@ -1039,6 +1045,7 @@ function triggerBranchBuild(parentPanel, gunId) {
     const totalRun = PANEL_SIZE * segs;
     const forward = getRampForwardVector(parentPanel);
 
+    // Flat floor attaches flush to the summit lip
     const flatPos = parentPanel.position.clone()
       .addScaledVector(forward, totalRun + (PANEL_SIZE / 2));
     flatPos.y = parentPanel.position.y + totalRise;
@@ -1116,6 +1123,7 @@ function triggerBranchBuild(parentPanel, gunId) {
     buildType = 'ramp';
     newPos.y = basePos.y;
 
+    // Anchor flush at boundary edge, slope up and AWAY
     if (gunId === 'north') {
       newPos.z -= (PANEL_SIZE / 2);
       newRot.set(0, 0, 0);
@@ -1236,14 +1244,8 @@ function createCannon(x, z, mainColor, isOpp = false, customId = null, unitNumbe
   wheels.rotation.z = Math.PI / 2;
   wheels.position.y = -0.2;
 
-  // Invisible, enlarged touch hitbox for ultra-reliable phone selection
-  const touchBox = new THREE.Mesh(
-    new THREE.BoxGeometry(4.5, 4.5, 4.5),
-    new THREE.MeshBasicMaterial({ visible: false })
-  );
-  touchBox.userData.isCannonHitbox = true;
-
-  cGroup.add(barrelPivot, wheels, touchBox);
+  // Exact mesh collision only - removed giant touchBox so ground clicks remain pixel-perfect!
+  cGroup.add(barrelPivot, wheels);
   cGroup.position.set(x, 0.8, z);
   cGroup.rotation.y = (z < 0) ? 0 : Math.PI;
 
@@ -1524,7 +1526,7 @@ function updateMinimap() {
 }
 
 // -------------------------------------------------------------
-// UNIFIED ENGINE: BULLETPROOF SELECTION AND PLACEMENT
+// EXACT RAYCAST ENGINE: NO INVISIBLE PROXIMITY THEFT
 // -------------------------------------------------------------
 function handlePointerDown(clientX, clientY, isSecondary = false) {
   if (!matchStarted || matchOver) return false;
@@ -1590,7 +1592,7 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
     }
   }
 
-  // 2. Check Cannon Click: Search all children & root groups
+  // 2. Check Cannon Click: EXACT VISIBLE OBJECT CHECK (No enlarged hitboxes)
   let clickedCannon = null;
   for (let can of cannons) {
     if (raycaster.intersectObject(can, true).length > 0) {
@@ -1611,7 +1613,7 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
     return true;
   }
 
-  // 3. Ground / Panels / Bridges (1st Base Panel Placement)
+  // 3. Ground / Panels / Bridges (1st Base Panel Placement & Precise Move)
   const walkableHits = raycaster.intersectObjects([ground, ...worldPanels, ...bridges], true);
   if (walkableHits.length > 0) {
     const pt = walkableHits[0].point;
@@ -1799,7 +1801,6 @@ function handlePointerUp() {
 let lastTouchTime = 0;
 
 window.onmousedown = (e) => {
-  // If touch was detected recently, ignore simulated mouse events completely
   if (Date.now() - lastTouchTime < 500) return;
   if (e.target.closest('#ui') || e.target.closest('#lobby-screen') || e.target.closest('#camera-altitude-control') || e.target.closest('#mobile-dpad') || e.target.closest('#mobile-aim-toggle') || e.target.closest('#mobile-deselect-btn') || e.target.closest('#mobile-build-slider') || e.target.closest('#panel-lookpad')) return;
 
@@ -1853,7 +1854,7 @@ window.addEventListener('touchstart', (e) => {
   isTouchLooking = false;
   touchHandledOnDown = false;
 
-  // Check if finger grabbed a shotgun handle or is aiming artillery
+  // Intercept shotgun handles or active aim preview on touchstart
   mouse.x = (t.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(t.clientY / window.innerHeight) * 2 + 1;
   raycaster.setFromCamera(mouse, camera);
@@ -1863,7 +1864,6 @@ window.addEventListener('touchstart', (e) => {
     handlePointerDown(t.clientX, t.clientY, false);
     touchHandledOnDown = true;
   } else {
-    // If not on an interactive object, mark as potential camera look drag
     if (!activeBasePanel) {
       isTouchLooking = true;
     }
@@ -1897,7 +1897,7 @@ window.addEventListener('touchmove', (e) => {
 window.addEventListener('touchend', (e) => {
   lastTouchTime = Date.now();
 
-  // If tap was clean (< 15px drift) and wasn't a shotgun grab, trigger selection/build ONCE
+  // ONLY execute tap if we didn't already handle a shotgun handle on touchstart!
   if (!touchHandledOnDown && touchTotalDist < 15 && !pumpingShotgun && !isAimingCannon) {
     handlePointerDown(touchStartPos.x, touchStartPos.y, false);
   }
