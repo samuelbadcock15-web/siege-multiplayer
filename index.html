@@ -36,14 +36,6 @@
   .info-column { flex: 1; font-size: 11px; }
   .info-column h3 { margin: 0 0 3px 0; color: #ffd700; font-size: 12px; }
 
-  #objective-banner {
-    position: fixed; top: 15px; left: 50%; transform: translateX(-50%);
-    background: rgba(10, 15, 26, 0.95); border: 2px solid #ffd700; border-radius: 10px;
-    padding: 10px 20px; color: #ffd700; font-size: 13px; font-weight: 900;
-    letter-spacing: 1px; z-index: 400; text-align: center; box-shadow: 0 0 25px rgba(255, 215, 0, 0.5);
-    display: none; pointer-events: none; width: min(500px, 90vw);
-  }
-
   #pump-hud {
     display: none; position: absolute; top: 35%; left: 50%; transform: translate(-50%, -50%);
     pointer-events: none; z-index: 300; text-align: center; font-weight: bold;
@@ -101,7 +93,7 @@
   #panel-lookpad {
     position: absolute; bottom: 35px; right: 175px; width: 135px; height: 135px;
     border-radius: 24px; background: rgba(15, 23, 42, 0.9); border: 2.5px dashed #00ffcc;
-    z-index: 270; display: none; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 270; display: none; align-items: center; justify-content: center;
     color: #00ffcc; font-size: 13px; font-weight: 900; letter-spacing: 1.5px;
     touch-action: none; user-select: none; -webkit-user-select: none;
     box-shadow: 0 0 25px rgba(0, 255, 204, 0.4); text-align: center;
@@ -254,7 +246,7 @@
 
 <!-- Big Objective 1 Alert Banner on Start -->
 <div id="objective-banner">
-  ★ OBJECTIVE 1: TAP YOUR SIDE OF THE GRASS TO BUILD YOUR STARTING BASE SQUARE! ★
+  ★ OBJECTIVE 1: TAP GRASS ON YOUR SIDE TO PLACE BASE SQUARE! ★
 </div>
 
 <!-- Tactical Vertical Altitude Gauge -->
@@ -370,18 +362,17 @@ let matchOver = false;
 let gameInitialized = false;
 let matchStarted = false;
 
-// Independent base placement per team
 let myBasePanelPlaced = false;
 
 const clock = new THREE.Clock();
-let targetCameraAltitude = 12.0;
+let targetCameraAltitude = 5.0; // Restored original lower starting height
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87CEEB);
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1500);
 
 camera.rotation.order = 'YXZ';
-camera.position.set(0, 12, 135);
+camera.position.set(0, 5, 135);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -634,13 +625,12 @@ const PANEL_THICKNESS = 1.0;
 const RAMP_DIAG = Math.hypot(PANEL_SIZE, WALL_HEIGHT);
 const RAMP_ANGLE = Math.atan2(WALL_HEIGHT, PANEL_SIZE);
 
-// Accurate territory evaluation
 function isWithinMyBuildingTerritory(targetZ, panelDepth = PANEL_SIZE) {
   const halfDepth = panelDepth / 2;
   if (myPlayerIndex === 1) {
-    return (targetZ - halfDepth) >= 5.0; // South Territory (Blue)
+    return (targetZ - halfDepth) >= 5.0; // South Territory
   } else {
-    return (targetZ + halfDepth) <= -5.0; // North Territory (Dark)
+    return (targetZ + halfDepth) <= -5.0; // North Territory
   }
 }
 
@@ -650,9 +640,6 @@ const panelGeometries = {
   wall_z: new THREE.BoxGeometry(PANEL_THICKNESS, WALL_HEIGHT, PANEL_SIZE)
 };
 
-// -------------------------------------------------------------
-// RAMP GEOMETRY: (0,0,0) is bottom connecting edge, slopes up away along -Z
-// -------------------------------------------------------------
 function createAlignedRampGeometry(length) {
   const geo = new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, length);
   geo.rotateX(RAMP_ANGLE);
@@ -887,7 +874,6 @@ function renderPanelHandles(panel) {
 
     const inclineSlope = forward.clone().multiplyScalar(Math.cos(RAMP_ANGLE)).add(new THREE.Vector3(0, Math.sin(RAMP_ANGLE), 0)).normalize();
 
-    // Extender handle placed slightly up the incline
     const extenderPos = panel.position.clone()
       .addScaledVector(forward, 2.0 * Math.cos(RAMP_ANGLE))
       .add(new THREE.Vector3(0, 2.0 * Math.sin(RAMP_ANGLE) + 1.2, 0));
@@ -900,7 +886,6 @@ function renderPanelHandles(panel) {
       isLevelOut: false
     });
 
-    // Summit level-out handle placed right at top summit edge
     const summitPos = panel.position.clone()
       .addScaledVector(forward, totalRun)
       .add(new THREE.Vector3(0, totalRise + 0.6, 0));
@@ -1406,14 +1391,9 @@ function updateStatusUI() {
   if (!matchStarted) return;
 
   if (!myBasePanelPlaced) {
-    const sideMsg = myPlayerIndex === 1 ? "SOUTH KEEP (Z > 0)" : "NORTH KEEP (Z < 0)";
-    objectiveBanner.style.display = 'block';
-    objectiveBanner.innerText = `★ OBJECTIVE 1: TAP GRASS ON YOUR SIDE [${sideMsg}] TO PLACE BASE SQUARE! ★`;
-    statusText.innerText = "WAITING FOR BASE FOUNDATION PLACEMENT...";
+    statusText.innerText = "★ OBJECTIVE 1: TAP/CLICK YOUR SIDE OF THE GRASS TO BUILD YOUR STARTING BASE SQUARE! ★";
     statusText.style.color = "#ffd700";
     return;
-  } else {
-    objectiveBanner.style.display = 'none';
   }
 
   let selectedNum = null;
@@ -1654,25 +1634,13 @@ function updateMinimap() {
 }
 
 // -------------------------------------------------------------
-// UNIFIED ENGINE: BULLETPROOF GROUND & INTERACTIVE HIT DETECTION
+// UNIFIED INTERACTION ENGINE
 // -------------------------------------------------------------
-const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0); // Mathematical y=0 plane
-
-function updatePointerCoords(clientX, clientY) {
-  const rect = renderer.domElement.getBoundingClientRect();
-  mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
-  mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
-  raycaster.setFromCamera(mouse, camera);
-}
-
 function handlePointerDown(clientX, clientY, isSecondary = false) {
   if (!matchStarted || matchOver) return false;
 
   updatePointerCoords(clientX, clientY);
 
-  // -------------------------------------------------------------
-  // STEP 1: MANDATORY STARTING BASE SQUARE (UNFAILING RAY-PLANE MATH)
-  // -------------------------------------------------------------
   if (!myBasePanelPlaced) {
     const intersectionPoint = new THREE.Vector3();
     const hitGround = raycaster.ray.intersectPlane(groundPlane, intersectionPoint);
@@ -1755,7 +1723,7 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
     }
   }
 
-  // 2. Check Cannon Click: EXACT VISIBLE MESH INTERSECTION
+  // 2. Check Cannon Click
   let clickedCannon = null;
   for (let can of cannons) {
     if (raycaster.intersectObject(can, true).length > 0) {
@@ -1776,7 +1744,7 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
     return true;
   }
 
-  // 3. Ground / Panels / Bridges (Selection & Movement)
+  // 3. Ground / Panels / Bridges
   const walkableHits = raycaster.intersectObjects([ground, ...worldPanels, ...bridges], true);
   if (walkableHits.length > 0) {
     const pt = walkableHits[0].point;
@@ -1965,11 +1933,7 @@ function handlePointerUp() {
   }
 }
 
-// -------------------------------------------------------------
-// STRICT POINTER DISPATCH: PREVENT DOUBLE-CLICK DESELECTION
-// -------------------------------------------------------------
-let lastTouchTime = 0;
-
+// PC Mouse Listeners
 window.onmousedown = (e) => {
   if (Date.now() - lastTouchTime < 500) return;
   if (e.target.closest('#ui') || e.target.closest('#lobby-screen') || e.target.closest('#camera-altitude-control') || e.target.closest('#mobile-dpad') || e.target.closest('#mobile-aim-toggle') || e.target.closest('#mobile-deselect-btn') || e.target.closest('#mobile-build-slider') || e.target.closest('#panel-lookpad')) return;
@@ -2000,9 +1964,7 @@ window.onmouseup = (e) => {
   handlePointerUp();
 };
 
-// -------------------------------------------------------------
-// TOUCH EVENT SYSTEM: ONLY TRIGGER ONCE PER TAP
-// -------------------------------------------------------------
+// Mobile Touch System
 let touchStartPos = { x: 0, y: 0 };
 let touchLastPos = { x: 0, y: 0 };
 let touchTotalDist = 0;
@@ -2146,7 +2108,7 @@ function animate() {
     }
   });
 
-  // 1. Update Shotgun Muzzle Burst Particles (Building)
+  // Update Shotgun Shards
   for (let i = shotgunShards.length - 1; i >= 0; i--) {
     const s = shotgunShards[i];
     s.mesh.position.addScaledVector(s.velocity, dt60);
@@ -2167,7 +2129,7 @@ function animate() {
     }
   }
 
-  // 2. Update Ejected Shotgun Shells (Undo / Demolishing)
+  // Update Ejected Shells
   for (let i = ejectedShells.length - 1; i >= 0; i--) {
     const es = ejectedShells[i];
     es.mesh.position.addScaledVector(es.velocity, dt60);
@@ -2521,15 +2483,14 @@ socket.on('start_match_countdown', (data) => {
         document.getElementById('mobile-deselect-btn').style.display = 'flex';
       }
 
-      // CRITICAL FIX: Give initial downward pitch (-0.28 rad / -16 deg) so screen taps hit the player's own floor
       if (myPlayerIndex === 2) {
-        setAltitude(14.0);
-        camera.position.set(0, 14, -135);
-        camera.rotation.set(-0.28, Math.PI, 0); // Angled down towards North Keep
+        setAltitude(5.0);
+        camera.position.set(0, 5, -135);
+        camera.rotation.set(0, Math.PI, 0);
       } else {
-        setAltitude(14.0);
-        camera.position.set(0, 14, 135);
-        camera.rotation.set(-0.28, 0, 0); // Angled down towards South Keep
+        setAltitude(5.0);
+        camera.position.set(0, 5, 135);
+        camera.rotation.set(0, 0, 0);
       }
 
       if (!gameInitialized) {
