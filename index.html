@@ -687,7 +687,6 @@ function spawnShotgunBlast(muzzlePos, forwardDir, isDemolish = false) {
   }
 }
 
-// Falling Ejected Shotgun Shells (Unloading / Demolishing)
 const ejectedShells = [];
 
 function spawnEjectedShell(ejectPos, gunDir) {
@@ -1865,7 +1864,6 @@ function handlePointerMove(clientX, clientY) {
         const muzzlePos = pumpingShotgun.position.clone().add(pumpingShotgun.userData.dirVector.clone().multiplyScalar(3.2));
         spawnShotgunBlast(muzzlePos, pumpingShotgun.userData.dirVector, true);
 
-        // Spawn falling ejected shell from port during reverse rack
         const ejectPos = pumpingShotgun.position.clone().add(new THREE.Vector3(0, 0.5, 0));
         spawnEjectedShell(ejectPos, pumpingShotgun.userData.dirVector);
 
@@ -2118,7 +2116,6 @@ function animate() {
     }
   }
 
-  // Update Ejected Shotgun Shells (Physics, ground stop, scale fade out)
   for (let i = ejectedShells.length - 1; i >= 0; i--) {
     const shell = ejectedShells[i];
     shell.mesh.position.addScaledVector(shell.velocity, dt60);
@@ -2253,9 +2250,20 @@ function animate() {
 
         let validSurfaceHit = null;
         for (let hit of hits) {
+          const hitObj = hit.object;
           const surfaceY = hit.point.y + 0.8;
           const deltaY = surfaceY - can.position.y;
-          if (deltaY <= 1.8) {
+
+          // Check if trying to drive up a ramp from the wrong side (steep drop/cliff/backside)
+          if (hitObj.userData && hitObj.userData.panelType === 'ramp') {
+            const rampBox = new THREE.Box3().setFromObject(hitObj);
+            // If the cannon is trying to enter outside the horizontal boundaries of the ramp or climbing a steep edge too high at once:
+            if (nextX < rampBox.min.x - 0.5 || nextX > rampBox.max.x + 0.5 || nextZ < rampBox.min.z - 0.5 || nextZ > rampBox.max.z + 0.5) {
+              continue; // Prevent driving off the sides or ghosting through the back/wrong side!
+            }
+          }
+
+          if (deltaY <= 1.8 && deltaY >= -1.8) {
             validSurfaceHit = surfaceY;
             break;
           }
@@ -2499,7 +2507,7 @@ socket.on('start_match_countdown', (data) => {
 
 socket.on('update_counts', (data) => {
   const statsEl = document.getElementById('server-stats');
-  if (statsEl) statsEl.innerText = `Online: ${data.totalOnline} | Arena Match`;
+  if (statsEl) statsEl.innerText = `Online: ${data.totalOnline} |Arena Match`;
 });
 
 socket.on('opponent_disconnected', () => {
