@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<!-- Disable mobile pinch-to-zoom and double-tap browser zoom -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Siege - Clear Horizons Tactical Edition</title>
 <style>
@@ -74,7 +75,7 @@
     cursor: grab; pointer-events: none;
   }
 
-  /* Ergonomic Mobile D-Pad */
+  /* Ergonomic Positioned Extra-Large Mobile D-Pad */
   #mobile-dpad {
     position: absolute; bottom: 35px; left: 55px; width: 220px; height: 220px;
     z-index: 260; display: none; grid-template-columns: repeat(3, 1fr);
@@ -115,7 +116,7 @@
     box-shadow: 0 0 20px #00ff00; font-weight: 900;
   }
 
-  /* Mobile Aim Mode Switcher with Disabled Initial State */
+  /* Mobile Aim Mode Switcher */
   #mobile-aim-toggle {
     position: absolute; bottom: 45px; right: 90px; width: 85px; height: 85px;
     border-radius: 50%; background: rgba(15, 23, 42, 0.9); border: 3px solid #ff4400;
@@ -334,7 +335,6 @@
 <script type="module">
 import * as THREE from 'three';
 
-// Mobile anti-zoom overrides
 let lastTouchEnd = 0;
 document.addEventListener('touchend', (e) => {
   const now = Date.now();
@@ -357,7 +357,6 @@ let matchStarted = false;
 const clock = new THREE.Clock();
 let targetCameraAltitude = 5.0;
 
-// Scene Setup
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87CEEB);
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1500);
@@ -626,9 +625,20 @@ function isWithinMyBuildingTerritory(targetZ, panelDepth = PANEL_SIZE) {
 const panelGeometries = {
   floor: new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, PANEL_SIZE),
   wall_x: new THREE.BoxGeometry(PANEL_SIZE, WALL_HEIGHT, PANEL_THICKNESS),
-  wall_z: new THREE.BoxGeometry(PANEL_THICKNESS, WALL_HEIGHT, PANEL_SIZE),
-  ramp: new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, RAMP_DIAG)
+  wall_z: new THREE.BoxGeometry(PANEL_THICKNESS, WALL_HEIGHT, PANEL_SIZE)
 };
+
+// Creates a ramp geometry where (0,0,0) is bottom edge, sloping upward along -Z
+function createAlignedRampGeometry(length) {
+  const geo = new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, length);
+  // Tilt around local X pitch
+  geo.rotateX(-RAMP_ANGLE);
+  // Shift so bottom origin sits flush with panel connection edge
+  geo.translate(0, (WALL_HEIGHT * (length / RAMP_DIAG)) / 2, -(PANEL_SIZE * (length / RAMP_DIAG)) / 2);
+  geo.computeBoundingBox();
+  geo.computeBoundingSphere();
+  return geo;
+}
 
 const panelMaterials = {
   floor: new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.8 }),
@@ -724,7 +734,6 @@ function createShotgunHandle(dirVector, modeColor, id, isExtender = false, isLev
   return gunGroup;
 }
 
-// Extract true ground-plane travel direction from ramp rotation
 function getRampForwardVector(rampMesh) {
   if (rampMesh.userData.forwardDir) {
     return rampMesh.userData.forwardDir.clone();
@@ -765,9 +774,10 @@ function renderPanelHandles(panel) {
 
     const inclineSlope = forward.clone().multiplyScalar(Math.cos(RAMP_ANGLE)).add(new THREE.Vector3(0, Math.sin(RAMP_ANGLE), 0)).normalize();
 
+    // Extender handle placed slightly up the incline
     const extenderPos = panel.position.clone()
-      .addScaledVector(inclineSlope, 2.0)
-      .addScaledVector(rampNormal, 1.2);
+      .addScaledVector(forward, 2.0 * Math.cos(RAMP_ANGLE))
+      .add(new THREE.Vector3(0, 2.0 * Math.sin(RAMP_ANGLE) + 1.2, 0));
 
     configs.push({
       id: 'ramp_extend',
@@ -777,9 +787,10 @@ function renderPanelHandles(panel) {
       isLevelOut: false
     });
 
+    // Summit level-out handle placed right at top summit edge
     const summitPos = panel.position.clone()
-      .addScaledVector(forward, totalRun / 2)
-      .add(new THREE.Vector3(0, (totalRise / 2) + 0.5, 0));
+      .addScaledVector(forward, totalRun)
+      .add(new THREE.Vector3(0, totalRise + 0.6, 0));
 
     configs.push({
       id: 'ramp_level_flat',
@@ -825,6 +836,7 @@ function renderPanelHandles(panel) {
     ];
   }
   else if (mode === 3) {
+    // 4 cardinal ramp handles pointing upward
     configs = [
       { id: 'north', dir: new THREE.Vector3(0, Math.sin(RAMP_ANGLE), -Math.cos(RAMP_ANGLE)), offset: new THREE.Vector3(0, 1.2, -half), isExtender: false, isLevelOut: false },
       { id: 'south', dir: new THREE.Vector3(0, Math.sin(RAMP_ANGLE), Math.cos(RAMP_ANGLE)),  offset: new THREE.Vector3(0, 1.2, half), isExtender: false, isLevelOut: false },
@@ -875,22 +887,22 @@ function cyclePanelMode(delta) {
   updatePanelVisualMode(activeBasePanel);
 }
 
+// -------------------------------------------------------------
+// SOLID FOUNDATION & CARDINAL RAMP PLACEMENT
+// -------------------------------------------------------------
 function placePanel(type, position, rotation, isRemote = false, customId = null, forwardDir = null) {
   let matKey = type.startsWith('wall') ? 'wall' : type;
   const mat = panelMaterials[matKey].clone();
   let mesh;
 
   if (type === 'ramp') {
-    const geo = new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, RAMP_DIAG);
-    geo.computeBoundingBox();
-    geo.computeBoundingSphere();
+    const geo = createAlignedRampGeometry(RAMP_DIAG);
     mesh = new THREE.Mesh(geo, mat);
     mesh.userData = {
       isPanel: true,
       panelType: 'ramp',
       rampSegments: 1,
       rampLength: RAMP_DIAG,
-      baseElevation: position.y - (WALL_HEIGHT / 4),
       id: customId || Math.random().toString(),
       permanent: true,
       forwardDir: forwardDir ? forwardDir.clone() : new THREE.Vector3(0, 0, -1)
@@ -931,7 +943,8 @@ function extendRampDirectly(rampMesh, isRemote = false) {
   const forward = getRampForwardVector(rampMesh);
 
   if (!isRemote) {
-    const testZ = rampMesh.position.z + forward.z * (PANEL_SIZE / 2);
+    const segs = rampMesh.userData.rampSegments || 1;
+    const testZ = rampMesh.position.z + forward.z * (PANEL_SIZE * segs);
     if (!isWithinMyBuildingTerritory(testZ, PANEL_SIZE)) {
       statusText.innerText = "CANNOT EXTEND RAMP INTO ENEMY TERRITORY!";
       statusText.style.color = "#ff4444";
@@ -946,12 +959,7 @@ function extendRampDirectly(rampMesh, isRemote = false) {
   rampMesh.userData.rampLength = newLength;
 
   rampMesh.geometry.dispose();
-  rampMesh.geometry = new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, newLength);
-  rampMesh.geometry.computeBoundingBox();
-  rampMesh.geometry.computeBoundingSphere();
-
-  rampMesh.position.addScaledVector(forward, PANEL_SIZE / 2);
-  rampMesh.position.y += WALL_HEIGHT / 2;
+  rampMesh.geometry = createAlignedRampGeometry(newLength);
 
   if (!isRemote) {
     socket.emit('extend_ramp', {
@@ -967,19 +975,13 @@ function undoDemolishPanel(panel, isRemote = false) {
   if (!panel) return;
 
   if (panel.userData.panelType === 'ramp' && (panel.userData.rampSegments || 1) > 1) {
-    const forward = getRampForwardVector(panel);
     panel.userData.rampSegments -= 1;
     const segs = panel.userData.rampSegments;
     const newLength = RAMP_DIAG * segs;
     panel.userData.rampLength = newLength;
 
     panel.geometry.dispose();
-    panel.geometry = new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, newLength);
-    panel.geometry.computeBoundingBox();
-    panel.geometry.computeBoundingSphere();
-
-    panel.position.addScaledVector(forward, -PANEL_SIZE / 2);
-    panel.position.y -= WALL_HEIGHT / 2;
+    panel.geometry = createAlignedRampGeometry(newLength);
 
     if (!isRemote) {
       socket.emit('extend_ramp', {
@@ -1045,9 +1047,10 @@ function triggerBranchBuild(parentPanel, gunId) {
     const totalRun = PANEL_SIZE * segs;
     const forward = getRampForwardVector(parentPanel);
 
+    // Flat floor attaches flush to the summit lip
     const flatPos = parentPanel.position.clone()
-      .addScaledVector(forward, (totalRun / 2) + (PANEL_SIZE / 2));
-    flatPos.y = (parentPanel.position.y + (totalRise / 2));
+      .addScaledVector(forward, totalRun + (PANEL_SIZE / 2));
+    flatPos.y = parentPanel.position.y + totalRise;
 
     if (!isWithinMyBuildingTerritory(flatPos.z, PANEL_SIZE)) {
       statusText.innerText = "CANNOT BUILD INTO ENEMY TERRITORY!";
@@ -1095,7 +1098,7 @@ function triggerBranchBuild(parentPanel, gunId) {
   else if (gunId === 'spawn_wall_south') {
     buildType = 'wall_x';
     newPos.y += (WALL_HEIGHT / 2);
-    newPos.z -= (PANEL_SIZE / 2);
+    newPos.z += (PANEL_SIZE / 2);
     checkDepth = PANEL_THICKNESS;
   } 
   else if (gunId === 'spawn_wall_east') {
@@ -1119,24 +1122,25 @@ function triggerBranchBuild(parentPanel, gunId) {
     if (gunId === 'up')    newPos.y += WALL_HEIGHT;
   } 
   else if (parentPanel.userData.buildMode === 3) {
+    // RAMP MODE: Position at boundary edge, set yaw rotation to point in travel direction
     buildType = 'ramp';
-    newPos.y += (WALL_HEIGHT / 4);
+    newPos.y = basePos.y; // Bottom edge sits flush on current elevation
 
     if (gunId === 'north') {
       newPos.z -= (PANEL_SIZE / 2);
-      newRot.set(RAMP_ANGLE, 0, 0);
+      newRot.set(0, 0, 0); // Yaw 0 (Travel North)
       rampDir = new THREE.Vector3(0, 0, -1);
     } else if (gunId === 'south') {
       newPos.z += (PANEL_SIZE / 2);
-      newRot.set(-RAMP_ANGLE, 0, 0);
+      newRot.set(0, Math.PI, 0); // Yaw 180 (Travel South)
       rampDir = new THREE.Vector3(0, 0, 1);
     } else if (gunId === 'east') {
       newPos.x += (PANEL_SIZE / 2);
-      newRot.set(0, 0, -RAMP_ANGLE);
+      newRot.set(0, -Math.PI / 2, 0); // Yaw -90 (Travel East)
       rampDir = new THREE.Vector3(1, 0, 0);
     } else if (gunId === 'west') {
       newPos.x -= (PANEL_SIZE / 2);
-      newRot.set(0, 0, RAMP_ANGLE);
+      newRot.set(0, Math.PI / 2, 0); // Yaw 90 (Travel West)
       rampDir = new THREE.Vector3(-1, 0, 0);
     } else if (gunId === 'up') {
       buildType = 'floor';
@@ -1523,7 +1527,7 @@ function updateMinimap() {
 }
 
 // -------------------------------------------------------------
-// CORE INTERACTION ENGINE: FIXED FIRST PANEL PC PLACEMENT
+// CORE INTERACTION ENGINE: UNIFIED PC & MOBILE FIRST PANEL
 // -------------------------------------------------------------
 function handlePointerDown(clientX, clientY, isSecondary = false) {
   if (!matchStarted || matchOver) return false;
@@ -1607,7 +1611,7 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
     return true;
   }
 
-  // 3. Ground / Panels / Bridges (CRITICAL FIX FOR FIRST PANEL ON PC)
+  // 3. Ground / Panels / Bridges: Guaranteed 1st Base Panel Placement
   const walkableHits = raycaster.intersectObjects([ground, ...worldPanels, ...bridges], true);
   if (walkableHits.length > 0) {
     const pt = walkableHits[0].point;
@@ -1621,7 +1625,7 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
       selectPanel(hitObj);
       return true;
     } else if (worldPanels.length === 0) {
-      // Placing the very first base panel on grass
+      // 100% RELIABLE: First panel places on both mobile touch and PC mouse!
       const snapX = Math.round(pt.x / PANEL_SIZE) * PANEL_SIZE;
       const snapZ = Math.round(pt.z / PANEL_SIZE) * PANEL_SIZE;
       if (isWithinMyBuildingTerritory(snapZ, PANEL_SIZE)) {
@@ -1829,6 +1833,7 @@ window.addEventListener('touchstart', (e) => {
   isTouchLooking = false;
 
   const hitSpecial = handlePointerDown(t.clientX, t.clientY, false);
+  // Only start drag look if it didn't interact with an object or place the first panel
   if (!hitSpecial && !mobileAimModeActive) {
     if (!activeBasePanel) {
       isTouchLooking = true;
