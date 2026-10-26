@@ -57,7 +57,7 @@
   }
   #pump-bar { width: 0%; height: 100%; background: #ffd700; transition: width 0.04s linear; }
 
-  /* Tactical Vertical Altitude Gauge with BIG Touch Handle */
+  /* Tactical Vertical Altitude Gauge with 42px Touch Handle */
   #camera-altitude-control {
     position: absolute; right: 16px; top: 140px; bottom: 120px; width: 56px;
     background: rgba(10, 15, 26, 0.92); border: 2px solid #ffd700; border-radius: 28px;
@@ -98,14 +98,15 @@
   }
   .dpad-btn:active { background: #ffd700; color: #000; transform: scale(0.92); }
 
-  /* Mobile Fire Target Mode Toggle Button */
+  /* Mobile Persistent Fire/Aim Mode Switcher */
   #mobile-aim-toggle {
     position: absolute; bottom: 45px; right: 90px; width: 85px; height: 85px;
     border-radius: 50%; background: rgba(15, 23, 42, 0.9); border: 3px solid #ff4400;
     color: #ff4400; font-weight: bold; font-size: 13px; display: none;
     flex-direction: column; align-items: center; justify-content: center;
     z-index: 260; box-shadow: 0 0 20px rgba(255, 68, 0, 0.4); text-align: center;
-    line-height: 1.1; touch-action: none; cursor: pointer;
+    line-height: 1.1; touch-action: none; cursor: pointer; user-select: none;
+    -webkit-user-select: none;
   }
   #mobile-aim-toggle.active {
     background: #ff4400; color: #fff; border-color: #ffd700;
@@ -208,7 +209,7 @@
   <div></div>
 </div>
 
-<!-- Mobile Clean Fire / Aim Mode Switcher -->
+<!-- Mobile Persistent Fire / Aim Mode Switcher -->
 <div id="mobile-aim-toggle">
   <span>AIM</span>
   <span style="font-size: 9px;">& FIRE</span>
@@ -1034,7 +1035,7 @@ mobileAimToggle.onclick = (e) => {
   mobileAimModeActive = !mobileAimModeActive;
   if (mobileAimModeActive) {
     mobileAimToggle.classList.add('active');
-    statusText.innerText = "AIM MODE: DRAG ON FIELD TO PREVIEW ARC, RELEASE TO FIRE!";
+    statusText.innerText = "AIM MODE LOCKED: DRAG FIELD TO PREVIEW ARC, RELEASE TO FIRE!";
     statusText.style.color = "#ff4400";
   } else {
     mobileAimToggle.classList.remove('active');
@@ -1108,7 +1109,7 @@ function updateStatusUI() {
   if (matchStarted && statusText.innerText !== "STATUS: MATCH STARTED!") {
     if (selectedNum !== null) {
       statusText.innerText = mobileAimModeActive
-        ? `CANNON #${selectedNum} AIM MODE ACTIVE: DRAG TARGET & RELEASE TO FIRE!`
+        ? `CANNON #${selectedNum} [AIM LOCKED]: DRAG TO AIM & RELEASE TO FIRE!`
         : `ACTIVE COMMAND: CANNON #${selectedNum} [TAP FIELD TO MARCH | TAP AIM BUTTON TO FIRE]`;
     } else {
       statusText.innerText = worldPanels.length === 0 
@@ -1573,12 +1574,6 @@ function handlePointerUp() {
     }
     isAimingCannon = false;
     trajectoryLine.visible = false;
-    if (mobileAimModeActive) {
-      // Auto disarm aim mode after shooting cleanly
-      mobileAimModeActive = false;
-      mobileAimToggle.classList.remove('active');
-      updateStatusUI();
-    }
     return;
   }
 
