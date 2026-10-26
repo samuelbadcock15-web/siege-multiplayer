@@ -17,6 +17,8 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+const PANEL_SIZE = 12;
+
 // 6 Fixed 2-Player Combat Arenas
 const rooms = {};
 for (let i = 1; i <= 6; i++) {
@@ -26,6 +28,7 @@ for (let i = 1; i <= 6; i++) {
         name: `Arena 0${i}`,
         players: {},
         panels: {},
+        units: {},
         status: 'open'
     };
 }
@@ -64,16 +67,27 @@ function removePlayerFromCurrentRoom(socket) {
         if (room.players[socket.id]) {
             delete room.players[socket.id];
             socket.leave(roomId);
+            socket.roomID = null;
 
             if (room.status === 'in_game') {
                 io.to(roomId).emit('opponent_disconnected');
                 room.status = 'open';
                 room.players = {};
                 room.panels = {};
+                room.units = {};
             }
             broadcastLobbyState();
             break;
         }
+    }
+}
+
+function isLegalTerritory(playerIndex, targetZ, panelDepth = PANEL_SIZE) {
+    const halfDepth = panelDepth / 2;
+    if (playerIndex === 1) {
+        return (targetZ - halfDepth) >= -0.1;
+    } else {
+        return (targetZ + halfDepth) <= 0.1;
     }
 }
 
@@ -128,7 +142,6 @@ io.on('connection', (socket) => {
 
     socket.on('leave_room', () => {
         removePlayerFromCurrentRoom(socket);
-        socket.roomID = null;
         socket.emit('left_room_success');
         broadcastLobbyState();
     });
@@ -146,6 +159,7 @@ io.on('connection', (socket) => {
         if (allReady) {
             room.status = 'in_game';
             room.panels = {};
+            room.units = {};
             broadcastLobbyState();
 
             const p1 = playerIds[0];
@@ -156,31 +170,41 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Real-time Modular Building & Demolition
+    // Validated Building
     socket.on('place_panel', (data) => {
         const room = rooms[data.roomId];
-        if (room) {
-            room.panels[data.id] = data;
-            socket.to(data.roomId).emit('opponent_build', data);
+        const player = room?.players[socket.id];
+        if (!room || !player) return;
+
+        if (!isLegalTerritory(player.playerIndex, data.pos.z, PANEL_SIZE)) {
+            socket.emit('build_error', 'Illegal placement across boundary line!');
+            return;
         }
+
+        room.panels[data.id] = data;
+        socket.to(data.roomId).emit('opponent_build', data);
     });
 
     socket.on('extend_ramp', (data) => {
         const room = rooms[data.roomId];
-        if (room) {
+        const player = room?.players[socket.id];
+        if (!room || !player) return;
+
+        const panel = room.panels[data.id];
+        if (panel) {
             socket.to(data.roomId).emit('opponent_extend_ramp', data);
         }
     });
 
     socket.on('remove_panel', (data) => {
         const room = rooms[data.roomId];
-        if (room) {
+        if (room && room.panels[data.id]) {
             delete room.panels[data.id];
             socket.to(data.roomId).emit('opponent_remove_panel', data);
         }
     });
 
-    // Combat & Unit Movement
+    // Authoritative Combat Movement & Unit Damage
     socket.on('player_move', (data) => {
         socket.to(data.roomId).emit('opponent_move', data);
     });
@@ -190,7 +214,9 @@ io.on('connection', (socket) => {
     });
 
     socket.on('destroy_unit', (data) => {
-        socket.to(data.roomId).emit('opponent_destroy', data);
+        const room = rooms[data.roomId];
+        if (!room) return;
+        io.to(data.roomId).emit('opponent_destroy', data);
     });
 
     socket.on('check_game_over', (data) => {
