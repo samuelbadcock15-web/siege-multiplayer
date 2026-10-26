@@ -208,7 +208,7 @@
   <div style="font-size: 9.5px; margin-top: 10px; color: #aaa; border-top: 1px solid #333; padding-top: 6px; line-height: 1.3;">
     [PC] W/S = Forward/Back | A/D = Turn Left/Right | Q/Z = Altitude<br>
     [Mobile] D-Pad = Move & Turn | Drag Screen = Look | Dbl-Tap = Aim/Fire<br>
-    [Building] LMB Grass = Build Panel | Pull Back to Cock -> Push Forward to Fire/Build!
+    [Building] First Grass Click = 1 Base Square (Branch Out with Shotgun Pumps)
   </div>
   <span id="status" class="sys">STATUS: STANDBY</span>
 </div>
@@ -1031,7 +1031,9 @@ function updateStatusUI() {
     if (selectedNum !== null) {
       statusText.innerText = `ACTIVE COMMAND: CANNON #${selectedNum} [HOLD RMB OR TAP TARGET TO FIRE]`;
     } else {
-      statusText.innerText = "STATUS: STANDBY (CLICK GRASS TO BUILD PANEL | CLICK CANNON TO SELECT)";
+      statusText.innerText = worldPanels.length === 0 
+        ? "STATUS: STANDBY (CLICK GRASS TO PLACE YOUR STARTING BASE SQUARE)"
+        : "STATUS: STANDBY (SELECT PANELS TO BUILD WITH SHOTGUNS | CLICK CANNON TO MOVE)";
     }
   }
 }
@@ -1246,7 +1248,7 @@ function updateMinimap() {
 }
 
 // -------------------------------------------------------------
-// CORE INTERACTION ENGINE: BASE PANEL SPAWN, MOUSE & TOUCH
+// CORE INTERACTION ENGINE: STRICT 1-BASE-SQUARE RULE
 // -------------------------------------------------------------
 function handlePointerDown(clientX, clientY, isSecondary = false) {
   if (!matchStarted || matchOver) return false;
@@ -1334,24 +1336,34 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
   const walkableHits = raycaster.intersectObjects([ground, ...worldPanels, ...bridges], true);
   if (walkableHits.length > 0) {
     const pt = walkableHits[0].point;
+    const hitObj = walkableHits[0].object;
     const selected = cannons.find(c => c.userData.selected);
+
     if (selected) {
       // Move active cannon
       selected.userData.targetPos.set(pt.x, selected.position.y, pt.z);
       socket.emit('player_move', { roomId: currentRoomId, id: selected.userData.id, tx: pt.x, tz: pt.z });
       return true;
-    } else {
-      // No Cannon Selected: First LMB on grass builds snapped starter panel!
+    } else if (hitObj.userData.isPanel) {
+      // Direct panel tap/click: Select existing panel without creating loose squares
+      selectPanel(hitObj);
+      return true;
+    } else if (worldPanels.length === 0) {
+      // STRICT RULE: ONLY 1 INITIAL BASE SQUARE ALLOWED!
+      // Once placed, missed clicks on grass will NEVER create unwanted random squares!
       const snapX = Math.round(pt.x / PANEL_SIZE) * PANEL_SIZE;
       const snapZ = Math.round(pt.z / PANEL_SIZE) * PANEL_SIZE;
       if (isWithinMyBuildingTerritory(snapZ, PANEL_SIZE)) {
         const rootPanel = placePanel('floor', new THREE.Vector3(snapX, PANEL_THICKNESS / 2, snapZ), new THREE.Euler(0, 0, 0));
         selectPanel(rootPanel);
+        updateStatusUI();
         return true;
-      } else {
-        clearShotgunHandles();
-        activeBasePanel = null;
       }
+    } else {
+      // Panel already exists: do not lay duplicate starting base squares on miss
+      clearShotgunHandles();
+      activeBasePanel = null;
+      updateStatusUI();
     }
   }
   return false;
@@ -1673,11 +1685,7 @@ function animate() {
 
     camera.position.y += (targetCameraAltitude - camera.position.y) * 0.15 * dt60;
 
-    // -------------------------------------------------------------
-    // RESTORED TANK TURNING ON A & D
-    // A turns camera left, D turns camera right
-    // W moves forward in facing direction, S moves backward
-    // -------------------------------------------------------------
+    // Tank Turning (A/D turn left/right, W/S move forward/back)
     const turnSpeed = 0.03 * dt60;
     if (keys['a'] || keys['arrowleft']) camera.rotation.y += turnSpeed;
     if (keys['d'] || keys['arrowright']) camera.rotation.y -= turnSpeed;
