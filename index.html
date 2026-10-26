@@ -606,13 +606,12 @@ const PANEL_THICKNESS = 1.0;
 const RAMP_DIAG = Math.hypot(PANEL_SIZE, WALL_HEIGHT);
 const RAMP_ANGLE = Math.atan2(WALL_HEIGHT, PANEL_SIZE);
 
-// TERRITORY RULES: Strict base protection, but allow flush meeting at Z=0 (centerline)
 function isWithinMyBuildingTerritory(targetZ, panelDepth = PANEL_SIZE) {
   const halfDepth = panelDepth / 2;
   if (myPlayerIndex === 1) {
-    return (targetZ - halfDepth) >= 0.0; // South player builds up to centerline Z = 0
+    return (targetZ - halfDepth) >= 0.0;
   } else {
-    return (targetZ + halfDepth) <= 0.0; // North player builds down to centerline Z = 0
+    return (targetZ + halfDepth) <= 0.0;
   }
 }
 
@@ -1451,10 +1450,11 @@ function updateTrajectoryArc(sourceCan, target) {
   const muzzlePos = new THREE.Vector3(0, 2.5, 0);
   sourceCan.userData.barrelPivot.localToWorld(muzzlePos);
 
-  const allObstacles = [...worldPanels, ...gameWalls];
-  const muzzleSphere = new THREE.Sphere(muzzlePos, 0.4);
+  // Target walls only (allows firing freely from under ramps/bridges)
+  const allWalls = [...worldPanels.filter(p => p.userData.panelType.startsWith('wall')), ...gameWalls];
+  const muzzleSphere = new THREE.Sphere(muzzlePos, 0.25);
   let touchesWall = false;
-  for (let w of allObstacles) {
+  for (let w of allWalls) {
     if (new THREE.Box3().setFromObject(w).intersectsSphere(muzzleSphere)) {
       touchesWall = true;
       break;
@@ -1464,7 +1464,7 @@ function updateTrajectoryArc(sourceCan, target) {
   if (touchesWall) {
     sourceCan.quaternion.copy(originalRot);
     trajectoryLine.visible = false;
-    statusText.innerText = "BARREL BLOCKED BY RAMP / WALL!";
+    statusText.innerText = "BARREL BLOCKED BY WALL!";
     statusText.style.color = "#ff4444";
     return;
   }
@@ -1494,9 +1494,10 @@ function spawnProjectile(sourceCan, target, isRemote = false) {
   const muzzleCheck = new THREE.Vector3(0, 2.5, 0);
   sourceCan.userData.barrelPivot.localToWorld(muzzleCheck);
 
-  const allObstacles = [...worldPanels, ...gameWalls];
-  const muzzleSphere = new THREE.Sphere(muzzleCheck, 0.5);
-  for (let w of allObstacles) {
+  // Target walls only (allows firing freely from under ramps/bridges)
+  const allWalls = [...worldPanels.filter(p => p.userData.panelType.startsWith('wall')), ...gameWalls];
+  const muzzleSphere = new THREE.Sphere(muzzleCheck, 0.25);
+  for (let w of allWalls) {
     if (new THREE.Box3().setFromObject(w).intersectsSphere(muzzleSphere)) {
       statusText.innerText = "CANNOT FIRE: BARREL IS OBSTRUCTED!";
       statusText.style.color = "#ff4444";
