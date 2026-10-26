@@ -116,7 +116,7 @@
     box-shadow: 0 0 20px #00ff00; font-weight: 900;
   }
 
-  /* Mobile Aim Mode Switcher */
+  /* Mobile Aim Mode Switcher with Disabled State */
   #mobile-aim-toggle {
     position: absolute; bottom: 45px; right: 90px; width: 85px; height: 85px;
     border-radius: 50%; background: rgba(15, 23, 42, 0.9); border: 3px solid #ff4400;
@@ -124,11 +124,14 @@
     flex-direction: column; align-items: center; justify-content: center;
     z-index: 260; box-shadow: 0 0 20px rgba(255, 68, 0, 0.4); text-align: center;
     line-height: 1.1; touch-action: none; cursor: pointer; user-select: none;
-    -webkit-user-select: none;
+    -webkit-user-select: none; transition: all 0.2s ease;
+  }
+  #mobile-aim-toggle.disabled {
+    border-color: #475569; color: #475569; opacity: 0.35; box-shadow: none; cursor: not-allowed;
   }
   #mobile-aim-toggle.active {
     background: #ff4400; color: #fff; border-color: #ffd700;
-    box-shadow: 0 0 25px #ff4400;
+    box-shadow: 0 0 25px #ff4400; opacity: 1.0;
   }
 
   /* Mobile Vertical Build Mode Slider Container */
@@ -265,7 +268,7 @@
   <div></div>
 </div>
 
-<!-- Dedicated Look Pad (Active only when a panel is selected) -->
+<!-- Dedicated Look Pad -->
 <div id="panel-lookpad">DRAG TO LOOK<br><span style="font-size: 9px; opacity: 0.7;">(PANEL ACTIVE)</span></div>
 
 <!-- Mobile Vertical Build Mode Slider Container with Top Deselect Button -->
@@ -282,8 +285,8 @@
 <!-- Mobile Cannon Deselect Button -->
 <div id="mobile-deselect-btn">DESELECT</div>
 
-<!-- Mobile Fire / Aim Mode Switcher -->
-<div id="mobile-aim-toggle">
+<!-- Mobile Fire / Aim Mode Switcher with Disabled Initial State -->
+<div id="mobile-aim-toggle" class="disabled">
   <span>AIM</span>
   <span style="font-size: 9px;">& FIRE</span>
 </div>
@@ -665,7 +668,7 @@ function clearShotgunHandles() {
   pumpStage = 'idle';
   pumpHud.style.display = 'none';
   mobileBuildSlider.style.display = 'none';
-  panelLookpad.style.display = 'none'; // Cleanly hides mobile look pad on deselect
+  panelLookpad.style.display = 'none';
 }
 
 function createShotgunHandle(dirVector, modeColor, id, isExtender = false, isLevelOut = false) {
@@ -1211,6 +1214,17 @@ const mobileAimToggle = document.getElementById('mobile-aim-toggle');
 const mobileDeselectBtn = document.getElementById('mobile-deselect-btn');
 
 function setMobileAimMode(active) {
+  const selectedCannon = cannons.find(c => c.userData.selected);
+  // CRITICAL FIX: Only allow aim mode when a cannon is actually selected!
+  if (active && !selectedCannon) {
+    mobileAimModeActive = false;
+    mobileAimToggle.classList.remove('active');
+    statusText.innerText = "SELECT A CANNON FIRST BEFORE AIMING!";
+    statusText.style.color = "#ff4444";
+    setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2000);
+    return;
+  }
+
   mobileAimModeActive = active;
   if (mobileAimModeActive) {
     mobileAimToggle.classList.add('active');
@@ -1227,6 +1241,13 @@ function setMobileAimMode(active) {
 mobileAimToggle.onclick = (e) => {
   e.preventDefault();
   e.stopPropagation();
+  const selectedCannon = cannons.find(c => c.userData.selected);
+  if (!selectedCannon) {
+    statusText.innerText = "SELECT A CANNON FIRST BEFORE AIMING!";
+    statusText.style.color = "#ff4444";
+    setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2000);
+    return;
+  }
   setMobileAimMode(!mobileAimModeActive);
 };
 
@@ -1298,10 +1319,15 @@ function updateStatusUI() {
     if (can.userData.selected) selectedNum = can.userData.unitNum;
   });
 
+  // CRITICAL FIX: Lock & dim the Aim/Fire button visually if no cannon is selected
   if (selectedNum !== null) {
     mobileDeselectBtn.classList.add('active');
+    mobileAimToggle.classList.remove('disabled');
   } else {
     mobileDeselectBtn.classList.remove('active');
+    mobileAimToggle.classList.add('disabled');
+    mobileAimToggle.classList.remove('active');
+    mobileAimModeActive = false;
   }
 
   if (matchStarted && statusText.innerText !== "STATUS: MATCH STARTED!") {
@@ -1538,6 +1564,7 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
 
   const selectedCannon = cannons.find(c => c.userData.selected);
 
+  // Allow aiming only if a cannon is actively selected
   if (isSecondary || (mobileAimModeActive && selectedCannon)) {
     if (selectedCannon) {
       const combatHits = raycaster.intersectObjects([ground, river, ...bridges, ...worldPanels, ...gameWalls, ...opponentCannons], true);
@@ -1623,7 +1650,6 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
       socket.emit('player_move', { roomId: currentRoomId, id: selectedCannon.userData.id, tx: pt.x, tz: pt.z });
       return true;
     } else if (hitObj.userData.isPanel) {
-      // Tap another panel switches directly to that panel!
       selectPanel(hitObj);
       return true;
     } else if (worldPanels.length === 0) {
@@ -1636,8 +1662,6 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
         return true;
       }
     } else {
-      // If a panel is currently active, tapping blank grass doesn't accidentally drop it!
-      // To deselect, users hit the DESELECT button or select a cannon.
       if (!activeBasePanel) {
         clearShotgunHandles();
         updateStatusUI();
@@ -1845,7 +1869,6 @@ window.addEventListener('touchstart', (e) => {
 
   const hitSpecial = handlePointerDown(t.clientX, t.clientY, false);
   if (!hitSpecial && !mobileAimModeActive) {
-    // If a panel is currently active, don't initiate wild screen-drag looks from field taps
     if (!activeBasePanel) {
       isTouchLooking = true;
     }
