@@ -102,7 +102,7 @@
 <div id="lobby-screen">
     <div class="lobby-header">
         <h1>SIEGE: CLEAR HORIZONS</h1>
-        <p>Tactical Ballistics & Modular Fortifications | Ready up to deploy!</p>
+        <p>Continuous Pump-Action Fortifications | Ready up to deploy!</p>
     </div>
     <div id="lobbies-grid"></div>
 </div>
@@ -133,7 +133,7 @@
   <div style="font-size: 10px; margin-top: 15px; color: #aaa; border-top: 1px solid #333; padding-top: 8px; line-height: 1.4;">
     [Scroll Wheel] Camera Height (Back = Skyward | Forward = Ground)<br>
     [R Key] Cycle Build Mode (Floor / Wall / Ramp)<br>
-    [Shotgun Rapid-Build] Hold LMB -> Pull back to Cock -> Push forward to Fire!<br>
+    [HOLD LMB on Shotgun] Pull back to Cock -> Push forward to Fire! (Repeat without letting go!)<br>
     [Hold RMB Cannon] Preview Arc Trajectory -> Release to Fire!
   </div>
   <span id="status" class="sys">STATUS: STANDBY</span>
@@ -200,7 +200,7 @@ const light = new THREE.DirectionalLight(0xffffff, 1.5);
 light.position.set(100, 100, 50);
 scene.add(light, new THREE.AmbientLight(0x606060));
 
-// Boundaries & River
+// Board Boundaries & River
 const boardSize = 600;
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(boardSize, boardSize), new THREE.MeshStandardMaterial({ color: 0x3a5a2a }));
 ground.rotation.x = -Math.PI / 2;
@@ -320,14 +320,16 @@ const panelMaterials = {
 
 const worldPanels = [];
 const shotgunHandles = [];
-let activeBasePanel = null;
-let currentShotgunAnchor = null; // Stays fixed for multiple rapid builds
 
-// Gesture State Engine
+// Chain-Building Anchor References
+let activeBasePanel = null;     // The root panel where handles originate
+let frontierPanel = null;       // The leading edge panel where new pieces branch off
+let fixedHandleAnchor = null;   // The stationary world coordinate of the handles
+
+// Reciprocating Pump Engine
 let pumpingShotgun = null;
 let pumpStartMouse = { x: 0, y: 0 };
 let isCocked = false;
-let currentAction = 'none';
 
 const pumpHud = document.getElementById('pump-hud');
 const pumpBar = document.getElementById('pump-bar');
@@ -337,7 +339,7 @@ function clearShotgunHandles() {
     shotgunHandles.forEach(h => scene.remove(h));
     shotgunHandles.length = 0;
     pumpingShotgun = null;
-    currentShotgunAnchor = null;
+    fixedHandleAnchor = null;
     isCocked = false;
     pumpHud.style.display = 'none';
 }
@@ -407,18 +409,24 @@ function createShotgunHandle(dirVector, modeColor, id, isExtender = false, isLev
     return gunGroup;
 }
 
+// Render Shotguns: NEVER MOVES FROM THE FIXED ORIGIN UNLESS USER CLICKS A NEW PANEL
 function renderPanelHandles(panel, retainAnchor = false) {
-    if (!retainAnchor || !currentShotgunAnchor) {
-        currentShotgunAnchor = panel.position.clone();
+    if (!panel) {
+        clearShotgunHandles();
+        return;
     }
-    
+
+    if (!retainAnchor || !fixedHandleAnchor) {
+        fixedHandleAnchor = panel.position.clone();
+    }
+
+    // Remove old handles
     shotgunHandles.forEach(h => scene.remove(h));
     shotgunHandles.length = 0;
-    if (!panel) return;
 
     const pType = panel.userData.panelType;
     const mode = panel.userData.buildMode || 1;
-    const pos = currentShotgunAnchor.clone(); // Keep fixed in space
+    const pos = fixedHandleAnchor.clone(); // Stays strictly stationary
     const half = PANEL_SIZE / 2;
     const color = mode === 1 ? 0x22c55e : (mode === 2 ? 0x0ea5e9 : 0xf97316);
 
@@ -440,6 +448,7 @@ function renderPanelHandles(panel, retainAnchor = false) {
         const inclineSlope = new THREE.Vector3(dirX * Math.cos(RAMP_ANGLE), Math.sin(RAMP_ANGLE), dirZ * Math.cos(RAMP_ANGLE)).normalize();
         const rampNormal = new THREE.Vector3(0, 1, 0).applyEuler(panel.rotation);
 
+        // Fixed Foot of the Ramp (Never jumps)
         const footPos = new THREE.Vector3(
             pos.x - dirX * (totalRun / 2),
             pos.y - (totalRise / 2),
@@ -450,27 +459,24 @@ function renderPanelHandles(panel, retainAnchor = false) {
             .addScaledVector(inclineSlope, 2.2)
             .addScaledVector(rampNormal, 1.4);
         
-        const extenderOffset = extenderPos.clone().sub(pos);
-
         configs.push({
             id: 'ramp_extend',
             dir: inclineSlope,
-            offset: extenderOffset,
+            offset: extenderPos.clone().sub(pos),
             isExtender: true,
             isLevelOut: false
         });
 
+        // The only shotgun that moves is the summit level-out!
         const summitPos = new THREE.Vector3(
             footPos.x + dirX * totalRun,
             footPos.y + totalRise,
             footPos.z + dirZ * totalRun
         );
-        const summitOffset = summitPos.clone().add(new THREE.Vector3(0, 0.6, 0)).sub(pos);
-
         configs.push({
             id: 'ramp_level_flat',
             dir: horizontalDir,
-            offset: summitOffset,
+            offset: summitPos.clone().add(new THREE.Vector3(0, 0.6, 0)).sub(pos),
             isExtender: false,
             isLevelOut: true
         });
@@ -544,9 +550,12 @@ function updatePanelVisualMode(panel) {
     renderPanelHandles(panel, true);
 }
 
-function selectPanel(panel, resetAnchor = true) {
+function selectPanel(panel, resetOrigin = true) {
     activeBasePanel = panel;
-    if (resetAnchor) currentShotgunAnchor = panel.position.clone();
+    frontierPanel = panel;
+    if (resetOrigin) {
+        fixedHandleAnchor = panel.position.clone();
+    }
     if (!panel.userData.buildMode) panel.userData.buildMode = 1;
     updatePanelVisualMode(panel);
 }
@@ -698,6 +707,7 @@ function undoDemolishPanel(panel, isRemote = false) {
 
         clearShotgunHandles();
         activeBasePanel = null;
+        frontierPanel = null;
 
         if (!isRemote) {
             socket.emit('remove_panel', {
@@ -733,6 +743,7 @@ socket.on('opponent_build', (data) => {
     );
 });
 
+// CONTINUOUS EXTENSION: Places piece at the FRONTIER, but keeps the handles fixed at the ANCHOR!
 function triggerBranchBuild(parentPanel, gunId) {
     if (gunId === 'ramp_extend' && parentPanel.userData.panelType === 'ramp') {
         extendRampDirectly(parentPanel);
@@ -764,14 +775,14 @@ function triggerBranchBuild(parentPanel, gunId) {
         }
 
         const levelFloor = placePanel('floor', flatPos, new THREE.Euler(0, 0, 0));
-        activeBasePanel = levelFloor;
-        // Keep handles anchored in place for rapid placement
-        renderPanelHandles(levelFloor, true);
+        frontierPanel = levelFloor;
         return;
     }
 
-    const pType = parentPanel.userData.panelType;
-    const basePos = parentPanel.position.clone();
+    // Branch from the leading frontier panel
+    const source = frontierPanel || parentPanel;
+    const pType = source.userData.panelType;
+    const basePos = source.position.clone();
     let newPos = basePos.clone();
     let newRot = new THREE.Euler(0, 0, 0);
     let buildType = 'floor';
@@ -842,10 +853,8 @@ function triggerBranchBuild(parentPanel, gunId) {
         return;
     }
 
-    const spawned = placePanel(buildType, newPos, newRot);
-    activeBasePanel = spawned;
-    // Rapid placement: do not change anchor!
-    renderPanelHandles(spawned, true);
+    // Spawn panel, update frontier tip, and KEEP HANDLES ANCHORED AT FIXED SPOT!
+    frontierPanel = placePanel(buildType, newPos, newRot);
 }
 
 // Units & Cannon System
@@ -1173,7 +1182,7 @@ window.onmousedown = (e) => {
     if (e.button === 0) {
         raycaster.setFromCamera(mouse, camera);
 
-        // 1. Click Shotgun Handle -> Begin Gestural Cocking
+        // 1. Grab Shotgun Handle -> Begin Continuous Pump Session
         const gunIntersects = raycaster.intersectObjects(shotgunHandles, true);
         if (gunIntersects.length > 0) {
             let hitObj = gunIntersects[0].object;
@@ -1182,10 +1191,9 @@ window.onmousedown = (e) => {
                 pumpingShotgun = hitObj;
                 pumpStartMouse = { x: e.clientX, y: e.clientY };
                 isCocked = false;
-                currentAction = 'none';
 
                 pumpHud.style.display = 'block';
-                pumpText.innerText = "PULL BACK TO COCK SHOTGUN...";
+                pumpText.innerText = "PULL BACK TO COCK...";
                 pumpText.style.color = "#ffd700";
                 pumpBar.style.width = '0%';
                 pumpBar.style.background = '#ffd700';
@@ -1208,6 +1216,7 @@ window.onmousedown = (e) => {
             }
             clearShotgunHandles();
             activeBasePanel = null;
+            frontierPanel = null;
             updateStatusUI();
             return;
         }
@@ -1230,6 +1239,7 @@ window.onmousedown = (e) => {
             } else {
                 clearShotgunHandles();
                 activeBasePanel = null;
+                frontierPanel = null;
             }
         }
     }
@@ -1257,6 +1267,7 @@ window.onmousedown = (e) => {
     }
 };
 
+// Continuous Reciprocating Pump Engine: NEVER RELEASING LMB!
 window.onmousemove = (e) => {
     mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
@@ -1271,7 +1282,6 @@ window.onmousemove = (e) => {
         }
     }
 
-    // 2-Stage Gestural Cocking & Forward Fire Release
     if (pumpingShotgun && activeBasePanel) {
         const gunWorldPos = pumpingShotgun.position.clone();
         const dirEndpoint = gunWorldPos.clone().add(pumpingShotgun.userData.dirVector.clone().multiplyScalar(4));
@@ -1294,10 +1304,9 @@ window.onmousemove = (e) => {
             const shellGroup = pumpingShotgun.userData.shellGroup;
             const initialY = pumpingShotgun.userData.initialPumpY;
 
-            // STAGE 1: PULL BACK TO COCK
-            if (dragAlongAxis < -40 && !isCocked) {
+            // 1. PULL BACK: COCK THE SPRING & LOAD SHELL
+            if (dragAlongAxis < -35 && !isCocked) {
                 isCocked = true;
-                currentAction = 'fire';
                 pumpSlide.position.y = initialY - 1.1;
                 shellGroup.scale.set(1.0, 1.0, 1.0);
                 shellGroup.position.set(0, 0.6, 0.1);
@@ -1306,25 +1315,26 @@ window.onmousemove = (e) => {
                 pumpText.innerText = "★ COCKED! PUSH FORWARD TO FIRE! ★";
                 pumpText.style.color = "#00ff00";
             }
-            // STAGE 2: ONCE COCKED, FLICK FORWARD TO TRIGGER FIRE
-            else if (isCocked && dragAlongAxis > 15) {
+            // 2. WHILE STILL HOLDING LMB, PUSH FORWARD -> FIRE!
+            else if (isCocked && dragAlongAxis > 10) {
                 pumpingShotgun.userData.recoilTimer = 1.0;
                 pumpingShotgun.userData.flash.material.opacity = 1.0;
                 const firedGunId = pumpingShotgun.userData.arrowId;
-                
+
+                // Fire panel out at the frontier tip!
                 triggerBranchBuild(activeBasePanel, firedGunId);
 
-                // Reset slide state for immediate follow-up pump without losing screen location
+                // Instantly reset the cycle without releasing mouse so player can pump again!
+                isCocked = false;
                 pumpSlide.position.y = initialY;
                 shellGroup.scale.set(0.001, 0.001, 0.001);
-                pumpingShotgun.position.copy(pumpingShotgun.userData.originalLocalPos);
-                pumpingShotgun = null;
-                isCocked = false;
-                currentAction = 'none';
-                pumpHud.style.display = 'none';
-                return;
+                pumpStartMouse = { x: e.clientX, y: e.clientY }; // Anchor mouse position for next stroke
+                pumpBar.style.width = '0%';
+                pumpBar.style.background = '#ffd700';
+                pumpText.innerText = "BAM! PULL BACK TO PUMP AGAIN...";
+                pumpText.style.color = "#ffd700";
             }
-            // UNDO / DEMOLISH: DIRECT FORWARD PUSH WITHOUT COCKING
+            // 3. UNDO / DEMOLISH: DIRECT FORWARD PUSH FROM NEUTRAL WITHOUT COCKING
             else if (!isCocked && dragAlongAxis > 50) {
                 pumpingShotgun.userData.recoilTimer = 1.0;
                 pumpingShotgun.userData.flash.material.opacity = 1.0;
@@ -1335,14 +1345,12 @@ window.onmousemove = (e) => {
                 pumpingShotgun.position.copy(pumpingShotgun.userData.originalLocalPos);
                 pumpingShotgun = null;
                 isCocked = false;
-                currentAction = 'none';
                 pumpHud.style.display = 'none';
-                return;
             }
-            // VISUAL INTERMEDIATE SLIDE MOVEMENT
+            // Visual drag feedback
             else if (!isCocked) {
                 const pullBackDist = Math.max(0, -dragAlongAxis);
-                const prog = Math.min(1.0, pullBackDist / 40);
+                const prog = Math.min(1.0, pullBackDist / 35);
                 pumpSlide.position.y = initialY - (prog * 1.1);
                 const s = Math.min(1.0, prog * 1.5);
                 shellGroup.scale.set(s, s, s);
@@ -1364,13 +1372,13 @@ window.onmouseup = (e) => {
         return;
     }
 
+    // Letting go of LMB concludes the pumping stream
     if (e.button === 0 && pumpingShotgun) {
         pumpingShotgun.userData.pumpSlide.position.y = pumpingShotgun.userData.initialPumpY;
         pumpingShotgun.userData.shellGroup.scale.set(0.001, 0.001, 0.001);
         pumpingShotgun.position.copy(pumpingShotgun.userData.originalLocalPos);
         pumpingShotgun = null;
         isCocked = false;
-        currentAction = 'none';
         pumpHud.style.display = 'none';
     }
 };
@@ -1393,6 +1401,7 @@ window.onkeydown = (e) => {
         deselectAllCannons();
         clearShotgunHandles();
         activeBasePanel = null;
+        frontierPanel = null;
     }
 };
 window.onkeyup = (e) => { keys[e.key.toLowerCase()] = false; };
