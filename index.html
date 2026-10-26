@@ -75,7 +75,7 @@
     cursor: grab; pointer-events: none;
   }
 
-  /* Ergonomic Positioned Extra-Large Mobile D-Pad */
+  /* Ergonomic Mobile D-Pad */
   #mobile-dpad {
     position: absolute; bottom: 35px; left: 55px; width: 220px; height: 220px;
     z-index: 260; display: none; grid-template-columns: repeat(3, 1fr);
@@ -89,7 +89,20 @@
   }
   .dpad-btn:active { background: #ffd700; color: #000; transform: scale(0.92); }
 
-  /* Mobile Deselect Button */
+  /* Mobile Look Pad: Dedicated look area active only during panel selection */
+  #panel-lookpad {
+    position: absolute; bottom: 270px; left: 55px; width: 220px; height: 110px;
+    border-radius: 18px; background: rgba(15, 23, 42, 0.85); border: 2px dashed #00ffcc;
+    z-index: 270; display: none; align-items: center; justify-content: center;
+    color: #00ffcc; font-size: 12px; font-weight: 900; letter-spacing: 1.5px;
+    touch-action: none; user-select: none; -webkit-user-select: none;
+    box-shadow: 0 0 20px rgba(0, 255, 204, 0.35); text-align: center;
+  }
+  #panel-lookpad:active {
+    background: rgba(0, 255, 204, 0.15); border-style: solid;
+  }
+
+  /* Mobile Cannon Deselect Button */
   #mobile-deselect-btn {
     position: absolute; bottom: 140px; right: 90px; width: 85px; height: 50px;
     border-radius: 25px; background: rgba(15, 23, 42, 0.85); border: 2px solid #555e75;
@@ -118,21 +131,30 @@
     box-shadow: 0 0 25px #ff4400;
   }
 
-  /* Tactical Vertical Build Mode Slider (Positioned directly above Deselect button) */
+  /* Mobile Vertical Build Mode Slider Container */
   #mobile-build-slider {
-    position: absolute; bottom: 202px; right: 90px; width: 85px; height: 165px;
+    position: absolute; bottom: 202px; right: 90px; width: 85px; height: 215px;
     background: rgba(10, 15, 26, 0.94); border: 2px solid #ffd700; border-radius: 20px;
     display: none; flex-direction: column; align-items: center; justify-content: space-between;
     padding: 8px 6px; z-index: 260; box-shadow: 0 0 25px rgba(0,0,0,0.7);
     touch-action: none; user-select: none; -webkit-user-select: none;
   }
+  #panel-deselect-btn {
+    width: 100%; padding: 6px 0; background: #ff3344; color: #ffffff;
+    border: 1px solid #ffffff; border-radius: 8px; font-size: 9px; font-weight: 900;
+    letter-spacing: 1px; cursor: pointer; text-align: center; margin-bottom: 4px;
+    box-shadow: 0 0 10px rgba(255, 51, 68, 0.4);
+  }
+  #panel-deselect-btn:active {
+    background: #ffffff; color: #000;
+  }
   .build-slider-title {
-    font-size: 9px; font-weight: 900; color: #ffd700; letter-spacing: 1px; text-align: center;
+    font-size: 8.5px; font-weight: 900; color: #ffd700; letter-spacing: 1px; text-align: center;
     pointer-events: none;
   }
   #build-track {
     position: relative; flex: 1; width: 100%; display: flex; flex-direction: column;
-    justify-content: space-between; margin: 4px 0; cursor: pointer;
+    justify-content: space-between; margin: 4px 0 0 0; cursor: pointer;
   }
   .build-segment {
     flex: 1; display: flex; align-items: center; justify-content: center; font-size: 10px;
@@ -243,8 +265,12 @@
   <div></div>
 </div>
 
-<!-- Mobile Vertical Build Mode Slider (Starts on selected panel mode) -->
+<!-- Dedicated Look Pad (Active only when a panel is selected) -->
+<div id="panel-lookpad">DRAG TO LOOK<br><span style="font-size: 9px; opacity: 0.7;">(PANEL ACTIVE)</span></div>
+
+<!-- Mobile Vertical Build Mode Slider Container with Top Deselect Button -->
 <div id="mobile-build-slider">
+  <button id="panel-deselect-btn">DESELECT</button>
   <div class="build-slider-title">BUILD MODE</div>
   <div id="build-track">
     <div class="build-segment active" id="seg-floor" data-mode="1">FLOOR</div>
@@ -253,7 +279,7 @@
   </div>
 </div>
 
-<!-- Mobile Deselect Button -->
+<!-- Mobile Cannon Deselect Button -->
 <div id="mobile-deselect-btn">DESELECT</div>
 
 <!-- Mobile Fire / Aim Mode Switcher -->
@@ -278,8 +304,8 @@
     </div>
   </div>
   <div style="font-size: 9.5px; margin-top: 10px; color: #aaa; border-top: 1px solid #333; padding-top: 6px; line-height: 1.3;">
-    [PC] W/S = Move | A/D = Turn | Q/Z = Altitude | Mouse Wheel = Cycle Build Mode<br>
-    [Mobile] D-Pad = Move | Drag Screen = Look | Build Slider = Switch Floor/Wall/Ramp<br>
+    [PC] W/S = Move | A/D = Turn | Q/Z = Altitude | Wheel = Build Mode<br>
+    [Mobile] D-Pad = Move | Dedicated Look Pad = Inspect | Deselect Button = Exit Build<br>
     [Shotgun Racking] Pull Back to Cock -> Push Forward to Fire/Build!
   </div>
   <span id="status" class="sys">STATUS: STANDBY</span>
@@ -404,13 +430,15 @@ window.addEventListener('mouseup', () => {
 });
 
 // -------------------------------------------------------------
-// MOBILE VERTICAL BUILD MODE SLIDER WIDGET
+// MOBILE VERTICAL BUILD MODE SLIDER & LOOK PAD REFS
 // -------------------------------------------------------------
 const mobileBuildSlider = document.getElementById('mobile-build-slider');
+const panelDeselectBtn = document.getElementById('panel-deselect-btn');
 const buildTrack = document.getElementById('build-track');
 const segFloor = document.getElementById('seg-floor');
 const segWall = document.getElementById('seg-wall');
 const segRamp = document.getElementById('seg-ramp');
+const panelLookpad = document.getElementById('panel-lookpad');
 
 function updateBuildSliderUI(mode) {
   segFloor.classList.remove('active');
@@ -443,22 +471,55 @@ function handleBuildSliderTouch(clientY) {
   }
 }
 
-mobileBuildSlider.addEventListener('touchstart', (e) => {
+buildTrack.addEventListener('touchstart', (e) => {
   e.preventDefault();
   e.stopPropagation();
   handleBuildSliderTouch(e.touches[0].clientY);
 }, { passive: false });
 
-mobileBuildSlider.addEventListener('touchmove', (e) => {
+buildTrack.addEventListener('touchmove', (e) => {
   e.preventDefault();
   e.stopPropagation();
   handleBuildSliderTouch(e.touches[0].clientY);
 }, { passive: false });
+
+// Deselect button on top of build slider
+panelDeselectBtn.onclick = (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  clearShotgunHandles();
+  activeBasePanel = null;
+  updateStatusUI();
+};
 
 // PC click fallback for build segments
 segFloor.onclick = (e) => { e.stopPropagation(); setBuildModeDirect(1); };
 segWall.onclick = (e) => { e.stopPropagation(); setBuildModeDirect(2); };
 segRamp.onclick = (e) => { e.stopPropagation(); setBuildModeDirect(3); };
+
+// Dedicated Panel Look Pad Touch Handler
+let lookPadLast = { x: 0, y: 0 };
+panelLookpad.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  lookPadLast.x = e.touches[0].clientX;
+  lookPadLast.y = e.touches[0].clientY;
+}, { passive: false });
+
+panelLookpad.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  const t = e.touches[0];
+  const dx = t.clientX - lookPadLast.x;
+  const dy = t.clientY - lookPadLast.y;
+
+  camera.rotation.y -= dx * 0.006;
+  camera.rotation.x = Math.max(-Math.PI / 3, Math.min(Math.PI / 4, camera.rotation.x - dy * 0.005));
+  camera.rotation.z = 0;
+
+  lookPadLast.x = t.clientX;
+  lookPadLast.y = t.clientY;
+}, { passive: false });
 
 // Lighting
 const light = new THREE.DirectionalLight(0xffffff, 1.5);
@@ -603,7 +664,8 @@ function clearShotgunHandles() {
   pumpingShotgun = null;
   pumpStage = 'idle';
   pumpHud.style.display = 'none';
-  mobileBuildSlider.style.display = 'none'; // Hide build mode slider when deselecting panels
+  mobileBuildSlider.style.display = 'none';
+  panelLookpad.style.display = 'none'; // Cleanly hides mobile look pad on deselect
 }
 
 function createShotgunHandle(dirVector, modeColor, id, isExtender = false, isLevelOut = false) {
@@ -681,12 +743,15 @@ function renderPanelHandles(panel) {
   const half = PANEL_SIZE / 2;
   const color = mode === 1 ? 0x22c55e : (mode === 2 ? 0x0ea5e9 : 0xf97316);
 
-  // Show the mobile build slider whenever a standard floor/base panel is selected
+  // Show the mobile build slider & look pad whenever a panel is selected
+  const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
   if (pType === 'floor') {
     mobileBuildSlider.style.display = 'flex';
     updateBuildSliderUI(mode);
+    if (isTouch) panelLookpad.style.display = 'flex';
   } else {
     mobileBuildSlider.style.display = 'none';
+    if (isTouch) panelLookpad.style.display = 'flex';
   }
 
   let configs = [];
@@ -1222,7 +1287,7 @@ function deselectAllCannons() {
   });
   trajectoryLine.visible = false;
   isAimingCannon = false;
-  setMobileAimMode(false); // Reset aim button state on deselect
+  setMobileAimMode(false);
   updateStatusUI();
 }
 
@@ -1233,7 +1298,6 @@ function updateStatusUI() {
     if (can.userData.selected) selectedNum = can.userData.unitNum;
   });
 
-  // Update Deselect Button Visual Status
   if (selectedNum !== null) {
     mobileDeselectBtn.classList.add('active');
   } else {
@@ -1559,6 +1623,7 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
       socket.emit('player_move', { roomId: currentRoomId, id: selectedCannon.userData.id, tx: pt.x, tz: pt.z });
       return true;
     } else if (hitObj.userData.isPanel) {
+      // Tap another panel switches directly to that panel!
       selectPanel(hitObj);
       return true;
     } else if (worldPanels.length === 0) {
@@ -1571,9 +1636,12 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
         return true;
       }
     } else {
-      clearShotgunHandles();
-      activeBasePanel = null;
-      updateStatusUI();
+      // If a panel is currently active, tapping blank grass doesn't accidentally drop it!
+      // To deselect, users hit the DESELECT button or select a cannon.
+      if (!activeBasePanel) {
+        clearShotgunHandles();
+        updateStatusUI();
+      }
     }
   }
   return false;
@@ -1727,7 +1795,7 @@ let isTouchDeviceActive = false;
 
 window.onmousedown = (e) => {
   if (isTouchDeviceActive) return;
-  if (e.target.closest('#ui') || e.target.closest('#lobby-screen') || e.target.closest('#camera-altitude-control') || e.target.closest('#mobile-dpad') || e.target.closest('#mobile-aim-toggle') || e.target.closest('#mobile-deselect-btn') || e.target.closest('#mobile-build-slider')) return;
+  if (e.target.closest('#ui') || e.target.closest('#lobby-screen') || e.target.closest('#camera-altitude-control') || e.target.closest('#mobile-dpad') || e.target.closest('#mobile-aim-toggle') || e.target.closest('#mobile-deselect-btn') || e.target.closest('#mobile-build-slider') || e.target.closest('#panel-lookpad')) return;
 
   if (e.target === minimapCanvas && e.button === 0) {
     const rect = minimapCanvas.getBoundingClientRect();
@@ -1765,7 +1833,7 @@ let activeTouchId = null;
 
 window.addEventListener('touchstart', (e) => {
   isTouchDeviceActive = true;
-  if (e.target.closest('#ui') || e.target.closest('#lobby-screen') || e.target.closest('#camera-altitude-control') || e.target.closest('#mobile-dpad') || e.target.closest('#mobile-aim-toggle') || e.target.closest('#mobile-deselect-btn') || e.target.closest('#mobile-build-slider')) return;
+  if (e.target.closest('#ui') || e.target.closest('#lobby-screen') || e.target.closest('#camera-altitude-control') || e.target.closest('#mobile-dpad') || e.target.closest('#mobile-aim-toggle') || e.target.closest('#mobile-deselect-btn') || e.target.closest('#mobile-build-slider') || e.target.closest('#panel-lookpad')) return;
 
   const t = e.touches[0];
   activeTouchId = t.identifier;
@@ -1777,7 +1845,10 @@ window.addEventListener('touchstart', (e) => {
 
   const hitSpecial = handlePointerDown(t.clientX, t.clientY, false);
   if (!hitSpecial && !mobileAimModeActive) {
-    isTouchLooking = true;
+    // If a panel is currently active, don't initiate wild screen-drag looks from field taps
+    if (!activeBasePanel) {
+      isTouchLooking = true;
+    }
   }
 }, { passive: false });
 
@@ -1789,13 +1860,8 @@ window.addEventListener('touchmove', (e) => {
       const dy = t.clientY - touchLastPos.y;
 
       if (isTouchLooking && !pumpingShotgun && !isAimingCannon) {
-        // Look Left & Right (Yaw)
         camera.rotation.y -= dx * 0.005;
-
-        // Look Up & Down (Pitch), clamped safely
         camera.rotation.x = Math.max(-Math.PI / 3, Math.min(Math.PI / 4, camera.rotation.x - dy * 0.004));
-
-        // Hard-lock roll to zero to keep horizon perfectly flat
         camera.rotation.z = 0;
       } else {
         handlePointerMove(t.clientX, t.clientY);
