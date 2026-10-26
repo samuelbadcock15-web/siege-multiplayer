@@ -2,55 +2,75 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Disable native pinch-to-zoom and double-tap zoom on mobile -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Siege - Clear Horizons Tactical Edition</title>
 <style>
-  body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Courier New', Courier, monospace; cursor: crosshair; user-select: none; }
-  #ui { position: absolute; top: 15px; left: 15px; color: white; background: rgba(15, 15, 20, 0.95); padding: 18px; border-radius: 8px; border: 2px solid #ffd700; width: 440px; z-index: 101; box-shadow: 0 0 30px rgba(0,0,0,0.7); display: none; }
-  #minimap-container { position: absolute; top: 15px; right: 15px; width: 200px; height: 200px; background: rgba(0, 0, 0, 0.7); border: 2px solid #ffcc00; border-radius: 4px; z-index: 100; overflow: hidden; display: none; }
+  * { touch-action: manipulation; box-sizing: border-box; }
+  body { 
+    margin: 0; 
+    overflow: hidden; 
+    background: #87CEEB; 
+    font-family: 'Courier New', Courier, monospace; 
+    cursor: crosshair; 
+    user-select: none; 
+    -webkit-user-select: none; 
+    -webkit-touch-callout: none;
+    touch-action: none; 
+  }
+  #ui { 
+    position: absolute; top: 15px; left: 15px; color: white; background: rgba(15, 15, 20, 0.95); 
+    padding: 14px; border-radius: 8px; border: 2px solid #ffd700; width: min(440px, 90vw); 
+    z-index: 101; box-shadow: 0 0 30px rgba(0,0,0,0.7); display: none; pointer-events: auto;
+  }
+  #minimap-container { 
+    position: absolute; top: 15px; right: 80px; width: 120px; height: 120px; 
+    background: rgba(0, 0, 0, 0.7); border: 2px solid #ffcc00; border-radius: 4px; 
+    z-index: 100; overflow: hidden; display: none; 
+  }
   #minimap { width: 100%; height: 100%; cursor: crosshair; }
   .ca { color: #ffd700; font-weight: bold; letter-spacing: 2px; }
-  .sys { color: #00ff00; font-size: 12px; margin-top: 12px; display: block; text-align: center; border-top: 1px dashed #444; padding-top: 10px; }
-  hr { border: 0; border-top: 1px solid #ffd700; margin: 10px 0; }
-  .info-grid { display: flex; gap: 15px; text-align: left; margin-top: 8px; }
+  .sys { color: #00ff00; font-size: 11px; margin-top: 8px; display: block; text-align: center; border-top: 1px dashed #444; padding-top: 6px; }
+  hr { border: 0; border-top: 1px solid #ffd700; margin: 8px 0; }
+  .info-grid { display: flex; gap: 10px; text-align: left; margin-top: 4px; }
   .info-column { flex: 1; font-size: 11px; }
-  .info-column h3 { margin: 0 0 5px 0; color: #ffd700; font-size: 13px; }
+  .info-column h3 { margin: 0 0 3px 0; color: #ffd700; font-size: 12px; }
 
   #mode-legend {
-    position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+    position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%);
     background: rgba(10, 14, 25, 0.95); border: 2px solid #ffd700; border-radius: 8px;
-    padding: 10px 22px; display: none; gap: 18px; z-index: 200; align-items: center; color: white;
-    font-size: 11px; box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+    padding: 6px 14px; display: none; gap: 12px; z-index: 200; align-items: center; color: white;
+    font-size: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.6); pointer-events: none;
   }
-  .legend-item { display: flex; align-items: center; gap: 8px; }
-  .legend-dot { width: 12px; height: 12px; border-radius: 3px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 3px; }
 
   #pump-hud {
-    display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    display: none; position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
     pointer-events: none; z-index: 300; text-align: center; font-weight: bold;
     text-shadow: 0 0 12px rgba(0,0,0,0.9);
   }
-  #pump-text { font-size: 18px; letter-spacing: 2px; }
+  #pump-text { font-size: 15px; letter-spacing: 1px; }
   #pump-bar-container {
-    width: 220px; height: 14px; background: rgba(0,0,0,0.8); border: 2px solid #ffd700;
-    border-radius: 7px; margin: 8px auto 0; overflow: hidden;
+    width: 240px; height: 12px; background: rgba(0,0,0,0.8); border: 2px solid #ffd700;
+    border-radius: 6px; margin: 6px auto 0; overflow: hidden;
   }
-  #pump-bar { width: 0%; height: 100%; background: #00ff00; transition: width 0.04s linear; }
+  #pump-bar { width: 0%; height: 100%; background: #ffd700; transition: width 0.04s linear; }
 
   #camera-altitude-control {
-    position: absolute; right: 25px; top: 240px; bottom: 80px; width: 60px;
-    background: rgba(10, 14, 25, 0.92); border: 2px solid #ffd700; border-radius: 10px;
+    position: absolute; right: 12px; top: 150px; bottom: 150px; width: 50px;
+    background: rgba(10, 14, 25, 0.92); border: 2px solid #ffd700; border-radius: 8px;
     display: none; flex-direction: column; align-items: center; justify-content: space-between;
-    padding: 15px 5px; box-sizing: border-box; z-index: 250; box-shadow: 0 0 25px rgba(0,0,0,0.7);
-    color: #ffd700;
+    padding: 10px 4px; z-index: 250; box-shadow: 0 0 20px rgba(0,0,0,0.7);
+    color: #ffd700; touch-action: none;
   }
-  .alt-header { font-size: 10px; font-weight: bold; text-align: center; letter-spacing: 1px; line-height: 1.2; }
-  .alt-value-display { font-size: 11px; font-weight: bold; color: #00ffcc; margin: 5px 0; }
-  .alt-slider-wrapper { flex: 1; display: flex; align-items: center; justify-content: center; width: 100%; margin: 10px 0; }
+  .alt-header { font-size: 9px; font-weight: bold; text-align: center; letter-spacing: 1px; }
+  .alt-value-display { font-size: 10px; font-weight: bold; color: #00ffcc; margin: 4px 0; }
+  .alt-slider-wrapper { flex: 1; display: flex; align-items: center; justify-content: center; width: 100%; }
   #altitude-slider {
-    -webkit-appearance: none; appearance: none; width: 260px; height: 8px;
+    -webkit-appearance: none; appearance: none; width: 180px; height: 6px;
     background: #1e293b; border-radius: 4px; outline: none; transform: rotate(-90deg);
-    cursor: pointer; border: 1px solid #444;
+    cursor: pointer; border: 1px solid #444; touch-action: none;
   }
   #altitude-slider::-webkit-slider-thumb {
     -webkit-appearance: none; appearance: none; width: 22px; height: 22px;
@@ -62,80 +82,95 @@
     box-shadow: 0 0 10px #ffd700; border: 2px solid #ffffff;
   }
 
+  /* Mobile Virtual Controls */
+  #mobile-dpad {
+    position: absolute; bottom: 25px; left: 20px; width: 130px; height: 130px;
+    z-index: 260; display: none; grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr); gap: 4px; touch-action: none;
+  }
+  .dpad-btn {
+    background: rgba(15, 23, 42, 0.75); border: 2px solid #ffd700; border-radius: 8px;
+    color: #ffd700; font-weight: bold; font-size: 18px; display: flex; align-items: center;
+    justify-content: center; user-select: none; -webkit-user-select: none;
+  }
+  .dpad-btn:active { background: #ffd700; color: #000; }
+
+  #mobile-lookpad {
+    position: absolute; bottom: 25px; right: 75px; width: 110px; height: 110px;
+    border-radius: 12px; background: rgba(15, 23, 42, 0.6); border: 2px dashed #00ffcc;
+    z-index: 260; display: none; align-items: center; justify-content: center;
+    color: #00ffcc; font-size: 10px; font-weight: bold; text-align: center;
+    touch-action: none;
+  }
+
   #lobby-screen { 
     position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; 
     background: radial-gradient(circle at center, #1b2033 0%, #0a0c13 100%); 
     z-index: 500; display: flex; flex-direction: column; align-items: center; 
-    justify-content: flex-start; padding: 20px; box-sizing: border-box; overflow-y: auto; color: #fff; 
+    justify-content: flex-start; padding: 15px; box-sizing: border-box; overflow-y: auto; color: #fff; 
   }
-  .lobby-header { text-align: center; margin-top: 10px; margin-bottom: 20px; }
-  .lobby-header h1 { font-size: clamp(24px, 5vw, 42px); margin: 0; letter-spacing: 2px; color: #ffd700; text-shadow: 0 0 20px rgba(255,215,0,0.4); }
-  .lobby-header p { margin: 5px 0 0; color: #8892b0; font-size: clamp(12px, 2.5vw, 15px); letter-spacing: 1px; }
+  .lobby-header { text-align: center; margin-top: 5px; margin-bottom: 15px; }
+  .lobby-header h1 { font-size: clamp(22px, 4vw, 36px); margin: 0; letter-spacing: 2px; color: #ffd700; }
+  .lobby-header p { margin: 4px 0 0; color: #8892b0; font-size: 13px; }
 
-  #lobbies-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; width: 100%; max-width: 950px; }
+  #lobbies-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; width: 100%; max-width: 950px; }
   
   .arena-card { 
     background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); 
-    border-radius: 10px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between; 
-    transition: transform 0.15s, border-color 0.2s, background 0.2s; box-shadow: 0 4px 15px rgba(0,0,0,0.3); 
+    border-radius: 10px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; 
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3); 
   }
-  .arena-card:hover { border-color: rgba(255, 215, 0, 0.4); background: rgba(255, 255, 255, 0.07); }
-  .arena-card.active-room { border: 2px solid #ffd700; box-shadow: 0 0 25px rgba(255,215,0,0.25); background: rgba(255, 215, 0, 0.05); }
+  .arena-card.active-room { border: 2px solid #ffd700; background: rgba(255, 215, 0, 0.05); }
 
-  .card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-  .arena-name { font-weight: bold; font-size: 18px; color: #fff; }
-  .arena-badge { font-size: 11px; padding: 4px 8px; border-radius: 4px; font-weight: bold; text-transform: uppercase; }
+  .card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .arena-name { font-weight: bold; font-size: 16px; color: #fff; }
+  .arena-badge { font-size: 10px; padding: 3px 6px; border-radius: 4px; font-weight: bold; text-transform: uppercase; }
   .badge-open { background: rgba(0, 255, 204, 0.15); color: #00ffcc; }
   .badge-ready { background: rgba(255, 215, 0, 0.2); color: #ffd700; }
   .badge-ingame { background: rgba(255, 51, 102, 0.2); color: #ff3366; }
 
-  .player-slots { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
-  .player-slot { background: rgba(0, 0, 0, 0.4); padding: 8px 12px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+  .player-slots { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+  .player-slot { background: rgba(0, 0, 0, 0.4); padding: 6px 10px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; }
   .slot-name { font-weight: bold; }
   .slot-team-blue { color: #00aaff; }
   .slot-team-dark { color: #ffaa00; }
   .slot-empty { color: #555e75; font-style: italic; }
 
-  .ready-pill { font-size: 10px; padding: 2px 6px; border-radius: 3px; font-weight: bold; }
+  .ready-pill { font-size: 9px; padding: 2px 5px; border-radius: 3px; font-weight: bold; }
   .pill-ready { background: #00ff00; color: #000; }
   .pill-waiting { background: #334155; color: #aaa; }
 
   .card-actions { display: flex; gap: 8px; }
-  .btn-join, .btn-ready, .btn-leave { flex: 1; padding: 10px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px; font-family: 'Courier New', Courier, monospace; transition: all 0.15s ease; text-transform: uppercase; }
+  .btn-join, .btn-ready, .btn-leave { flex: 1; padding: 10px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px; font-family: inherit; }
   .btn-join { background: #ffd700; color: #051419; }
-  .btn-join:hover { background: #fff; transform: translateY(-1px); }
-  .btn-join:disabled { background: #1e293b; color: #555e75; cursor: not-allowed; transform: none; }
   .btn-ready { background: #1e293b; color: #fff; border: 1px solid #334155; }
-  .btn-ready.is-ready { background: #00ff00; color: #000; border-color: #00ff00; }
+  .btn-ready.is-ready { background: #00ff00; color: #000; }
   .btn-leave { background: #ff3366; color: #fff; flex: 0.5; }
 
   #match-countdown { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.9); z-index: 600; display: none; flex-direction: column; align-items: center; justify-content: center; color: #fff; text-align: center; }
-  #countdown-num { font-size: clamp(60px, 15vw, 120px); font-weight: 900; color: #ffd700; margin: 20px 0; animation: popIn 0.5s ease-out; }
-  @keyframes popIn { 0% { transform: scale(0.3); opacity: 0; } 80% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(1); } }
+  #countdown-num { font-size: clamp(60px, 15vw, 120px); font-weight: 900; color: #ffd700; margin: 15px 0; }
 
-  #game-over-modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 1000; font-family: 'Courier New', Courier, monospace; }
-  .modal-content { background: #111; border: 3px solid #ffd700; padding: 30px; border-radius: 12px; text-align: center; width: 450px; box-shadow: 0 0 50px rgba(255,215,0,0.4); color: white; }
-  .modal-content h1 { font-size: 28px; margin-top: 0; letter-spacing: 3px; }
-  .stats-box { background: #222; border: 1px solid #444; padding: 15px; margin: 20px 0; text-align: left; font-size: 13px; line-height: 1.6; }
-  #restart-btn { background: #ffd700; color: black; border: none; padding: 12px 25px; font-size: 15px; font-weight: bold; cursor: pointer; border-radius: 6px; letter-spacing: 1px; transition: 0.2s; }
-  #restart-btn:hover { background: #fff; box-shadow: 0 0 15px #ffd700; }
+  #game-over-modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 1000; }
+  .modal-content { background: #111; border: 3px solid #ffd700; padding: 25px; border-radius: 12px; text-align: center; width: min(400px, 90vw); color: white; }
+  .stats-box { background: #222; border: 1px solid #444; padding: 12px; margin: 15px 0; text-align: left; font-size: 13px; line-height: 1.6; }
+  #restart-btn { background: #ffd700; color: black; border: none; padding: 10px 20px; font-size: 14px; font-weight: bold; cursor: pointer; border-radius: 6px; }
 </style>
 <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
 
 <div id="lobby-screen">
-    <div class="lobby-header">
-        <h1>SIEGE: CLEAR HORIZONS</h1>
-        <p>Tactical Ballistics & Modular Fortifications | Ready up to deploy!</p>
-    </div>
-    <div id="lobbies-grid"></div>
+  <div class="lobby-header">
+    <h1>SIEGE: CLEAR HORIZONS</h1>
+    <p>Tactical Ballistics & Modular Fortifications | Ready up to deploy!</p>
+  </div>
+  <div id="lobbies-grid"></div>
 </div>
 
 <div id="match-countdown">
-    <div style="font-size: 20px; color: #ffd700; font-weight: bold;" id="countdown-role-text">COMMAND ROLE ASSIGNED</div>
-    <div id="countdown-num">3</div>
-    <div style="color: #aaa; font-size: 14px;">Locking wheel tracks to ground surface...</div>
+  <div style="font-size: 18px; color: #ffd700; font-weight: bold;" id="countdown-role-text">COMMAND ROLE ASSIGNED</div>
+  <div id="countdown-num">3</div>
+  <div style="color: #aaa; font-size: 13px;">Locking wheel tracks to ground surface...</div>
 </div>
 
 <div id="minimap-container"><canvas id="minimap"></canvas></div>
@@ -149,45 +184,58 @@
   <div class="alt-header" style="color: #aaa;">GND</div>
 </div>
 
+<!-- Mobile Touch Controls -->
+<div id="mobile-dpad">
+  <div></div>
+  <div class="dpad-btn" id="dpad-up">▲</div>
+  <div></div>
+  <div class="dpad-btn" id="dpad-left">◀</div>
+  <div></div>
+  <div class="dpad-btn" id="dpad-right">▶</div>
+  <div></div>
+  <div class="dpad-btn" id="dpad-down">▼</div>
+  <div></div>
+</div>
+
+<div id="mobile-lookpad">DRAG TO<br>LOOK</div>
+
 <div id="ui">
   <span class="ca">MISSION INTELLIGENCE</span>
   <hr>
   <div class="info-grid">
     <div class="info-column">
       <h3>COMMAND ROLE</h3>
-      <p style="font-weight: bold; margin: 0 0 5px 0; color: #ffd700;" id="role-display">CONNECTING...</p>
+      <p style="font-weight: bold; margin: 0 0 4px 0; color: #ffd700;" id="role-display">CONNECTING...</p>
       <p style="font-size: 10px; margin: 0; color: #00ff00;" id="my-units-count">Your Cannons: 10</p>
     </div>
     <div class="info-column">
       <h3>SERVER STATUS</h3>
-      <p style="font-weight: bold; margin: 0 0 5px 0; color: #00ff00;" id="server-stats">Online: 0 | Arena Match</p>
+      <p style="font-weight: bold; margin: 0 0 4px 0; color: #00ff00;" id="server-stats">Online: 0 | Arena Match</p>
       <p style="font-size: 10px; margin: 0; color: #ffaa00;" id="enemy-units-count">Enemy Cannons: 10</p>
     </div>
   </div>
-  <div style="font-size: 10px; margin-top: 15px; color: #aaa; border-top: 1px solid #333; padding-top: 8px; line-height: 1.4;">
-    [LMB Cannon] Select / Deselect | [LMB Ground/Panel] March<br>
-    [Hold RMB Cannon] Preview Arc Trajectory -> Release to Fire!<br>
-    [RMB on Panel with NO Cannon] Select Panel to Build / Extend<br>
-    Anti-Clipping Bounding Active: Cannons cannot penetrate structures!
+  <div style="font-size: 9.5px; margin-top: 10px; color: #aaa; border-top: 1px solid #333; padding-top: 6px; line-height: 1.3;">
+    [PC] Q/Z Alt | WASD Move | Arrows Turn | LMB Pick | Hold RMB Fire<br>
+    [Mobile] D-Pad Move | Look Pad Turn | Dbl-Tap Cannon Hold & Fire | Slider Alt<br>
+    [Shotgun Racking] Pull Back to Cock -> Push Forward to Fire/Build!
   </div>
   <span id="status" class="sys">STATUS: STANDBY</span>
 </div>
 
 <div id="mode-legend">
-  <div class="legend-item"><div class="legend-dot" style="background:#22c55e;"></div>Floor Mode</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#0ea5e9;"></div>Wall Mode (4 Edge Shotguns)</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#f97316;"></div>Ramp Mode</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#22c55e;"></div>Floor</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#0ea5e9;"></div>Wall</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f97316;"></div>Ramp</div>
 </div>
 
 <div id="pump-hud">
-  <div id="pump-text">PULL BACK TO CHARGE SPRING</div>
+  <div id="pump-text">PULL BACK TO COCK, THEN PUSH FORWARD TO FIRE!</div>
   <div id="pump-bar-container"><div id="pump-bar"></div></div>
 </div>
 
 <div id="game-over-modal">
   <div class="modal-content">
-    <h1 id="modal-title" style="color: #ffd700;">BATTLE CONCLUDED</h1>
-    <p id="modal-subtitle" style="font-size: 14px; color: #aaa; margin: 5px 0 15px 0;"></p>
+    <h1 id="modal-title" style="color: #ffd700; margin: 0 0 10px 0;">BATTLE CONCLUDED</h1>
     <div class="stats-box">
       <div><strong>Winner:</strong> <span id="stat-winner" style="color: #00ff00;">-</span></div>
       <div><strong>Your Surviving Units:</strong> <span id="stat-my-units">-</span></div>
@@ -200,6 +248,21 @@
 <script type="importmap">{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" }}</script>
 <script type="module">
 import * as THREE from 'three';
+
+// -------------------------------------------------------------
+// MOBILE PREVENT DOUBLE TAP ZOOM
+// -------------------------------------------------------------
+let lastTouchEnd = 0;
+document.addEventListener('touchend', (e) => {
+  const now = Date.now();
+  if (now - lastTouchEnd <= 300) {
+    e.preventDefault();
+  }
+  lastTouchEnd = now;
+}, { passive: false });
+
+document.addEventListener('gesturestart', (e) => e.preventDefault());
+document.addEventListener('dblclick', (e) => e.preventDefault());
 
 const socket = io();
 let myPlayerIndex = null;
@@ -226,17 +289,22 @@ document.body.appendChild(renderer.domElement);
 const statusText = document.getElementById('status');
 const minimapCanvas = document.getElementById('minimap');
 const ctx = minimapCanvas.getContext('2d');
-minimapCanvas.width = 200;
-minimapCanvas.height = 200;
+minimapCanvas.width = 120;
+minimapCanvas.height = 120;
 
-// Altitude Slider
+// Altitude Slider Sync Helper
 const altitudeSlider = document.getElementById('altitude-slider');
 const altValText = document.getElementById('alt-val-text');
 const altitudeControlBox = document.getElementById('camera-altitude-control');
 
+function setAltitude(newAlt) {
+  targetCameraAltitude = Math.min(220, Math.max(5, newAlt));
+  altitudeSlider.value = targetCameraAltitude;
+  altValText.innerText = `Y: ${Math.round(targetCameraAltitude)}`;
+}
+
 altitudeSlider.oninput = (e) => {
-    targetCameraAltitude = parseFloat(e.target.value);
-    altValText.innerText = `Y: ${Math.round(targetCameraAltitude)}`;
+  setAltitude(parseFloat(e.target.value));
 };
 
 // Lighting
@@ -257,8 +325,8 @@ river.position.y = 0.01;
 scene.add(river);
 
 const centerRibbon = new THREE.Mesh(
-    new THREE.PlaneGeometry(boardSize, 0.4),
-    new THREE.MeshBasicMaterial({ color: 0xffd700, transparent: true, opacity: 0.4 })
+  new THREE.PlaneGeometry(boardSize, 0.4),
+  new THREE.MeshBasicMaterial({ color: 0xffd700, transparent: true, opacity: 0.4 })
 );
 centerRibbon.rotation.x = -Math.PI / 2;
 centerRibbon.position.set(0, 0.03, 0);
@@ -270,10 +338,10 @@ const bridgeLength = riverWidth + 6;
 const bridgeXPositions = [-150, 0, 150];
 const bridges = [];
 bridgeXPositions.forEach(bx => {
-    const bridge = new THREE.Mesh(new THREE.BoxGeometry(bridgeWidth, 0.4, bridgeLength), bridgeMat);
-    bridge.position.set(bx, 0.2, 0);
-    scene.add(bridge);
-    bridges.push(bridge);
+  const bridge = new THREE.Mesh(new THREE.BoxGeometry(bridgeWidth, 0.4, bridgeLength), bridgeMat);
+  bridge.position.set(bx, 0.2, 0);
+  scene.add(bridge);
+  bridges.push(bridge);
 });
 
 // Perimeter Castle Walls
@@ -282,34 +350,34 @@ const wallThickness = 10;
 const halfBoard = boardSize / 2;
 
 function createCastleStoneTex() {
-    const canvas = document.createElement('canvas');
-    canvas.width = 512; canvas.height = 512;
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#6b7280';
-    ctx.fillRect(0, 0, 512, 512);
-    const rows = 16, cols = 8;
-    const rh = 512 / rows, cw = 512 / cols;
-    for (let r = 0; r < rows; r++) {
-        const offset = (r % 2) * (cw / 2);
-        for (let c = -1; c < cols + 1; c++) {
-            let x = c * cw + offset, y = r * rh;
-            let shade = Math.floor(Math.random() * 40) - 20;
-            ctx.fillStyle = `rgb(${107 + shade}, ${114 + shade}, ${128 + shade})`;
-            ctx.fillRect(x + 2, y + 2, cw - 4, rh - 4);
-        }
+  const canvas = document.createElement('canvas');
+  canvas.width = 512; canvas.height = 512;
+  const cctx = canvas.getContext('2d');
+  cctx.fillStyle = '#6b7280';
+  cctx.fillRect(0, 0, 512, 512);
+  const rows = 16, cols = 8;
+  const rh = 512 / rows, cw = 512 / cols;
+  for (let r = 0; r < rows; r++) {
+    const offset = (r % 2) * (cw / 2);
+    for (let c = -1; c < cols + 1; c++) {
+      let x = c * cw + offset, y = r * rh;
+      let shade = Math.floor(Math.random() * 40) - 20;
+      cctx.fillStyle = `rgb(${107 + shade}, ${114 + shade}, ${128 + shade})`;
+      cctx.fillRect(x + 2, y + 2, cw - 4, rh - 4);
     }
-    return new THREE.CanvasTexture(canvas);
+  }
+  return new THREE.CanvasTexture(canvas);
 }
 const castleMat = new THREE.MeshStandardMaterial({ map: createCastleStoneTex(), roughness: 0.85 });
 const gameWalls = [];
 
 function createCastleWall(length, isZAxis) {
-    const wallGroup = new THREE.Group();
-    const mainBoxGeo = isZAxis ? new THREE.BoxGeometry(wallThickness, wallHeight, length) : new THREE.BoxGeometry(length, wallHeight, wallThickness);
-    const mainMesh = new THREE.Mesh(mainBoxGeo, castleMat);
-    mainMesh.position.y = wallHeight / 2;
-    wallGroup.add(mainMesh);
-    return wallGroup;
+  const wallGroup = new THREE.Group();
+  const mainBoxGeo = isZAxis ? new THREE.BoxGeometry(wallThickness, wallHeight, length) : new THREE.BoxGeometry(length, wallHeight, wallThickness);
+  const mainMesh = new THREE.Mesh(mainBoxGeo, castleMat);
+  mainMesh.position.y = wallHeight / 2;
+  wallGroup.add(mainMesh);
+  return wallGroup;
 }
 const northWall = createCastleWall(boardSize, false); northWall.position.set(0, 0, -halfBoard); scene.add(northWall); gameWalls.push(northWall);
 const southWall = createCastleWall(boardSize, false); southWall.position.set(0, 0, halfBoard); scene.add(southWall); gameWalls.push(southWall);
@@ -319,18 +387,18 @@ const westWall = createCastleWall(boardSize, true); westWall.position.set(-halfB
 // Clouds
 const clouds = [];
 function createCloudTexture() {
-    const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 128;
-    const ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, 256, 128); ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
-    ctx.beginPath(); ctx.arc(64, 80, 32, 0, Math.PI * 2); ctx.arc(110, 65, 45, 0, Math.PI * 2);
-    ctx.arc(160, 75, 38, 0, Math.PI * 2); ctx.arc(195, 85, 28, 0, Math.PI * 2); ctx.fill();
-    return new THREE.CanvasTexture(canvas);
+  const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 128;
+  const cctx = canvas.getContext('2d'); cctx.clearRect(0, 0, 256, 128); cctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+  cctx.beginPath(); cctx.arc(64, 80, 32, 0, Math.PI * 2); cctx.arc(110, 65, 45, 0, Math.PI * 2);
+  cctx.arc(160, 75, 38, 0, Math.PI * 2); cctx.arc(195, 85, 28, 0, Math.PI * 2); cctx.fill();
+  return new THREE.CanvasTexture(canvas);
 }
 const cloudMat = new THREE.MeshBasicMaterial({ map: createCloudTexture(), transparent: true, opacity: 0.7, depthWrite: false, side: THREE.DoubleSide });
 for (let i = 0; i < 60; i++) {
-    const cloud = new THREE.Mesh(new THREE.PlaneGeometry(120 + Math.random() * 80, 60 + Math.random() * 40), cloudMat);
-    cloud.position.set(Math.random() * 1200 - 600, 110 + Math.random() * 60, Math.random() * 1200 - 600);
-    scene.add(cloud);
-    clouds.push({ mesh: cloud, speed: 0.1 + Math.random() * 0.15 });
+  const cloud = new THREE.Mesh(new THREE.PlaneGeometry(120 + Math.random() * 80, 60 + Math.random() * 40), cloudMat);
+  cloud.position.set(Math.random() * 1200 - 600, 110 + Math.random() * 60, Math.random() * 1200 - 600);
+  scene.add(cloud);
+  clouds.push({ mesh: cloud, speed: 0.1 + Math.random() * 0.15 });
 }
 
 // Modular Snap Engine Constants
@@ -341,545 +409,547 @@ const RAMP_DIAG = Math.hypot(PANEL_SIZE, WALL_HEIGHT);
 const RAMP_ANGLE = Math.atan2(WALL_HEIGHT, PANEL_SIZE);
 
 function isWithinMyBuildingTerritory(targetZ, panelDepth = PANEL_SIZE) {
-    const halfDepth = panelDepth / 2;
-    if (myPlayerIndex === 1) {
-        return (targetZ - halfDepth) >= -0.1;
-    } else {
-        return (targetZ + halfDepth) <= 0.1;
-    }
+  const halfDepth = panelDepth / 2;
+  if (myPlayerIndex === 1) {
+    return (targetZ - halfDepth) >= -0.1;
+  } else {
+    return (targetZ + halfDepth) <= 0.1;
+  }
 }
 
 const panelGeometries = {
-    floor: new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, PANEL_SIZE),
-    wall_x: new THREE.BoxGeometry(PANEL_SIZE, WALL_HEIGHT, PANEL_THICKNESS),
-    wall_z: new THREE.BoxGeometry(PANEL_THICKNESS, WALL_HEIGHT, PANEL_SIZE),
-    ramp: new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, RAMP_DIAG)
+  floor: new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, PANEL_SIZE),
+  wall_x: new THREE.BoxGeometry(PANEL_SIZE, WALL_HEIGHT, PANEL_THICKNESS),
+  wall_z: new THREE.BoxGeometry(PANEL_THICKNESS, WALL_HEIGHT, PANEL_SIZE),
+  ramp: new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, RAMP_DIAG)
 };
 
 const panelMaterials = {
-    floor: new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.8 }),
-    wall: new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.7 }),
-    ramp: new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.8 })
+  floor: new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.8 }),
+  wall: new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.7 }),
+  ramp: new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.8 })
 };
 
 const worldPanels = [];
 const shotgunHandles = [];
+
+// Tactile Two-Phase Shotgun Racking System State
 let activeBasePanel = null;
 let pumpingShotgun = null;
-let pumpStartMouse = { x: 0, y: 0 };
-let currentAction = 'none';
-let currentProgress = 0.0;
-let isActionFullyCharged = false;
+let pumpScreenStart = new THREE.Vector2();
+let pumpScreenDir = new THREE.Vector2();
+let pumpStage = 'idle';
 
 const pumpHud = document.getElementById('pump-hud');
 const pumpBar = document.getElementById('pump-bar');
 const pumpText = document.getElementById('pump-text');
 
 function clearShotgunHandles() {
-    shotgunHandles.forEach(h => scene.remove(h));
-    shotgunHandles.length = 0;
-    pumpingShotgun = null;
-    pumpHud.style.display = 'none';
+  shotgunHandles.forEach(h => scene.remove(h));
+  shotgunHandles.length = 0;
+  pumpingShotgun = null;
+  pumpStage = 'idle';
+  pumpHud.style.display = 'none';
 }
 
 function createShotgunHandle(dirVector, modeColor, id, isExtender = false, isLevelOut = false) {
-    const gunGroup = new THREE.Group();
-    const steelColor = isExtender ? 0x332211 : (isLevelOut ? 0x113322 : 0x222225);
-    const steelMat = new THREE.MeshStandardMaterial({
-        color: steelColor,
-        metalness: 0.85,
-        roughness: 0.35,
-        emissive: 0x000000
-    });
-    
-    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 3.2, 12), steelMat);
-    barrel.position.y = 1.6;
-    
-    const magTube = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 2.6, 12), steelMat);
-    magTube.position.set(0, 1.3, -0.2);
+  const gunGroup = new THREE.Group();
+  const steelColor = isExtender ? 0x332211 : (isLevelOut ? 0x113322 : 0x222225);
+  const steelMat = new THREE.MeshStandardMaterial({
+    color: steelColor,
+    metalness: 0.85,
+    roughness: 0.35,
+    emissive: 0x000000
+  });
+  
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 3.2, 12), steelMat);
+  barrel.position.y = 1.6;
+  
+  const magTube = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 2.6, 12), steelMat);
+  magTube.position.set(0, 1.3, -0.2);
 
-    const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.35, 1.2, 0.5), steelMat);
-    receiver.position.set(0, 0.4, -0.1);
+  const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.35, 1.2, 0.5), steelMat);
+  receiver.position.set(0, 0.4, -0.1);
 
-    const port = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.5, 0.2), new THREE.MeshBasicMaterial({ color: 0x111111 }));
-    port.position.set(0.01, 0.4, 0.05);
+  const port = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.5, 0.2), new THREE.MeshBasicMaterial({ color: 0x111111 }));
+  port.position.set(0.01, 0.4, 0.05);
 
-    const woodColor = isLevelOut ? 0x225522 : (isExtender ? 0x8a4513 : 0x5a2d0c);
-    const stock = new THREE.Mesh(new THREE.BoxGeometry(0.28, 1.4, 0.4), new THREE.MeshStandardMaterial({ color: woodColor, roughness: 0.7 }));
-    stock.position.set(0, -0.8, -0.2);
-    stock.rotation.x = 0.2;
+  const woodColor = isLevelOut ? 0x225522 : (isExtender ? 0x8a4513 : 0x5a2d0c);
+  const stock = new THREE.Mesh(new THREE.BoxGeometry(0.28, 1.4, 0.4), new THREE.MeshStandardMaterial({ color: woodColor, roughness: 0.7 }));
+  stock.position.set(0, -0.8, -0.2);
+  stock.rotation.x = 0.2;
 
-    const pumpSlide = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 1.0, 12), new THREE.MeshStandardMaterial({ color: isLevelOut ? 0x338833 : (isExtender ? 0xb8621b : 0x6e3810), roughness: 0.6 }));
-    pumpSlide.position.set(0, 1.4, -0.1);
+  const pumpSlide = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 1.0, 12), new THREE.MeshStandardMaterial({ color: isLevelOut ? 0x338833 : (isExtender ? 0xb8621b : 0x6e3810), roughness: 0.6 }));
+  pumpSlide.position.set(0, 1.4, -0.1);
 
-    const shellGroup = new THREE.Group();
-    const hull = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.35, 12), new THREE.MeshStandardMaterial({ color: isLevelOut ? 0x00ff88 : (isExtender ? 0xff8800 : 0xcc1111), roughness: 0.4 }));
-    const brass = new THREE.Mesh(new THREE.CylinderGeometry(0.092, 0.092, 0.12, 12), new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.9, roughness: 0.2 }));
-    brass.position.y = -0.15;
-    shellGroup.add(hull, brass);
-    shellGroup.scale.set(0.001, 0.001, 0.001);
-    shellGroup.position.set(0, 0.3, -0.2);
+  const shellGroup = new THREE.Group();
+  const hull = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.35, 12), new THREE.MeshStandardMaterial({ color: isLevelOut ? 0x00ff88 : (isExtender ? 0xff8800 : 0xcc1111), roughness: 0.4 }));
+  const brass = new THREE.Mesh(new THREE.CylinderGeometry(0.092, 0.092, 0.12, 12), new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.9, roughness: 0.2 }));
+  brass.position.y = -0.15;
+  shellGroup.add(hull, brass);
+  shellGroup.scale.set(0.001, 0.001, 0.001);
+  shellGroup.position.set(0, 0.3, -0.2);
 
-    const flash = new THREE.Mesh(new THREE.ConeGeometry(0.6, 1.2, 8), new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0 }));
-    flash.position.y = 3.6;
+  const flash = new THREE.Mesh(new THREE.ConeGeometry(0.6, 1.2, 8), new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0 }));
+  flash.position.y = 3.6;
 
-    const tipRing = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.2, 12), new THREE.MeshBasicMaterial({ color: modeColor }));
-    tipRing.position.y = 3.1;
+  const tipRing = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.2, 12), new THREE.MeshBasicMaterial({ color: modeColor }));
+  tipRing.position.y = 3.1;
 
-    gunGroup.add(barrel, magTube, receiver, port, stock, pumpSlide, shellGroup, flash, tipRing);
-    gunGroup.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dirVector.clone().normalize());
+  gunGroup.add(barrel, magTube, receiver, port, stock, pumpSlide, shellGroup, flash, tipRing);
+  gunGroup.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dirVector.clone().normalize());
 
-    gunGroup.userData = {
-        isShotgunHandle: true,
-        arrowId: id,
-        isRampExtender: isExtender,
-        isRampLevelOut: isLevelOut,
-        dirVector: dirVector.clone().normalize(),
-        steelMat: steelMat,
-        pumpSlide: pumpSlide,
-        shellGroup: shellGroup,
-        flash: flash,
-        originalLocalPos: new THREE.Vector3(),
-        initialPumpY: 1.4,
-        recoilTimer: 0
-    };
+  gunGroup.userData = {
+    isShotgunHandle: true,
+    arrowId: id,
+    isRampExtender: isExtender,
+    isRampLevelOut: isLevelOut,
+    dirVector: dirVector.clone().normalize(),
+    steelMat: steelMat,
+    pumpSlide: pumpSlide,
+    shellGroup: shellGroup,
+    flash: flash,
+    originalLocalPos: new THREE.Vector3(),
+    initialPumpY: 1.4,
+    recoilTimer: 0
+  };
 
-    return gunGroup;
+  return gunGroup;
 }
 
 function renderPanelHandles(panel) {
-    clearShotgunHandles();
-    if (!panel) return;
+  clearShotgunHandles();
+  if (!panel) return;
 
-    const pType = panel.userData.panelType;
-    const mode = panel.userData.buildMode || 1;
-    const pos = panel.position.clone();
-    const half = PANEL_SIZE / 2;
-    const color = mode === 1 ? 0x22c55e : (mode === 2 ? 0x0ea5e9 : 0xf97316);
+  const pType = panel.userData.panelType;
+  const mode = panel.userData.buildMode || 1;
+  const pos = panel.position.clone();
+  const half = PANEL_SIZE / 2;
+  const color = mode === 1 ? 0x22c55e : (mode === 2 ? 0x0ea5e9 : 0xf97316);
 
-    let configs = [];
+  let configs = [];
 
-    if (pType === 'ramp') {
-        const segs = panel.userData.rampSegments || 1;
-        const totalRun = PANEL_SIZE * segs;
-        const totalRise = WALL_HEIGHT * segs;
+  if (pType === 'ramp') {
+    const segs = panel.userData.rampSegments || 1;
+    const totalRun = PANEL_SIZE * segs;
+    const totalRise = WALL_HEIGHT * segs;
 
-        let dirX = 0, dirZ = 0;
-        if (Math.abs(panel.rotation.x) > 0.1) {
-            dirZ = panel.rotation.x > 0 ? -1 : 1;
-        } else if (Math.abs(panel.rotation.z) > 0.1) {
-            dirX = panel.rotation.z > 0 ? 1 : -1;
-        }
-
-        const horizontalDir = new THREE.Vector3(dirX, 0, dirZ).normalize();
-        const inclineSlope = new THREE.Vector3(dirX * Math.cos(RAMP_ANGLE), Math.sin(RAMP_ANGLE), dirZ * Math.cos(RAMP_ANGLE)).normalize();
-        const rampNormal = new THREE.Vector3(0, 1, 0).applyEuler(panel.rotation);
-
-        const footPos = new THREE.Vector3(
-            panel.position.x - dirX * (totalRun / 2),
-            panel.position.y - (totalRise / 2),
-            panel.position.z - dirZ * (totalRun / 2)
-        );
-
-        const extenderPos = footPos.clone()
-            .addScaledVector(inclineSlope, 2.2)
-            .addScaledVector(rampNormal, 1.4);
-        
-        const extenderOffset = extenderPos.clone().sub(pos);
-
-        configs.push({
-            id: 'ramp_extend',
-            dir: inclineSlope,
-            offset: extenderOffset,
-            isExtender: true,
-            isLevelOut: false
-        });
-
-        const summitPos = new THREE.Vector3(
-            footPos.x + dirX * totalRun,
-            footPos.y + totalRise,
-            footPos.z + dirZ * totalRun
-        );
-        const summitOffset = summitPos.clone().add(new THREE.Vector3(0, 0.6, 0)).sub(pos);
-
-        configs.push({
-            id: 'ramp_level_flat',
-            dir: horizontalDir,
-            offset: summitOffset,
-            isExtender: false,
-            isLevelOut: true
-        });
-    }
-    else if (pType === 'wall_x') {
-        const halfH = WALL_HEIGHT / 2;
-        configs = [
-            { id: 'wall_up', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, halfH + 1.4, 0), isExtender: false, isLevelOut: false },
-            { id: 'wall_down', dir: new THREE.Vector3(0, -1, 0), offset: new THREE.Vector3(0, -halfH - 1.4, 0), isExtender: false, isLevelOut: false },
-            { id: 'wall_left', dir: new THREE.Vector3(-1, 0, 0), offset: new THREE.Vector3(-half - 1.4, 0, 0), isExtender: false, isLevelOut: false },
-            { id: 'wall_right', dir: new THREE.Vector3(1, 0, 0), offset: new THREE.Vector3(half + 1.4, 0, 0), isExtender: false, isLevelOut: false }
-        ];
-    }
-    else if (pType === 'wall_z') {
-        const halfH = WALL_HEIGHT / 2;
-        configs = [
-            { id: 'wall_up', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, halfH + 1.4, 0), isExtender: false, isLevelOut: false },
-            { id: 'wall_down', dir: new THREE.Vector3(0, -1, 0), offset: new THREE.Vector3(0, -halfH - 1.4, 0), isExtender: false, isLevelOut: false },
-            { id: 'wall_left', dir: new THREE.Vector3(0, 0, -1), offset: new THREE.Vector3(0, 0, -half - 1.4), isExtender: false, isLevelOut: false },
-            { id: 'wall_right', dir: new THREE.Vector3(0, 0, 1), offset: new THREE.Vector3(0, 0, half + 1.4), isExtender: false, isLevelOut: false }
-        ];
-    }
-    else if (mode === 1) {
-        configs = [
-            { id: 'north', dir: new THREE.Vector3(0, 0, -1), offset: new THREE.Vector3(0, 1.2, -half), isExtender: false, isLevelOut: false },
-            { id: 'south', dir: new THREE.Vector3(0, 0, 1),  offset: new THREE.Vector3(0, 1.2, half), isExtender: false, isLevelOut: false },
-            { id: 'east',  dir: new THREE.Vector3(1, 0, 0),  offset: new THREE.Vector3(half, 1.2, 0), isExtender: false, isLevelOut: false },
-            { id: 'west',  dir: new THREE.Vector3(-1, 0, 0), offset: new THREE.Vector3(-half, 1.2, 0), isExtender: false, isLevelOut: false },
-            { id: 'up',    dir: new THREE.Vector3(0, 1, 0),  offset: new THREE.Vector3(0, 2.4, 0), isExtender: false, isLevelOut: false }
-        ];
-    }
-    else if (mode === 2) {
-        configs = [
-            { id: 'spawn_wall_north', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 1.4, -half), isExtender: false, isLevelOut: false },
-            { id: 'spawn_wall_south', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 1.4, half), isExtender: false, isLevelOut: false },
-            { id: 'spawn_wall_east',  dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(half, 1.4, 0), isExtender: false, isLevelOut: false },
-            { id: 'spawn_wall_west',  dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(-half, 1.4, 0), isExtender: false, isLevelOut: false }
-        ];
-    }
-    else if (mode === 3) {
-        configs = [
-            { id: 'north', dir: new THREE.Vector3(0, Math.sin(RAMP_ANGLE), -Math.cos(RAMP_ANGLE)), offset: new THREE.Vector3(0, 1.2, -half), isExtender: false, isLevelOut: false },
-            { id: 'south', dir: new THREE.Vector3(0, Math.sin(RAMP_ANGLE), Math.cos(RAMP_ANGLE)),  offset: new THREE.Vector3(0, 1.2, half), isExtender: false, isLevelOut: false },
-            { id: 'east',  dir: new THREE.Vector3(Math.cos(RAMP_ANGLE), Math.sin(RAMP_ANGLE), 0),  offset: new THREE.Vector3(half, 1.2, 0), isExtender: false, isLevelOut: false },
-            { id: 'west',  dir: new THREE.Vector3(-Math.cos(RAMP_ANGLE), Math.sin(RAMP_ANGLE), 0), offset: new THREE.Vector3(-half, 1.2, 0), isExtender: false, isLevelOut: false },
-            { id: 'up',    dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 2.4, 0), isExtender: false, isLevelOut: false }
-        ];
+    let dirX = 0, dirZ = 0;
+    if (Math.abs(panel.rotation.x) > 0.1) {
+      dirZ = panel.rotation.x > 0 ? -1 : 1;
+    } else if (Math.abs(panel.rotation.z) > 0.1) {
+      dirX = panel.rotation.z > 0 ? 1 : -1;
     }
 
-    configs.forEach(cfg => {
-        const gun = createShotgunHandle(cfg.dir, color, cfg.id, cfg.isExtender, cfg.isLevelOut);
-        gun.position.copy(pos).add(cfg.offset);
-        gun.userData.originalLocalPos.copy(gun.position);
-        scene.add(gun);
-        shotgunHandles.push(gun);
+    const horizontalDir = new THREE.Vector3(dirX, 0, dirZ).normalize();
+    const inclineSlope = new THREE.Vector3(dirX * Math.cos(RAMP_ANGLE), Math.sin(RAMP_ANGLE), dirZ * Math.cos(RAMP_ANGLE)).normalize();
+    const rampNormal = new THREE.Vector3(0, 1, 0).applyEuler(panel.rotation);
+
+    const footPos = new THREE.Vector3(
+      panel.position.x - dirX * (totalRun / 2),
+      panel.position.y - (totalRise / 2),
+      panel.position.z - dirZ * (totalRun / 2)
+    );
+
+    const extenderPos = footPos.clone()
+      .addScaledVector(inclineSlope, 2.2)
+      .addScaledVector(rampNormal, 1.4);
+    
+    const extenderOffset = extenderPos.clone().sub(pos);
+
+    configs.push({
+      id: 'ramp_extend',
+      dir: inclineSlope,
+      offset: extenderOffset,
+      isExtender: true,
+      isLevelOut: false
     });
+
+    const summitPos = new THREE.Vector3(
+      footPos.x + dirX * totalRun,
+      footPos.y + totalRise,
+      footPos.z + dirZ * totalRun
+    );
+    const summitOffset = summitPos.clone().add(new THREE.Vector3(0, 0.6, 0)).sub(pos);
+
+    configs.push({
+      id: 'ramp_level_flat',
+      dir: horizontalDir,
+      offset: summitOffset,
+      isExtender: false,
+      isLevelOut: true
+    });
+  }
+  else if (pType === 'wall_x') {
+    const halfH = WALL_HEIGHT / 2;
+    configs = [
+      { id: 'wall_up', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, halfH + 1.4, 0), isExtender: false, isLevelOut: false },
+      { id: 'wall_down', dir: new THREE.Vector3(0, -1, 0), offset: new THREE.Vector3(0, -halfH - 1.4, 0), isExtender: false, isLevelOut: false },
+      { id: 'wall_left', dir: new THREE.Vector3(-1, 0, 0), offset: new THREE.Vector3(-half - 1.4, 0, 0), isExtender: false, isLevelOut: false },
+      { id: 'wall_right', dir: new THREE.Vector3(1, 0, 0), offset: new THREE.Vector3(half + 1.4, 0, 0), isExtender: false, isLevelOut: false }
+    ];
+  }
+  else if (pType === 'wall_z') {
+    const halfH = WALL_HEIGHT / 2;
+    configs = [
+      { id: 'wall_up', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, halfH + 1.4, 0), isExtender: false, isLevelOut: false },
+      { id: 'wall_down', dir: new THREE.Vector3(0, -1, 0), offset: new THREE.Vector3(0, -halfH - 1.4, 0), isExtender: false, isLevelOut: false },
+      { id: 'wall_left', dir: new THREE.Vector3(0, 0, -1), offset: new THREE.Vector3(0, 0, -half - 1.4), isExtender: false, isLevelOut: false },
+      { id: 'wall_right', dir: new THREE.Vector3(0, 0, 1), offset: new THREE.Vector3(0, 0, half + 1.4), isExtender: false, isLevelOut: false }
+    ];
+  }
+  else if (mode === 1) {
+    configs = [
+      { id: 'north', dir: new THREE.Vector3(0, 0, -1), offset: new THREE.Vector3(0, 1.2, -half), isExtender: false, isLevelOut: false },
+      { id: 'south', dir: new THREE.Vector3(0, 0, 1),  offset: new THREE.Vector3(0, 1.2, half), isExtender: false, isLevelOut: false },
+      { id: 'east',  dir: new THREE.Vector3(1, 0, 0),  offset: new THREE.Vector3(half, 1.2, 0), isExtender: false, isLevelOut: false },
+      { id: 'west',  dir: new THREE.Vector3(-1, 0, 0), offset: new THREE.Vector3(-half, 1.2, 0), isExtender: false, isLevelOut: false },
+      { id: 'up',    dir: new THREE.Vector3(0, 1, 0),  offset: new THREE.Vector3(0, 2.4, 0), isExtender: false, isLevelOut: false }
+    ];
+  }
+  else if (mode === 2) {
+    configs = [
+      { id: 'spawn_wall_north', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 1.4, -half), isExtender: false, isLevelOut: false },
+      { id: 'spawn_wall_south', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 1.4, half), isExtender: false, isLevelOut: false },
+      { id: 'spawn_wall_east',  dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(half, 1.4, 0), isExtender: false, isLevelOut: false },
+      { id: 'spawn_wall_west',  dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(-half, 1.4, 0), isExtender: false, isLevelOut: false }
+    ];
+  }
+  else if (mode === 3) {
+    configs = [
+      { id: 'north', dir: new THREE.Vector3(0, Math.sin(RAMP_ANGLE), -Math.cos(RAMP_ANGLE)), offset: new THREE.Vector3(0, 1.2, -half), isExtender: false, isLevelOut: false },
+      { id: 'south', dir: new THREE.Vector3(0, Math.sin(RAMP_ANGLE), Math.cos(RAMP_ANGLE)),  offset: new THREE.Vector3(0, 1.2, half), isExtender: false, isLevelOut: false },
+      { id: 'east',  dir: new THREE.Vector3(Math.cos(RAMP_ANGLE), Math.sin(RAMP_ANGLE), 0),  offset: new THREE.Vector3(half, 1.2, 0), isExtender: false, isLevelOut: false },
+      { id: 'west',  dir: new THREE.Vector3(-Math.cos(RAMP_ANGLE), Math.sin(RAMP_ANGLE), 0), offset: new THREE.Vector3(-half, 1.2, 0), isExtender: false, isLevelOut: false },
+      { id: 'up',    dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 2.4, 0), isExtender: false, isLevelOut: false }
+    ];
+  }
+
+  configs.forEach(cfg => {
+    const gun = createShotgunHandle(cfg.dir, color, cfg.id, cfg.isExtender, cfg.isLevelOut);
+    gun.position.copy(pos).add(cfg.offset);
+    gun.userData.originalLocalPos.copy(gun.position);
+    scene.add(gun);
+    shotgunHandles.push(gun);
+  });
 }
 
 function updatePanelVisualMode(panel) {
-    const pType = panel.userData.panelType;
-    if (pType === 'ramp') {
-        panel.material.color.setHex(0x52361b);
-    } else if (pType === 'wall_x' || pType === 'wall_z') {
-        panel.material.color.setHex(0x1e2e4a);
-    } else {
-        const mode = panel.userData.buildMode || 1;
-        if (mode === 1) panel.material.color.setHex(0x1e3a1e);
-        else if (mode === 2) panel.material.color.setHex(0x1e2e4a);
-        else if (mode === 3) panel.material.color.setHex(0x4a2a12);
-    }
-    renderPanelHandles(panel);
+  const pType = panel.userData.panelType;
+  if (pType === 'ramp') {
+    panel.material.color.setHex(0x52361b);
+  } else if (pType === 'wall_x' || pType === 'wall_z') {
+    panel.material.color.setHex(0x1e2e4a);
+  } else {
+    const mode = panel.userData.buildMode || 1;
+    if (mode === 1) panel.material.color.setHex(0x1e3a1e);
+    else if (mode === 2) panel.material.color.setHex(0x1e2e4a);
+    else if (mode === 3) panel.material.color.setHex(0x4a2a12);
+  }
+  renderPanelHandles(panel);
 }
 
 function selectPanel(panel) {
-    activeBasePanel = panel;
-    if (!panel.userData.buildMode) panel.userData.buildMode = 1;
-    updatePanelVisualMode(panel);
+  activeBasePanel = panel;
+  if (!panel.userData.buildMode) panel.userData.buildMode = 1;
+  updatePanelVisualMode(panel);
 }
 
 function cyclePanelMode(delta) {
-    if (!activeBasePanel) return;
-    const pType = activeBasePanel.userData.panelType;
-    if (pType === 'ramp' || pType === 'wall_x' || pType === 'wall_z') return;
-    let mode = activeBasePanel.userData.buildMode || 1;
-    if (delta > 0) mode = mode === 3 ? 1 : mode + 1;
-    else mode = mode === 1 ? 3 : mode - 1;
-    activeBasePanel.userData.buildMode = mode;
-    updatePanelVisualMode(activeBasePanel);
+  if (!activeBasePanel) return;
+  const pType = activeBasePanel.userData.panelType;
+  if (pType === 'ramp' || pType === 'wall_x' || pType === 'wall_z') return;
+  let mode = activeBasePanel.userData.buildMode || 1;
+  if (delta > 0) mode = mode === 3 ? 1 : mode + 1;
+  else mode = mode === 1 ? 3 : mode - 1;
+  activeBasePanel.userData.buildMode = mode;
+  updatePanelVisualMode(activeBasePanel);
 }
 
 function placePanel(type, position, rotation, isRemote = false, customId = null) {
-    let matKey = type.startsWith('wall') ? 'wall' : type;
-    const mat = panelMaterials[matKey].clone();
-    let mesh;
+  let matKey = type.startsWith('wall') ? 'wall' : type;
+  const mat = panelMaterials[matKey].clone();
+  let mesh;
 
-    if (type === 'ramp') {
-        const geo = new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, RAMP_DIAG);
-        geo.computeBoundingBox();
-        geo.computeBoundingSphere();
-        mesh = new THREE.Mesh(geo, mat);
-        mesh.userData = {
-            isPanel: true,
-            panelType: 'ramp',
-            rampSegments: 1,
-            rampLength: RAMP_DIAG,
-            baseElevation: position.y - (WALL_HEIGHT / 2),
-            id: customId || Math.random().toString(),
-            permanent: true
-        };
-    } else {
-        const geo = (panelGeometries[type] || panelGeometries.floor).clone();
-        geo.computeBoundingBox();
-        geo.computeBoundingSphere();
-        mesh = new THREE.Mesh(geo, mat);
-        mesh.userData = {
-            isPanel: true,
-            panelType: type,
-            buildMode: 1,
-            id: customId || Math.random().toString(),
-            permanent: true
-        };
-    }
+  if (type === 'ramp') {
+    const geo = new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, RAMP_DIAG);
+    geo.computeBoundingBox();
+    geo.computeBoundingSphere();
+    mesh = new THREE.Mesh(geo, mat);
+    mesh.userData = {
+      isPanel: true,
+      panelType: 'ramp',
+      rampSegments: 1,
+      rampLength: RAMP_DIAG,
+      baseElevation: position.y - (WALL_HEIGHT / 2),
+      id: customId || Math.random().toString(),
+      permanent: true
+    };
+  } else {
+    const geo = (panelGeometries[type] || panelGeometries.floor).clone();
+    geo.computeBoundingBox();
+    geo.computeBoundingSphere();
+    mesh = new THREE.Mesh(geo, mat);
+    mesh.userData = {
+      isPanel: true,
+      panelType: type,
+      buildMode: 1,
+      id: customId || Math.random().toString(),
+      permanent: true
+    };
+  }
 
-    mesh.position.copy(position);
-    mesh.rotation.copy(rotation);
+  mesh.position.copy(position);
+  mesh.rotation.copy(rotation);
 
-    scene.add(mesh);
-    worldPanels.push(mesh);
+  scene.add(mesh);
+  worldPanels.push(mesh);
 
-    if (!isRemote) {
-        socket.emit('place_panel', {
-            roomId: currentRoomId,
-            type: type,
-            id: mesh.userData.id,
-            pos: { x: mesh.position.x, y: mesh.position.y, z: mesh.position.z },
-            rot: { x: mesh.rotation.x, y: mesh.rotation.y, z: mesh.rotation.z }
-        });
-    }
-    return mesh;
+  if (!isRemote) {
+    socket.emit('place_panel', {
+      roomId: currentRoomId,
+      type: type,
+      id: mesh.userData.id,
+      pos: { x: mesh.position.x, y: mesh.position.y, z: mesh.position.z },
+      rot: { x: mesh.rotation.x, y: mesh.rotation.y, z: mesh.rotation.z }
+    });
+  }
+  return mesh;
 }
 
 function extendRampDirectly(rampMesh, isRemote = false) {
-    if (!isRemote) {
-        let testZ = rampMesh.position.z;
-        if (Math.abs(rampMesh.rotation.x) > 0.1) {
-            const signZ = rampMesh.rotation.x > 0 ? -1 : 1;
-            testZ += signZ * (PANEL_SIZE / 2);
-        }
-        if (!isWithinMyBuildingTerritory(testZ, PANEL_SIZE)) {
-            statusText.innerText = "CANNOT EXTEND RAMP INTO ENEMY TERRITORY!";
-            statusText.style.color = "#ff4444";
-            setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2500);
-            return;
-        }
-    }
-
-    rampMesh.userData.rampSegments = (rampMesh.userData.rampSegments || 1) + 1;
-    const segs = rampMesh.userData.rampSegments;
-    const newLength = RAMP_DIAG * segs;
-    rampMesh.userData.rampLength = newLength;
-
-    rampMesh.geometry.dispose();
-    rampMesh.geometry = new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, newLength);
-    rampMesh.geometry.computeBoundingBox();
-    rampMesh.geometry.computeBoundingSphere();
-
-    rampMesh.position.add(new THREE.Vector3(0, WALL_HEIGHT / 2, 0));
-    
+  if (!isRemote) {
+    let testZ = rampMesh.position.z;
     if (Math.abs(rampMesh.rotation.x) > 0.1) {
-        const signZ = rampMesh.rotation.x > 0 ? -1 : 1;
-        rampMesh.position.z += signZ * (PANEL_SIZE / 2);
+      const signZ = rampMesh.rotation.x > 0 ? -1 : 1;
+      testZ += signZ * (PANEL_SIZE / 2);
     }
-    if (Math.abs(rampMesh.rotation.z) > 0.1) {
-        const signX = rampMesh.rotation.z > 0 ? 1 : -1;
-        rampMesh.position.x += signX * (PANEL_SIZE / 2);
+    if (!isWithinMyBuildingTerritory(testZ, PANEL_SIZE)) {
+      statusText.innerText = "CANNOT EXTEND RAMP INTO ENEMY TERRITORY!";
+      statusText.style.color = "#ff4444";
+      setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2500);
+      return;
     }
+  }
 
-    if (!isRemote) {
-        socket.emit('extend_ramp', {
-            roomId: currentRoomId,
-            id: rampMesh.userData.id
-        });
-    }
+  rampMesh.userData.rampSegments = (rampMesh.userData.rampSegments || 1) + 1;
+  const segs = rampMesh.userData.rampSegments;
+  const newLength = RAMP_DIAG * segs;
+  rampMesh.userData.rampLength = newLength;
 
-    renderPanelHandles(rampMesh);
+  rampMesh.geometry.dispose();
+  rampMesh.geometry = new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, newLength);
+  rampMesh.geometry.computeBoundingBox();
+  rampMesh.geometry.computeBoundingSphere();
+
+  rampMesh.position.add(new THREE.Vector3(0, WALL_HEIGHT / 2, 0));
+  
+  if (Math.abs(rampMesh.rotation.x) > 0.1) {
+    const signZ = rampMesh.rotation.x > 0 ? -1 : 1;
+    rampMesh.position.z += signZ * (PANEL_SIZE / 2);
+  }
+  if (Math.abs(rampMesh.rotation.z) > 0.1) {
+    const signX = rampMesh.rotation.z > 0 ? 1 : -1;
+    rampMesh.position.x += signX * (PANEL_SIZE / 2);
+  }
+
+  if (!isRemote) {
+    socket.emit('extend_ramp', {
+      roomId: currentRoomId,
+      id: rampMesh.userData.id
+    });
+  }
+
+  renderPanelHandles(rampMesh);
 }
 
 function undoDemolishPanel(panel, isRemote = false) {
-    if (!panel) return;
+  if (!panel) return;
 
-    if (panel.userData.panelType === 'ramp' && (panel.userData.rampSegments || 1) > 1) {
-        panel.userData.rampSegments -= 1;
-        const segs = panel.userData.rampSegments;
-        const newLength = RAMP_DIAG * segs;
-        panel.userData.rampLength = newLength;
+  if (panel.userData.panelType === 'ramp' && (panel.userData.rampSegments || 1) > 1) {
+    panel.userData.rampSegments -= 1;
+    const segs = panel.userData.rampSegments;
+    const newLength = RAMP_DIAG * segs;
+    panel.userData.rampLength = newLength;
 
-        panel.geometry.dispose();
-        panel.geometry = new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, newLength);
-        panel.geometry.computeBoundingBox();
-        panel.geometry.computeBoundingSphere();
+    panel.geometry.dispose();
+    panel.geometry = new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, newLength);
+    panel.geometry.computeBoundingBox();
+    panel.geometry.computeBoundingSphere();
 
-        panel.position.sub(new THREE.Vector3(0, WALL_HEIGHT / 2, 0));
-        if (Math.abs(panel.rotation.x) > 0.1) {
-            const signZ = panel.rotation.x > 0 ? -1 : 1;
-            panel.position.z -= signZ * (PANEL_SIZE / 2);
-        }
-        if (Math.abs(panel.rotation.z) > 0.1) {
-            const signX = panel.rotation.z > 0 ? 1 : -1;
-            panel.position.x -= signX * (PANEL_SIZE / 2);
-        }
-
-        if (!isRemote) {
-            socket.emit('extend_ramp', {
-                roomId: currentRoomId,
-                id: panel.userData.id
-            });
-        }
-        renderPanelHandles(panel);
-    } else {
-        const idToRemove = panel.userData.id;
-        scene.remove(panel);
-        const idx = worldPanels.indexOf(panel);
-        if (idx !== -1) worldPanels.splice(idx, 1);
-
-        if (activeBasePanel === panel) {
-            clearShotgunHandles();
-            activeBasePanel = null;
-        }
-
-        if (!isRemote) {
-            socket.emit('remove_panel', {
-                roomId: currentRoomId,
-                id: idToRemove
-            });
-        }
-
-        statusText.innerText = "PANEL DEMOLISHED!";
-        statusText.style.color = "#ff9900";
-        setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2000);
+    panel.position.sub(new THREE.Vector3(0, WALL_HEIGHT / 2, 0));
+    if (Math.abs(panel.rotation.x) > 0.1) {
+      const signZ = panel.rotation.x > 0 ? -1 : 1;
+      panel.position.z -= signZ * (PANEL_SIZE / 2);
     }
+    if (Math.abs(panel.rotation.z) > 0.1) {
+      const signX = panel.rotation.z > 0 ? 1 : -1;
+      panel.position.x -= signX * (PANEL_SIZE / 2);
+    }
+
+    if (!isRemote) {
+      socket.emit('extend_ramp', {
+        roomId: currentRoomId,
+        id: panel.userData.id
+      });
+    }
+    renderPanelHandles(panel);
+  } else {
+    const idToRemove = panel.userData.id;
+    scene.remove(panel);
+    const idx = worldPanels.indexOf(panel);
+    if (idx !== -1) worldPanels.splice(idx, 1);
+
+    if (activeBasePanel === panel) {
+      clearShotgunHandles();
+      activeBasePanel = null;
+    }
+
+    if (!isRemote) {
+      socket.emit('remove_panel', {
+        roomId: currentRoomId,
+        id: idToRemove
+      });
+    }
+
+    statusText.innerText = "PANEL DEMOLISHED!";
+    statusText.style.color = "#ff9900";
+    setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2000);
+  }
 }
 
 socket.on('opponent_remove_panel', (data) => {
-    const p = worldPanels.find(x => x.userData.id === data.id);
-    if (p) undoDemolishPanel(p, true);
+  const p = worldPanels.find(x => x.userData.id === data.id);
+  if (p) undoDemolishPanel(p, true);
 });
 
 socket.on('opponent_extend_ramp', (data) => {
-    const r = worldPanels.find(p => p.userData.id === data.id);
-    if (r) extendRampDirectly(r, true);
+  const r = worldPanels.find(p => p.userData.id === data.id);
+  if (r) extendRampDirectly(r, true);
 });
 
 socket.on('opponent_build', (data) => {
-    if (!matchStarted) return;
-    placePanel(
-        data.type,
-        new THREE.Vector3(data.pos.x, data.pos.y, data.pos.z),
-        new THREE.Euler(data.rot.x, data.rot.y, data.rot.z),
-        true,
-        data.id
-    );
+  if (!matchStarted) return;
+  placePanel(
+    data.type,
+    new THREE.Vector3(data.pos.x, data.pos.y, data.pos.z),
+    new THREE.Euler(data.rot.x, data.rot.y, data.rot.z),
+    true,
+    data.id
+  );
 });
 
 function triggerBranchBuild(parentPanel, gunId) {
-    if (gunId === 'ramp_extend' && parentPanel.userData.panelType === 'ramp') {
-        extendRampDirectly(parentPanel);
-        return;
+  if (gunId === 'ramp_extend' && parentPanel.userData.panelType === 'ramp') {
+    extendRampDirectly(parentPanel);
+    return;
+  }
+
+  if (gunId === 'ramp_level_flat' && parentPanel.userData.panelType === 'ramp') {
+    const segs = parentPanel.userData.rampSegments || 1;
+    const totalRise = WALL_HEIGHT * segs;
+    const totalRun = PANEL_SIZE * segs;
+
+    const summitY = (parentPanel.userData.baseElevation || 0.5) + totalRise;
+    const flatPos = parentPanel.position.clone();
+    flatPos.y = summitY;
+
+    if (Math.abs(parentPanel.rotation.x) > 0.1) {
+      const dirZ = parentPanel.rotation.x > 0 ? -1 : 1;
+      flatPos.z += dirZ * ((totalRun / 2) + (PANEL_SIZE / 2));
+    } else if (Math.abs(parentPanel.rotation.z) > 0.1) {
+      const dirX = parentPanel.rotation.z > 0 ? 1 : -1;
+      flatPos.x += dirX * ((totalRun / 2) + (PANEL_SIZE / 2));
     }
 
-    if (gunId === 'ramp_level_flat' && parentPanel.userData.panelType === 'ramp') {
-        const segs = parentPanel.userData.rampSegments || 1;
-        const totalRise = WALL_HEIGHT * segs;
-        const totalRun = PANEL_SIZE * segs;
-
-        const summitY = (parentPanel.userData.baseElevation || 0.5) + totalRise;
-        const flatPos = parentPanel.position.clone();
-        flatPos.y = summitY;
-
-        if (Math.abs(parentPanel.rotation.x) > 0.1) {
-            const dirZ = parentPanel.rotation.x > 0 ? -1 : 1;
-            flatPos.z += dirZ * ((totalRun / 2) + (PANEL_SIZE / 2));
-        } else if (Math.abs(parentPanel.rotation.z) > 0.1) {
-            const dirX = parentPanel.rotation.z > 0 ? 1 : -1;
-            flatPos.x += dirX * ((totalRun / 2) + (PANEL_SIZE / 2));
-        }
-
-        if (!isWithinMyBuildingTerritory(flatPos.z, PANEL_SIZE)) {
-            statusText.innerText = "CANNOT BUILD INTO ENEMY TERRITORY!";
-            statusText.style.color = "#ff4444";
-            setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2500);
-            return;
-        }
-
-        const levelFloor = placePanel('floor', flatPos, new THREE.Euler(0, 0, 0));
-        activeBasePanel = levelFloor;
-        selectPanel(levelFloor);
-        return;
+    if (!isWithinMyBuildingTerritory(flatPos.z, PANEL_SIZE)) {
+      statusText.innerText = "CANNOT BUILD INTO ENEMY TERRITORY!";
+      statusText.style.color = "#ff4444";
+      setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2500);
+      return;
     }
 
-    const pType = parentPanel.userData.panelType;
-    const basePos = parentPanel.position.clone();
-    let newPos = basePos.clone();
-    let newRot = new THREE.Euler(0, 0, 0);
-    let buildType = 'floor';
-    let checkDepth = PANEL_SIZE;
+    const levelFloor = placePanel('floor', flatPos, new THREE.Euler(0, 0, 0));
+    activeBasePanel = levelFloor;
+    selectPanel(levelFloor);
+    return;
+  }
 
-    if (pType === 'wall_x') {
-        buildType = 'wall_x';
-        checkDepth = PANEL_THICKNESS;
-        if (gunId === 'wall_up')    newPos.y += WALL_HEIGHT;
-        if (gunId === 'wall_down')  newPos.y -= WALL_HEIGHT;
-        if (gunId === 'wall_left')  newPos.x -= PANEL_SIZE;
-        if (gunId === 'wall_right') newPos.x += PANEL_SIZE;
-    } 
-    else if (pType === 'wall_z') {
-        buildType = 'wall_z';
-        checkDepth = PANEL_SIZE;
-        if (gunId === 'wall_up')    newPos.y += WALL_HEIGHT;
-        if (gunId === 'wall_down')  newPos.y -= WALL_HEIGHT;
-        if (gunId === 'wall_left')  newPos.z -= PANEL_SIZE;
-        if (gunId === 'wall_right') newPos.z += PANEL_SIZE;
-    }
-    else if (gunId === 'spawn_wall_north') {
-        buildType = 'wall_x';
-        newPos.y += (WALL_HEIGHT / 2);
-        newPos.z -= (PANEL_SIZE / 2);
-        checkDepth = PANEL_THICKNESS;
-    } 
-    else if (gunId === 'spawn_wall_south') {
-        buildType = 'wall_x';
-        newPos.y += (WALL_HEIGHT / 2);
-        newPos.z += (PANEL_SIZE / 2);
-        checkDepth = PANEL_THICKNESS;
-    } 
-    else if (gunId === 'spawn_wall_east') {
-        buildType = 'wall_z';
-        newPos.y += (WALL_HEIGHT / 2);
-        newPos.x += (PANEL_SIZE / 2);
-        checkDepth = PANEL_SIZE;
-    } 
-    else if (gunId === 'spawn_wall_west') {
-        buildType = 'wall_z';
-        newPos.y += (WALL_HEIGHT / 2);
-        newPos.x -= (PANEL_SIZE / 2);
-        checkDepth = PANEL_SIZE;
-    }
-    else if (parentPanel.userData.buildMode === 1) {
-        buildType = 'floor';
-        if (gunId === 'north') newPos.z -= PANEL_SIZE;
-        if (gunId === 'south') newPos.z += PANEL_SIZE;
-        if (gunId === 'east')  newPos.x += PANEL_SIZE;
-        if (gunId === 'west')  newPos.x -= PANEL_SIZE;
-        if (gunId === 'up')    newPos.y += WALL_HEIGHT;
-    } 
-    else if (parentPanel.userData.buildMode === 3) {
-        buildType = 'ramp';
-        newPos.y += (WALL_HEIGHT / 2);
-        if (gunId === 'north') { newPos.z -= PANEL_SIZE; newRot.x = RAMP_ANGLE; }
-        if (gunId === 'south') { newPos.z += PANEL_SIZE; newRot.x = -RAMP_ANGLE; }
-        if (gunId === 'east')  { newPos.x += PANEL_SIZE; newRot.z = RAMP_ANGLE; }
-        if (gunId === 'west')  { newPos.x -= PANEL_SIZE; newRot.z = -RAMP_ANGLE; }
-        if (gunId === 'up')    { buildType = 'floor'; newPos.y = basePos.y + WALL_HEIGHT; }
-    }
+  const pType = parentPanel.userData.panelType;
+  const basePos = parentPanel.position.clone();
+  let newPos = basePos.clone();
+  let newRot = new THREE.Euler(0, 0, 0);
+  let buildType = 'floor';
+  let checkDepth = PANEL_SIZE;
 
-    if (!isWithinMyBuildingTerritory(newPos.z, checkDepth)) {
-        statusText.innerText = "CANNOT BUILD INTO ENEMY TERRITORY!";
-        statusText.style.color = "#ff4444";
-        setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2500);
-        return;
-    }
+  if (pType === 'wall_x') {
+    buildType = 'wall_x';
+    checkDepth = PANEL_THICKNESS;
+    if (gunId === 'wall_up')    newPos.y += WALL_HEIGHT;
+    if (gunId === 'wall_down')  newPos.y -= WALL_HEIGHT;
+    if (gunId === 'wall_left')  newPos.x -= PANEL_SIZE;
+    if (gunId === 'wall_right') newPos.x += PANEL_SIZE;
+  } 
+  else if (pType === 'wall_z') {
+    buildType = 'wall_z';
+    checkDepth = PANEL_SIZE;
+    if (gunId === 'wall_up')    newPos.y += WALL_HEIGHT;
+    if (gunId === 'wall_down')  newPos.y -= WALL_HEIGHT;
+    if (gunId === 'wall_left')  newPos.z -= PANEL_SIZE;
+    if (gunId === 'wall_right') newPos.z += PANEL_SIZE;
+  }
+  else if (gunId === 'spawn_wall_north') {
+    buildType = 'wall_x';
+    newPos.y += (WALL_HEIGHT / 2);
+    newPos.z -= (PANEL_SIZE / 2);
+    checkDepth = PANEL_THICKNESS;
+  } 
+  else if (gunId === 'spawn_wall_south') {
+    buildType = 'wall_x';
+    newPos.y += (WALL_HEIGHT / 2);
+    newPos.z += (PANEL_SIZE / 2);
+    checkDepth = PANEL_THICKNESS;
+  } 
+  else if (gunId === 'spawn_wall_east') {
+    buildType = 'wall_z';
+    newPos.y += (WALL_HEIGHT / 2);
+    newPos.x += (PANEL_SIZE / 2);
+    checkDepth = PANEL_SIZE;
+  } 
+  else if (gunId === 'spawn_wall_west') {
+    buildType = 'wall_z';
+    newPos.y += (WALL_HEIGHT / 2);
+    newPos.x -= (PANEL_SIZE / 2);
+    checkDepth = PANEL_SIZE;
+  }
+  else if (parentPanel.userData.buildMode === 1) {
+    buildType = 'floor';
+    if (gunId === 'north') newPos.z -= PANEL_SIZE;
+    if (gunId === 'south') newPos.z += PANEL_SIZE;
+    if (gunId === 'east')  newPos.x += PANEL_SIZE;
+    if (gunId === 'west')  newPos.x -= PANEL_SIZE;
+    if (gunId === 'up')    newPos.y += WALL_HEIGHT;
+  } 
+  else if (parentPanel.userData.buildMode === 3) {
+    buildType = 'ramp';
+    newPos.y += (WALL_HEIGHT / 2);
+    if (gunId === 'north') { newPos.z -= PANEL_SIZE; newRot.x = RAMP_ANGLE; }
+    if (gunId === 'south') { newPos.z += PANEL_SIZE; newRot.x = -RAMP_ANGLE; }
+    if (gunId === 'east')  { newPos.x += PANEL_SIZE; newRot.z = RAMP_ANGLE; }
+    if (gunId === 'west')  { newPos.x -= PANEL_SIZE; newRot.z = -RAMP_ANGLE; }
+    if (gunId === 'up')    { buildType = 'floor'; newPos.y = basePos.y + WALL_HEIGHT; }
+  }
 
-    const spawned = placePanel(buildType, newPos, newRot);
-    activeBasePanel = spawned;
-    selectPanel(spawned);
+  if (!isWithinMyBuildingTerritory(newPos.z, checkDepth)) {
+    statusText.innerText = "CANNOT BUILD INTO ENEMY TERRITORY!";
+    statusText.style.color = "#ff4444";
+    setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2500);
+    return;
+  }
+
+  const spawned = placePanel(buildType, newPos, newRot);
+  activeBasePanel = spawned;
+  selectPanel(spawned);
 }
 
 // Units & Cannon System
@@ -896,10 +966,10 @@ const trajPositions = new Float32Array(TRAJECTORY_POINTS * 3);
 const trajGeo = new THREE.BufferGeometry();
 trajGeo.setAttribute('position', new THREE.BufferAttribute(trajPositions, 3));
 const trajMat = new THREE.LineDashedMaterial({
-    color: 0x00ffcc,
-    dashSize: 1.2,
-    gapSize: 0.8,
-    linewidth: 2
+  color: 0x00ffcc,
+  dashSize: 1.2,
+  gapSize: 0.8,
+  linewidth: 2
 });
 const trajectoryLine = new THREE.Line(trajGeo, trajMat);
 trajectoryLine.visible = false;
@@ -909,922 +979,1077 @@ let isAimingCannon = false;
 let currentAimTarget = new THREE.Vector3();
 
 function createCannon(x, z, mainColor, isOpp = false, customId = null, unitNumber = 1) {
-    const cGroup = new THREE.Group();
-    const barrelPivot = new THREE.Group();
-    barrelPivot.position.y = 0.5;
+  const cGroup = new THREE.Group();
+  const barrelPivot = new THREE.Group();
+  barrelPivot.position.y = 0.5;
 
-    // Cannon Barrel
-    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.5, 2.5), new THREE.MeshStandardMaterial({ color: 0x1a1a1a }));
-    barrel.geometry.translate(0, 1.25, 0);
-    barrel.rotation.x = Math.PI / 2;
-    barrelPivot.add(barrel);
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.5, 2.5), new THREE.MeshStandardMaterial({ color: 0x1a1a1a }));
+  barrel.geometry.translate(0, 1.25, 0);
+  barrel.rotation.x = Math.PI / 2;
+  barrelPivot.add(barrel);
 
-    const wheels = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 1.6), new THREE.MeshStandardMaterial({ color: mainColor }));
-    wheels.rotation.z = Math.PI / 2;
-    wheels.position.y = -0.2;
+  const wheels = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 1.6), new THREE.MeshStandardMaterial({ color: mainColor }));
+  wheels.rotation.z = Math.PI / 2;
+  wheels.position.y = -0.2;
 
-    cGroup.add(barrelPivot, wheels);
-    cGroup.position.set(x, 0.8, z);
-    cGroup.rotation.y = (z < 0) ? 0 : Math.PI;
+  cGroup.add(barrelPivot, wheels);
+  cGroup.position.set(x, 0.8, z);
+  cGroup.rotation.y = (z < 0) ? 0 : Math.PI;
 
-    cGroup.userData = {
-        selected: false,
-        targetPos: new THREE.Vector3(x, 0.8, z),
-        barrel, barrelPivot,
-        angle: 0,
-        startZ: z,
-        id: customId || Math.random().toString(),
-        unitNum: unitNumber,
-        isOpponent: isOpp
-    };
-    scene.add(cGroup);
+  cGroup.userData = {
+    selected: false,
+    targetPos: new THREE.Vector3(x, 0.8, z),
+    barrel, barrelPivot,
+    angle: 0,
+    startZ: z,
+    id: customId || Math.random().toString(),
+    unitNum: unitNumber,
+    isOpponent: isOpp
+  };
+  scene.add(cGroup);
 
-    if (isOpp) opponentCannons.push(cGroup);
-    else cannons.push(cGroup);
-    updateUnitCountsDisplay();
+  if (isOpp) opponentCannons.push(cGroup);
+  else cannons.push(cGroup);
+  updateUnitCountsDisplay();
 }
 
 function updateUnitCountsDisplay() {
-    const myUnitsEl = document.getElementById('my-units-count');
-    const enemyUnitsEl = document.getElementById('enemy-units-count');
-    if (myUnitsEl && enemyUnitsEl) {
-        myUnitsEl.innerText = `Your Cannons: ${cannons.length}`;
-        enemyUnitsEl.innerText = `Enemy Cannons: ${opponentCannons.length}`;
-    }
+  const myUnitsEl = document.getElementById('my-units-count');
+  const enemyUnitsEl = document.getElementById('enemy-units-count');
+  if (myUnitsEl && enemyUnitsEl) {
+    myUnitsEl.innerText = `Your Cannons: ${cannons.length}`;
+    enemyUnitsEl.innerText = `Enemy Cannons: ${opponentCannons.length}`;
+  }
 }
 
 function deselectAllCannons() {
-    cannons.forEach(c => {
-        c.userData.selected = false;
-        c.userData.barrel.material.emissive.set(0x000000);
-    });
-    trajectoryLine.visible = false;
-    isAimingCannon = false;
-    updateStatusUI();
+  cannons.forEach(c => {
+    c.userData.selected = false;
+    c.userData.barrel.material.emissive.set(0x000000);
+  });
+  trajectoryLine.visible = false;
+  isAimingCannon = false;
+  updateStatusUI();
 }
 
 function updateStatusUI() {
-    let selectedNum = null;
-    cannons.forEach(can => {
-        can.userData.barrel.material.emissive.set(can.userData.selected ? 0x00ff00 : 0x000000);
-        if (can.userData.selected) selectedNum = can.userData.unitNum;
-    });
+  let selectedNum = null;
+  cannons.forEach(can => {
+    can.userData.barrel.material.emissive.set(can.userData.selected ? 0x00ff00 : 0x000000);
+    if (can.userData.selected) selectedNum = can.userData.unitNum;
+  });
 
-    if (matchStarted && statusText.innerText !== "STATUS: MATCH STARTED!") {
-        if (selectedNum !== null) {
-            statusText.innerText = `ACTIVE COMMAND: CANNON #${selectedNum} [HOLD RMB = PREVIEW ARC & FIRE]`;
-        } else {
-            statusText.innerText = "STATUS: STANDBY (CLICK CANNON TO SELECT | RMB PANEL TO BUILD)";
-        }
+  if (matchStarted && statusText.innerText !== "STATUS: MATCH STARTED!") {
+    if (selectedNum !== null) {
+      statusText.innerText = `ACTIVE COMMAND: CANNON #${selectedNum} [HOLD RMB OR TAP TARGET TO FIRE]`;
+    } else {
+      statusText.innerText = "STATUS: STANDBY (CLICK CANNON TO SELECT | RMB/TAP PANEL TO BUILD)";
     }
+  }
 }
 
 function calculateBallistics(sourceCan, target) {
-    const start = new THREE.Vector3(0, 2.5, 0);
-    sourceCan.userData.barrelPivot.localToWorld(start);
+  const start = new THREE.Vector3(0, 2.5, 0);
+  sourceCan.userData.barrelPivot.localToWorld(start);
 
-    const maxAllowedRange = Math.abs(sourceCan.userData.startZ || 120) * 1.5;
-    const dx = target.x - start.x, dz = target.z - start.z, dy = target.y - start.y;
-    const horizontalDist = Math.sqrt(dx * dx + dz * dz);
-    const clampedDist = Math.min(horizontalDist, maxAllowedRange);
-    const ratio = clampedDist / (horizontalDist || 1);
-    const realisticTargetX = start.x + dx * ratio;
-    const realisticTargetZ = start.z + dz * ratio;
-    const finalDx = realisticTargetX - start.x;
-    const finalDz = realisticTargetZ - start.z;
-    const finalDist = Math.sqrt(finalDx * finalDx + finalDz * finalDz);
-    const gravity = -0.012;
-    const targetTime = 60 + (finalDist * 0.5);
-    const vx = finalDx / targetTime;
-    const vz = finalDz / targetTime;
-    const vy = (dy - (0.5 * gravity * Math.pow(targetTime, 2))) / targetTime;
+  const maxAllowedRange = Math.abs(sourceCan.userData.startZ || 120) * 1.5;
+  const dx = target.x - start.x, dz = target.z - start.z, dy = target.y - start.y;
+  const horizontalDist = Math.sqrt(dx * dx + dz * dz);
+  const clampedDist = Math.min(horizontalDist, maxAllowedRange);
+  const ratio = clampedDist / (horizontalDist || 1);
+  const realisticTargetX = start.x + dx * ratio;
+  const realisticTargetZ = start.z + dz * ratio;
+  const finalDx = realisticTargetX - start.x;
+  const finalDz = realisticTargetZ - start.z;
+  const finalDist = Math.sqrt(finalDx * finalDx + finalDz * finalDz);
+  const gravity = -0.012;
+  const targetTime = 60 + (finalDist * 0.5);
+  const vx = finalDx / targetTime;
+  const vz = finalDz / targetTime;
+  const vy = (dy - (0.5 * gravity * Math.pow(targetTime, 2))) / targetTime;
 
-    return { start, vx, vy, vz, gravity, targetTime };
+  return { start, vx, vy, vz, gravity, targetTime };
 }
 
 function updateTrajectoryArc(sourceCan, target) {
-    const originalRot = sourceCan.quaternion.clone();
-    sourceCan.lookAt(target.x, sourceCan.position.y, target.z);
+  const originalRot = sourceCan.quaternion.clone();
+  sourceCan.lookAt(target.x, sourceCan.position.y, target.z);
 
-    const muzzlePos = new THREE.Vector3(0, 2.5, 0);
-    sourceCan.userData.barrelPivot.localToWorld(muzzlePos);
+  const muzzlePos = new THREE.Vector3(0, 2.5, 0);
+  sourceCan.userData.barrelPivot.localToWorld(muzzlePos);
 
-    const allWalls = [...worldPanels.filter(p => p.userData.panelType.startsWith('wall')), ...gameWalls];
-    const muzzleSphere = new THREE.Sphere(muzzlePos, 0.4);
-    let touchesWall = false;
-    for (let w of allWalls) {
-        if (new THREE.Box3().setFromObject(w).intersectsSphere(muzzleSphere)) {
-            touchesWall = true;
-            break;
-        }
+  const allWalls = [...worldPanels.filter(p => p.userData.panelType.startsWith('wall')), ...gameWalls];
+  const muzzleSphere = new THREE.Sphere(muzzlePos, 0.4);
+  let touchesWall = false;
+  for (let w of allWalls) {
+    if (new THREE.Box3().setFromObject(w).intersectsSphere(muzzleSphere)) {
+      touchesWall = true;
+      break;
     }
+  }
 
-    if (touchesWall) {
-        sourceCan.quaternion.copy(originalRot);
-        trajectoryLine.visible = false;
-        statusText.innerText = "BARREL BLOCKED BY WALL!";
-        statusText.style.color = "#ff4444";
-        return;
-    }
+  if (touchesWall) {
+    sourceCan.quaternion.copy(originalRot);
+    trajectoryLine.visible = false;
+    statusText.innerText = "BARREL BLOCKED BY WALL!";
+    statusText.style.color = "#ff4444";
+    return;
+  }
 
-    const localTarget = sourceCan.worldToLocal(target.clone());
-    sourceCan.userData.angle = Math.atan2(localTarget.y, Math.sqrt(localTarget.x**2 + localTarget.z**2));
+  const localTarget = sourceCan.worldToLocal(target.clone());
+  sourceCan.userData.angle = Math.atan2(localTarget.y, Math.sqrt(localTarget.x**2 + localTarget.z**2));
 
-    const b = calculateBallistics(sourceCan, target);
-    const posAttr = trajectoryLine.geometry.attributes.position;
-    const stepTime = b.targetTime / (TRAJECTORY_POINTS - 1);
+  const b = calculateBallistics(sourceCan, target);
+  const posAttr = trajectoryLine.geometry.attributes.position;
+  const stepTime = b.targetTime / (TRAJECTORY_POINTS - 1);
 
-    for (let i = 0; i < TRAJECTORY_POINTS; i++) {
-        const t = i * stepTime;
-        const px = b.start.x + b.vx * t;
-        const py = b.start.y + b.vy * t + 0.5 * b.gravity * (t * t);
-        const pz = b.start.z + b.vz * t;
-        posAttr.setXYZ(i, px, py, pz);
-    }
-    posAttr.needsUpdate = true;
-    trajectoryLine.computeLineDistances();
-    trajectoryLine.visible = true;
+  for (let i = 0; i < TRAJECTORY_POINTS; i++) {
+    const t = i * stepTime;
+    const px = b.start.x + b.vx * t;
+    const py = b.start.y + b.vy * t + 0.5 * b.gravity * (t * t);
+    const pz = b.start.z + b.vz * t;
+    posAttr.setXYZ(i, px, py, pz);
+  }
+  posAttr.needsUpdate = true;
+  trajectoryLine.computeLineDistances();
+  trajectoryLine.visible = true;
 }
 
 function spawnProjectile(sourceCan, target, isRemote = false) {
-    if (!matchStarted || matchOver) return;
+  if (!matchStarted || matchOver) return;
 
-    const muzzleCheck = new THREE.Vector3(0, 2.5, 0);
-    sourceCan.userData.barrelPivot.localToWorld(muzzleCheck);
+  const muzzleCheck = new THREE.Vector3(0, 2.5, 0);
+  sourceCan.userData.barrelPivot.localToWorld(muzzleCheck);
 
-    const allWalls = [...worldPanels.filter(p => p.userData.panelType.startsWith('wall')), ...gameWalls];
-    const muzzleSphere = new THREE.Sphere(muzzleCheck, 0.4);
-    for (let w of allWalls) {
-        if (new THREE.Box3().setFromObject(w).intersectsSphere(muzzleSphere)) {
-            statusText.innerText = "CANNOT FIRE: BARREL IS OBSTRUCTED!";
-            statusText.style.color = "#ff4444";
-            setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2000);
-            return;
-        }
+  const allWalls = [...worldPanels.filter(p => p.userData.panelType.startsWith('wall')), ...gameWalls];
+  const muzzleSphere = new THREE.Sphere(muzzleCheck, 0.4);
+  for (let w of allWalls) {
+    if (new THREE.Box3().setFromObject(w).intersectsSphere(muzzleSphere)) {
+      statusText.innerText = "CANNOT FIRE: BARREL IS OBSTRUCTED!";
+      statusText.style.color = "#ff4444";
+      setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2000);
+      return;
     }
+  }
 
-    const b = calculateBallistics(sourceCan, target);
-    const obj = new THREE.Mesh(new THREE.SphereGeometry(0.6), new THREE.MeshStandardMaterial({ color: 0xff4400, emissive: 0xffaa00 }));
-    obj.position.copy(b.start);
+  const b = calculateBallistics(sourceCan, target);
+  const obj = new THREE.Mesh(new THREE.SphereGeometry(0.6), new THREE.MeshStandardMaterial({ color: 0xff4400, emissive: 0xffaa00 }));
+  obj.position.copy(b.start);
 
-    scene.add(obj);
-    activeProjectiles.push({
-        mesh: obj,
-        velocity: new THREE.Vector3(b.vx, b.vy, b.vz),
-        gravity: b.gravity,
-        life: 0,
-        maxLife: 600,
-        isRemote
-    });
+  scene.add(obj);
+  activeProjectiles.push({
+    mesh: obj,
+    velocity: new THREE.Vector3(b.vx, b.vy, b.vz),
+    gravity: b.gravity,
+    life: 0,
+    maxLife: 600,
+    isRemote
+  });
 
-    if (!isRemote) {
-        socket.emit('fire_projectile', { roomId: currentRoomId, id: sourceCan.userData.id, target: { x: target.x, y: target.y, z: target.z } });
-    }
+  if (!isRemote) {
+    socket.emit('fire_projectile', { roomId: currentRoomId, id: sourceCan.userData.id, target: { x: target.x, y: target.y, z: target.z } });
+  }
 }
 
 // Combat Events
 socket.on('opponent_move', (data) => {
-    if (!matchStarted) return;
-    opponentCannons.forEach(can => {
-        if (can.userData.id === data.id) {
-            can.userData.targetPos.set(data.tx, can.position.y, data.tz);
-        }
-    });
+  if (!matchStarted) return;
+  opponentCannons.forEach(can => {
+    if (can.userData.id === data.id) {
+      can.userData.targetPos.set(data.tx, can.position.y, data.tz);
+    }
+  });
 });
 
 socket.on('opponent_fire', (data) => {
-    if (!matchStarted) return;
-    opponentCannons.forEach(can => {
-        if (can.userData.id === data.id) {
-            spawnProjectile(can, new THREE.Vector3(data.target.x, data.target.y, data.target.z), true);
-        }
-    });
+  if (!matchStarted) return;
+  opponentCannons.forEach(can => {
+    if (can.userData.id === data.id) {
+      spawnProjectile(can, new THREE.Vector3(data.target.x, data.target.y, data.target.z), true);
+    }
+  });
 });
 
 socket.on('opponent_destroy', (data) => {
-    [...cannons, ...opponentCannons].forEach(can => {
-        if (can.userData.id === data.id) {
-            scene.remove(can);
-            cannons = cannons.filter(c => c.userData.id !== data.id);
-            opponentCannons = opponentCannons.filter(c => c.userData.id !== data.id);
-            updateStatusUI();
-            updateUnitCountsDisplay();
-            checkWinCondition();
-        }
-    });
+  [...cannons, ...opponentCannons].forEach(can => {
+    if (can.userData.id === data.id) {
+      scene.remove(can);
+      cannons = cannons.filter(c => c.userData.id !== data.id);
+      opponentCannons = opponentCannons.filter(c => c.userData.id !== data.id);
+      updateStatusUI();
+      updateUnitCountsDisplay();
+      checkWinCondition();
+    }
+  });
 });
 
 function checkWinCondition() {
-    if (matchOver || !matchStarted) return;
-    const myCount = cannons.length;
-    const oppCount = opponentCannons.length;
+  if (matchOver || !matchStarted) return;
+  const myCount = cannons.length;
+  const oppCount = opponentCannons.length;
 
-    if (myCount === 0 || oppCount === 0) {
-        const winnerIdx = myCount > 0 ? myPlayerIndex : (myPlayerIndex === 1 ? 2 : 1);
-        socket.emit('check_game_over', {
-            roomId: currentRoomId,
-            winnerIndex: winnerIdx,
-            p1Count: myPlayerIndex === 1 ? myCount : oppCount,
-            p2Count: myPlayerIndex === 2 ? myCount : oppCount
-        });
-    }
+  if (myCount === 0 || oppCount === 0) {
+    const winnerIdx = myCount > 0 ? myPlayerIndex : (myPlayerIndex === 1 ? 2 : 1);
+    socket.emit('check_game_over', {
+      roomId: currentRoomId,
+      winnerIndex: winnerIdx,
+      p1Count: myPlayerIndex === 1 ? myCount : oppCount,
+      p2Count: myPlayerIndex === 2 ? myCount : oppCount
+    });
+  }
 }
 
 // Minimap
-const MAP_SCALE = 200 / boardSize;
-const MAP_CENTER = { x: 100, y: 100 };
+const MAP_SCALE = 120 / boardSize;
+const MAP_CENTER = { x: 60, y: 60 };
 
 function toMap(x, z) {
-    if (myPlayerIndex === 2) return { x: MAP_CENTER.x - x * MAP_SCALE, y: MAP_CENTER.y - z * MAP_SCALE };
-    return { x: MAP_CENTER.x + x * MAP_SCALE, y: MAP_CENTER.y + z * MAP_SCALE };
+  if (myPlayerIndex === 2) return { x: MAP_CENTER.x - x * MAP_SCALE, y: MAP_CENTER.y - z * MAP_SCALE };
+  return { x: MAP_CENTER.x + x * MAP_SCALE, y: MAP_CENTER.y + z * MAP_SCALE };
 }
 
 function fromMap(mx, my) {
-    if (myPlayerIndex === 2) return { x: -(mx - MAP_CENTER.x) / MAP_SCALE, z: -(my - MAP_CENTER.y) / MAP_SCALE };
-    return { x: (mx - MAP_CENTER.x) / MAP_SCALE, z: (my - MAP_CENTER.y) / MAP_SCALE };
+  if (myPlayerIndex === 2) return { x: -(mx - MAP_CENTER.x) / MAP_SCALE, z: -(my - MAP_CENTER.y) / MAP_SCALE };
+  return { x: (mx - MAP_CENTER.x) / MAP_SCALE, z: (my - MAP_CENTER.y) / MAP_SCALE };
 }
 
 function updateMinimap() {
-    ctx.clearRect(0, 0, 200, 200);
-    ctx.fillStyle = '#3a5a2a'; ctx.fillRect(0, 0, 200, 200);
+  ctx.clearRect(0, 0, 120, 120);
+  ctx.fillStyle = '#3a5a2a'; ctx.fillRect(0, 0, 120, 120);
 
-    const pRiver1 = toMap(-boardSize / 2, -riverWidth / 2);
-    const pRiver2 = toMap(boardSize / 2, riverWidth / 2);
-    ctx.fillStyle = '#0077be';
-    ctx.fillRect(Math.min(pRiver1.x, pRiver2.x), Math.min(pRiver1.y, pRiver2.y), Math.abs(pRiver2.x - pRiver1.x), Math.abs(pRiver2.y - pRiver1.y));
+  const pRiver1 = toMap(-boardSize / 2, -riverWidth / 2);
+  const pRiver2 = toMap(boardSize / 2, riverWidth / 2);
+  ctx.fillStyle = '#0077be';
+  ctx.fillRect(Math.min(pRiver1.x, pRiver2.x), Math.min(pRiver1.y, pRiver2.y), Math.abs(pRiver2.x - pRiver1.x), Math.abs(pRiver2.y - pRiver1.y));
 
-    const pMid1 = toMap(-boardSize / 2, 0);
-    const pMid2 = toMap(boardSize / 2, 0);
-    ctx.strokeStyle = '#ffd700';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(pMid1.x, pMid1.y);
-    ctx.lineTo(pMid2.x, pMid2.y);
-    ctx.stroke();
+  const pMid1 = toMap(-boardSize / 2, 0);
+  const pMid2 = toMap(boardSize / 2, 0);
+  ctx.strokeStyle = '#ffd700';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pMid1.x, pMid1.y);
+  ctx.lineTo(pMid2.x, pMid2.y);
+  ctx.stroke();
 
-    ctx.fillStyle = '#5c4033';
-    bridgeXPositions.forEach(bx => {
-        const p1 = toMap(bx - bridgeWidth / 2, -bridgeLength / 2);
-        const p2 = toMap(bx + bridgeWidth / 2, bridgeLength / 2);
-        ctx.fillRect(Math.min(p1.x, p2.x), Math.min(p1.y, p2.y), Math.abs(p2.x - p1.x), Math.abs(p2.y - p1.y));
-    });
+  ctx.fillStyle = '#5c4033';
+  bridgeXPositions.forEach(bx => {
+    const p1 = toMap(bx - bridgeWidth / 2, -bridgeLength / 2);
+    const p2 = toMap(bx + bridgeWidth / 2, bridgeLength / 2);
+    ctx.fillRect(Math.min(p1.x, p2.x), Math.min(p1.y, p2.y), Math.abs(p2.x - p1.x), Math.abs(p2.y - p1.y));
+  });
 
-    worldPanels.forEach(p => {
-        const pp = toMap(p.position.x, p.position.z);
-        ctx.fillStyle = '#64748b';
-        ctx.fillRect(pp.x - 2, pp.y - 2, 4, 4);
-    });
+  worldPanels.forEach(p => {
+    const pp = toMap(p.position.x, p.position.z);
+    ctx.fillStyle = '#64748b';
+    ctx.fillRect(pp.x - 2, pp.y - 2, 4, 4);
+  });
 
-    cannons.forEach(can => {
-        const cp = toMap(can.position.x, can.position.z);
-        ctx.beginPath(); ctx.arc(cp.x, cp.y, 4, 0, Math.PI * 2);
-        ctx.fillStyle = can.userData.selected ? '#00ff00' : '#00aaff'; ctx.fill();
-    });
+  cannons.forEach(can => {
+    const cp = toMap(can.position.x, can.position.z);
+    ctx.beginPath(); ctx.arc(cp.x, cp.y, 3, 0, Math.PI * 2);
+    ctx.fillStyle = can.userData.selected ? '#00ff00' : '#00aaff'; ctx.fill();
+  });
 
-    opponentCannons.forEach(can => {
-        const cp = toMap(can.position.x, can.position.z);
-        ctx.beginPath(); ctx.arc(cp.x, cp.y, 4, 0, Math.PI * 2);
-        ctx.fillStyle = '#ffaa00'; ctx.fill();
-    });
+  opponentCannons.forEach(can => {
+    const cp = toMap(can.position.x, can.position.z);
+    ctx.beginPath(); ctx.arc(cp.x, cp.y, 3, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffaa00'; ctx.fill();
+  });
 }
 
-// Mouse Controls
-window.onmousedown = (e) => {
-    if (!matchStarted || matchOver) return;
-    if (e.target.closest('#ui') || e.target.closest('#lobby-screen') || e.target.closest('#mode-legend') || e.target.closest('#camera-altitude-control')) return;
+// -------------------------------------------------------------
+// CORE INTERACTION ENGINE: MOUSE & TOUCH COORDINATION
+// -------------------------------------------------------------
+function handlePointerDown(clientX, clientY, isSecondary = false) {
+  if (!matchStarted || matchOver) return;
 
-    if (e.target === minimapCanvas && e.button === 0) {
-        const rect = minimapCanvas.getBoundingClientRect();
-        const world = fromMap(e.clientX - rect.left, e.clientY - rect.top);
-        const selected = cannons.find(c => c.userData.selected);
-        if (selected) {
-            selected.userData.targetPos.set(world.x, selected.position.y, world.z);
-            socket.emit('player_move', { roomId: currentRoomId, id: selected.userData.id, tx: world.x, tz: world.z });
-        } else {
-            camera.position.set(world.x, camera.position.y, world.z);
-        }
+  mouse.x = (clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+
+  if (isSecondary) {
+    const selectedCannon = cannons.find(c => c.userData.selected);
+    if (selectedCannon) {
+      const combatHits = raycaster.intersectObjects([ground, river, ...bridges, ...worldPanels, ...gameWalls, ...opponentCannons], true);
+      if (combatHits.length > 0) {
+        isAimingCannon = true;
+        currentAimTarget.copy(combatHits[0].point);
+        updateTrajectoryArc(selectedCannon, currentAimTarget);
+      }
+      return;
+    }
+
+    const panelHits = raycaster.intersectObjects(worldPanels, false);
+    if (panelHits.length > 0) {
+      selectPanel(panelHits[0].object);
+    }
+    return;
+  }
+
+  // Check shotgun handles first
+  const gunIntersects = raycaster.intersectObjects(shotgunHandles, true);
+  if (gunIntersects.length > 0) {
+    let hitObj = gunIntersects[0].object;
+    while (hitObj.parent && !hitObj.userData.isShotgunHandle) hitObj = hitObj.parent;
+    if (hitObj.userData.isShotgunHandle && activeBasePanel) {
+      pumpingShotgun = hitObj;
+      pumpStage = 'idle';
+
+      const gunWorldPos = pumpingShotgun.position.clone();
+      const dirEndpoint = gunWorldPos.clone().add(pumpingShotgun.userData.dirVector.clone().multiplyScalar(4));
+
+      const sStart = gunWorldPos.project(camera);
+      const sEnd = dirEndpoint.project(camera);
+
+      pumpScreenStart.set(clientX, clientY);
+      pumpScreenDir.set(
+        (sEnd.x - sStart.x) * window.innerWidth / 2,
+        -(sEnd.y - sStart.y) * window.innerHeight / 2
+      );
+
+      if (pumpScreenDir.lengthSq() > 0.001) {
+        pumpScreenDir.normalize();
+      } else {
+        pumpScreenDir.set(0, -1);
+      }
+
+      pumpHud.style.display = 'block';
+      pumpText.innerText = "PULL BACK TO COCK, THEN PUSH FORWARD TO FIRE!";
+      pumpText.style.color = "#ffd700";
+      pumpBar.style.width = '0%';
+      pumpBar.style.background = '#ffd700';
+      return;
+    }
+  }
+
+  // Check Cannon Click
+  let clickedCannon = null;
+  cannons.forEach(can => {
+    if (raycaster.intersectObject(can, true).length > 0) clickedCannon = can;
+  });
+
+  if (clickedCannon) {
+    if (clickedCannon.userData.selected) {
+      clickedCannon.userData.selected = false;
+    } else {
+      cannons.forEach(c => c.userData.selected = false);
+      clickedCannon.userData.selected = true;
+    }
+    clearShotgunHandles();
+    activeBasePanel = null;
+    updateStatusUI();
+    return;
+  }
+
+  // Check walkable ground/panel
+  const walkableHits = raycaster.intersectObjects([ground, ...worldPanels, ...bridges], true);
+  if (walkableHits.length > 0) {
+    const pt = walkableHits[0].point;
+    const selected = cannons.find(c => c.userData.selected);
+    if (selected) {
+      selected.userData.targetPos.set(pt.x, selected.position.y, pt.z);
+      socket.emit('player_move', { roomId: currentRoomId, id: selected.userData.id, tx: pt.x, tz: pt.z });
+    } else if (worldPanels.length === 0) {
+      const snapX = Math.round(pt.x / PANEL_SIZE) * PANEL_SIZE;
+      const snapZ = Math.round(pt.z / PANEL_SIZE) * PANEL_SIZE;
+      if (isWithinMyBuildingTerritory(snapZ, PANEL_SIZE)) {
+        const rootPanel = placePanel('floor', new THREE.Vector3(snapX, PANEL_THICKNESS / 2, snapZ), new THREE.Euler(0, 0, 0));
+        selectPanel(rootPanel);
+      }
+    } else {
+      clearShotgunHandles();
+      activeBasePanel = null;
+    }
+  }
+}
+
+function handlePointerMove(clientX, clientY) {
+  mouse.x = (clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(clientY / window.innerHeight) * 2 + 1;
+
+  if (isAimingCannon) {
+    raycaster.setFromCamera(mouse, camera);
+    const combatHits = raycaster.intersectObjects([ground, river, ...bridges, ...worldPanels, ...gameWalls, ...opponentCannons], true);
+    const selectedCannon = cannons.find(c => c.userData.selected);
+    if (combatHits.length > 0 && selectedCannon) {
+      currentAimTarget.copy(combatHits[0].point);
+      updateTrajectoryArc(selectedCannon, currentAimTarget);
+    }
+  }
+
+  if (pumpingShotgun && activeBasePanel) {
+    const mouseDelta = new THREE.Vector2(clientX - pumpScreenStart.x, clientY - pumpScreenStart.y);
+    const dragAlongAxis = mouseDelta.dot(pumpScreenDir);
+    const PUMP_STROKE = 50;
+
+    const pumpSlide = pumpingShotgun.userData.pumpSlide;
+    const shellGroup = pumpingShotgun.userData.shellGroup;
+    const initialY = pumpingShotgun.userData.initialPumpY;
+
+    // BUILD SEQUENCE (Pull -> Push)
+    if (pumpStage === 'idle' && dragAlongAxis < -8) {
+      pumpStage = 'pulling_back';
+    }
+
+    if (pumpStage === 'pulling_back') {
+      const pullBackAmt = Math.min(1.0, Math.max(0.0, -dragAlongAxis / PUMP_STROKE));
+      pumpSlide.position.y = initialY - (pullBackAmt * 1.1);
+
+      const shellScale = Math.min(1.0, pullBackAmt * 1.5);
+      shellGroup.scale.set(shellScale, shellScale, shellScale);
+      shellGroup.position.set(0, 0.4 + (pullBackAmt * 0.2), -0.1 + (pullBackAmt * 0.2));
+
+      pumpBar.style.width = `${pullBackAmt * 50}%`;
+      pumpBar.style.background = '#ffd700';
+      pumpText.innerText = "COCKING SPRING... (PULL ALL THE WAY BACK)";
+      pumpText.style.color = "#ffd700";
+
+      if (pullBackAmt >= 1.0) {
+        pumpStage = 'pull_back_primed';
+        pumpScreenStart.set(clientX, clientY);
+        pumpText.innerText = "★ COCKED! NOW SLAM FORWARD TO FIRE! ★";
+        pumpText.style.color = "#00ffcc";
+        pumpBar.style.background = '#00ffcc';
+        pumpBar.style.width = '50%';
+      }
+    } else if (pumpStage === 'pull_back_primed') {
+      const pushForwardAmt = Math.min(1.0, Math.max(0.0, dragAlongAxis / PUMP_STROKE));
+      pumpSlide.position.y = (initialY - 1.1) + (pushForwardAmt * 1.1);
+
+      pumpBar.style.width = `${50 + (pushForwardAmt * 50)}%`;
+      pumpBar.style.background = '#00ff00';
+      pumpText.innerText = "SLAM FORWARD TO LOCK & FIRE!";
+      pumpText.style.color = "#00ff00";
+
+      if (pushForwardAmt >= 1.0) {
+        const firedGunId = pumpingShotgun.userData.arrowId;
+        pumpingShotgun.userData.recoilTimer = 1.0;
+        pumpingShotgun.userData.flash.material.opacity = 1.0;
+        triggerBranchBuild(activeBasePanel, firedGunId);
+
+        pumpSlide.position.y = initialY;
+        shellGroup.scale.set(0.001, 0.001, 0.001);
+        pumpingShotgun = null;
+        pumpStage = 'idle';
+        pumpHud.style.display = 'none';
         return;
+      }
     }
 
-    if (e.button === 0) {
-        raycaster.setFromCamera(mouse, camera);
-
-        const gunIntersects = raycaster.intersectObjects(shotgunHandles, true);
-        if (gunIntersects.length > 0) {
-            let hitObj = gunIntersects[0].object;
-            while (hitObj.parent && !hitObj.userData.isShotgunHandle) hitObj = hitObj.parent;
-            if (hitObj.userData.isShotgunHandle && activeBasePanel) {
-                pumpingShotgun = hitObj;
-                pumpStartMouse = { x: e.clientX, y: e.clientY };
-                currentAction = 'none';
-                currentProgress = 0.0;
-                isActionFullyCharged = false;
-
-                pumpHud.style.display = 'block';
-                pumpText.innerText = "PULL BACK TO CHARGE SPRING...";
-                pumpText.style.color = "#ffd700";
-                pumpBar.style.width = '0%';
-                pumpBar.style.background = '#ffd700';
-                return;
-            }
-        }
-
-        let clickedCannon = null;
-        cannons.forEach(can => {
-            if (raycaster.intersectObject(can, true).length > 0) clickedCannon = can;
-        });
-
-        if (clickedCannon) {
-            if (clickedCannon.userData.selected) {
-                clickedCannon.userData.selected = false;
-            } else {
-                cannons.forEach(c => c.userData.selected = false);
-                clickedCannon.userData.selected = true;
-            }
-            clearShotgunHandles();
-            activeBasePanel = null;
-            updateStatusUI();
-            return;
-        }
-
-        const walkableHits = raycaster.intersectObjects([ground, ...worldPanels, ...bridges], true);
-        if (walkableHits.length > 0) {
-            const pt = walkableHits[0].point;
-            const selected = cannons.find(c => c.userData.selected);
-            if (selected) {
-                selected.userData.targetPos.set(pt.x, selected.position.y, pt.z);
-                socket.emit('player_move', { roomId: currentRoomId, id: selected.userData.id, tx: pt.x, tz: pt.z });
-            } else if (worldPanels.length === 0) {
-                const snapX = Math.round(pt.x / PANEL_SIZE) * PANEL_SIZE;
-                const snapZ = Math.round(pt.z / PANEL_SIZE) * PANEL_SIZE;
-                if (isWithinMyBuildingTerritory(snapZ, PANEL_SIZE)) {
-                    const rootPanel = placePanel('floor', new THREE.Vector3(snapX, PANEL_THICKNESS / 2, snapZ), new THREE.Euler(0, 0, 0));
-                    selectPanel(rootPanel);
-                }
-            } else {
-                clearShotgunHandles();
-                activeBasePanel = null;
-            }
-        }
+    // DEMOLISH SEQUENCE (Push -> Pull)
+    else if (pumpStage === 'idle' && dragAlongAxis > 8) {
+      pumpStage = 'pushing_forward';
     }
 
-    if (e.button === 2) {
-        e.preventDefault();
-        raycaster.setFromCamera(mouse, camera);
+    if (pumpStage === 'pushing_forward') {
+      const pushAmt = Math.min(1.0, Math.max(0.0, dragAlongAxis / PUMP_STROKE));
+      pumpSlide.position.y = initialY + (pushAmt * 0.8);
 
-        const selectedCannon = cannons.find(c => c.userData.selected);
+      pumpBar.style.width = `${pushAmt * 50}%`;
+      pumpBar.style.background = '#ff8800';
+      pumpText.innerText = "REVERSE CLEARING... (PUSH ALL THE WAY FORWARD)";
+      pumpText.style.color = "#ff8800";
 
-        if (selectedCannon) {
-            const combatHits = raycaster.intersectObjects([ground, river, ...bridges, ...worldPanels, ...gameWalls, ...opponentCannons], true);
-            if (combatHits.length > 0) {
-                isAimingCannon = true;
-                currentAimTarget.copy(combatHits[0].point);
-                updateTrajectoryArc(selectedCannon, currentAimTarget);
-            }
-            return;
-        }
+      if (pushAmt >= 1.0) {
+        pumpStage = 'push_forward_primed';
+        pumpScreenStart.set(clientX, clientY);
+        pumpText.innerText = "⚠ PRIMED! RACK BACKWARDS TO DEMOLISH! ⚠";
+        pumpText.style.color = "#ff3300";
+        pumpBar.style.background = '#ff0033';
+        pumpBar.style.width = '50%';
+      }
+    } else if (pumpStage === 'push_forward_primed') {
+      const pullBackAmt = Math.min(1.0, Math.max(0.0, -dragAlongAxis / PUMP_STROKE));
+      pumpSlide.position.y = (initialY + 0.8) - (pullBackAmt * 0.8);
 
-        const panelHits = raycaster.intersectObjects(worldPanels, false);
-        if (panelHits.length > 0) {
-            selectPanel(panelHits[0].object);
-        }
+      pumpBar.style.width = `${50 + (pullBackAmt * 50)}%`;
+      pumpBar.style.background = '#ff0033';
+      pumpText.innerText = "RACK BACK TO DEMOLISH!";
+      pumpText.style.color = "#ff3300";
+
+      if (pullBackAmt >= 1.0) {
+        pumpingShotgun.userData.recoilTimer = 1.0;
+        pumpingShotgun.userData.flash.material.opacity = 1.0;
+        undoDemolishPanel(activeBasePanel);
+
+        pumpSlide.position.y = initialY;
+        shellGroup.scale.set(0.001, 0.001, 0.001);
+        pumpingShotgun = null;
+        pumpStage = 'idle';
+        pumpHud.style.display = 'none';
+        return;
+      }
     }
+  }
+}
+
+function handlePointerUp() {
+  if (isAimingCannon) {
+    const selectedCannon = cannons.find(c => c.userData.selected);
+    if (selectedCannon) {
+      spawnProjectile(selectedCannon, currentAimTarget);
+    }
+    isAimingCannon = false;
+    trajectoryLine.visible = false;
+    return;
+  }
+
+  if (pumpingShotgun) {
+    pumpingShotgun.userData.pumpSlide.position.y = pumpingShotgun.userData.initialPumpY;
+    pumpingShotgun.userData.shellGroup.scale.set(0.001, 0.001, 0.001);
+    pumpingShotgun.position.copy(pumpingShotgun.userData.originalLocalPos);
+    pumpingShotgun = null;
+    pumpStage = 'idle';
+    pumpHud.style.display = 'none';
+  }
+}
+
+// Mouse Listeners
+window.onmousedown = (e) => {
+  if (e.target.closest('#ui') || e.target.closest('#lobby-screen') || e.target.closest('#mode-legend') || e.target.closest('#camera-altitude-control') || e.target.closest('#mobile-dpad') || e.target.closest('#mobile-lookpad')) return;
+
+  if (e.target === minimapCanvas && e.button === 0) {
+    const rect = minimapCanvas.getBoundingClientRect();
+    const world = fromMap(e.clientX - rect.left, e.clientY - rect.top);
+    const selected = cannons.find(c => c.userData.selected);
+    if (selected) {
+      selected.userData.targetPos.set(world.x, selected.position.y, world.z);
+      socket.emit('player_move', { roomId: currentRoomId, id: selected.userData.id, tx: world.x, tz: world.z });
+    } else {
+      camera.position.set(world.x, camera.position.y, world.z);
+    }
+    return;
+  }
+
+  handlePointerDown(e.clientX, e.clientY, e.button === 2);
 };
 
 window.onmousemove = (e) => {
-    mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-
-    if (isAimingCannon) {
-        raycaster.setFromCamera(mouse, camera);
-        const combatHits = raycaster.intersectObjects([ground, river, ...bridges, ...worldPanels, ...gameWalls, ...opponentCannons], true);
-        const selectedCannon = cannons.find(c => c.userData.selected);
-        if (combatHits.length > 0 && selectedCannon) {
-            currentAimTarget.copy(combatHits[0].point);
-            updateTrajectoryArc(selectedCannon, currentAimTarget);
-        }
-    }
-
-    if (pumpingShotgun && activeBasePanel) {
-        const gunWorldPos = pumpingShotgun.position.clone();
-        const dirEndpoint = gunWorldPos.clone().add(pumpingShotgun.userData.dirVector.clone().multiplyScalar(4));
-
-        const screenStart = gunWorldPos.project(camera);
-        const screenEnd = dirEndpoint.project(camera);
-
-        const screenVec = new THREE.Vector2(
-            (screenEnd.x - screenStart.x) * window.innerWidth / 2,
-            -(screenEnd.y - screenStart.y) * window.innerHeight / 2
-        );
-        const screenLen = screenVec.length();
-
-        if (screenLen > 1) {
-            screenVec.normalize();
-            const mouseDrag = new THREE.Vector2(e.clientX - pumpStartMouse.x, e.clientY - pumpStartMouse.y);
-            const dragAlongAxis = mouseDrag.dot(screenVec);
-
-            const pumpSlide = pumpingShotgun.userData.pumpSlide;
-            const shellGroup = pumpingShotgun.userData.shellGroup;
-            const initialY = pumpingShotgun.userData.initialPumpY;
-
-            if (dragAlongAxis < 0) {
-                currentAction = 'fire';
-                const pullBackDistance = -dragAlongAxis;
-                currentProgress = Math.min(1.0, pullBackDistance / 60);
-
-                pumpSlide.position.y = initialY - (currentProgress * 1.1);
-
-                const shellScale = Math.min(1.0, currentProgress * 1.5);
-                shellGroup.scale.set(shellScale, shellScale, shellScale);
-                shellGroup.position.set(0, 0.4 + (currentProgress * 0.2), -0.1 + (currentProgress * 0.2));
-
-                pumpBar.style.width = `${currentProgress * 100}%`;
-
-                if (currentProgress >= 1.0) {
-                    isActionFullyCharged = true;
-                    pumpText.innerText = pumpingShotgun.userData.isRampExtender 
-                        ? "★ FULLY COCKED! RELEASE TO EXTEND RAMP! ★"
-                        : "★ SPRING CHARGED! RELEASE TO FIRE! ★";
-                    pumpText.style.color = "#00ff00";
-                    pumpBar.style.background = '#00ff00';
-                } else {
-                    isActionFullyCharged = false;
-                    pumpText.innerText = "PULL BACK FURTHER TO LOCK SPRING...";
-                    pumpText.style.color = "#ffd700";
-                    pumpBar.style.background = '#ffd700';
-                }
-            } 
-            else if (dragAlongAxis > 0) {
-                currentAction = 'undo';
-                const pushForwardDistance = dragAlongAxis;
-                currentProgress = Math.min(1.0, pushForwardDistance / 60);
-
-                pumpSlide.position.y = initialY + (currentProgress * 0.8);
-                shellGroup.scale.set(0.001, 0.001, 0.001);
-                pumpBar.style.width = `${currentProgress * 100}%`;
-
-                if (currentProgress >= 1.0) {
-                    isActionFullyCharged = true;
-                    pumpText.innerText = "⚠ UNDO CHARGED! RELEASE TO DEMOLISH! ⚠";
-                    pumpText.style.color = "#ff3300";
-                    pumpBar.style.background = '#ff0033';
-                } else {
-                    isActionFullyCharged = false;
-                    pumpText.innerText = "PUSH FORWARD TO CHARGE UNDO / DEMOLISH...";
-                    pumpText.style.color = "#ff8800";
-                    pumpBar.style.background = '#ff8800';
-                }
-            }
-        }
-    }
+  handlePointerMove(e.clientX, e.clientY);
 };
 
 window.onmouseup = (e) => {
-    if (e.button === 2 && isAimingCannon) {
-        const selectedCannon = cannons.find(c => c.userData.selected);
-        if (selectedCannon) {
-            spawnProjectile(selectedCannon, currentAimTarget);
-        }
-        isAimingCannon = false;
-        trajectoryLine.visible = false;
-        return;
-    }
-
-    if (e.button === 0 && pumpingShotgun && activeBasePanel) {
-        const firedGunId = pumpingShotgun.userData.arrowId;
-
-        if (currentAction === 'fire' && isActionFullyCharged) {
-            pumpingShotgun.userData.recoilTimer = 1.0;
-            pumpingShotgun.userData.flash.material.opacity = 1.0;
-            triggerBranchBuild(activeBasePanel, firedGunId);
-        } else if (currentAction === 'undo' && isActionFullyCharged) {
-            pumpingShotgun.userData.recoilTimer = 1.0;
-            pumpingShotgun.userData.flash.material.opacity = 1.0;
-            undoDemolishPanel(activeBasePanel);
-        }
-
-        pumpingShotgun.userData.pumpSlide.position.y = pumpingShotgun.userData.initialPumpY;
-        pumpingShotgun.userData.shellGroup.scale.set(0.001, 0.001, 0.001);
-        pumpingShotgun.position.copy(pumpingShotgun.userData.originalLocalPos);
-        pumpingShotgun = null;
-        currentAction = 'none';
-        currentProgress = 0.0;
-        isActionFullyCharged = false;
-        pumpHud.style.display = 'none';
-    }
+  handlePointerUp();
 };
 
-window.onwheel = (e) => {
-    if (activeBasePanel) {
-        cyclePanelMode(e.deltaY);
-        return;
+// -------------------------------------------------------------
+// MOBILE TOUCH SUPPORT: DOUBLE-TAP CANNON AIMING & TOUCH DRAG
+// -------------------------------------------------------------
+let lastTapTime = 0;
+let activeTouchId = null;
+
+window.addEventListener('touchstart', (e) => {
+  if (e.target.closest('#ui') || e.target.closest('#lobby-screen') || e.target.closest('#mode-legend') || e.target.closest('#camera-altitude-control') || e.target.closest('#mobile-dpad') || e.target.closest('#mobile-lookpad')) return;
+
+  const t = e.touches[0];
+  const now = Date.now();
+  const isDoubleTap = (now - lastTapTime < 350);
+  lastTapTime = now;
+
+  activeTouchId = t.identifier;
+
+  if (isDoubleTap) {
+    // Mobile Double-Tap Acts as Cannon Artillery Arc Aim (Right-Click equivalent)
+    handlePointerDown(t.clientX, t.clientY, true);
+  } else {
+    handlePointerDown(t.clientX, t.clientY, false);
+  }
+}, { passive: false });
+
+window.addEventListener('touchmove', (e) => {
+  for (let i = 0; i < e.touches.length; i++) {
+    const t = e.touches[i];
+    if (t.identifier === activeTouchId) {
+      handlePointerMove(t.clientX, t.clientY);
+      break;
     }
-    camera.fov = Math.min(Math.max(camera.fov + e.deltaY * 0.05, 15), 100);
-    camera.updateProjectionMatrix();
+  }
+}, { passive: false });
+
+window.addEventListener('touchend', (e) => {
+  handlePointerUp();
+  activeTouchId = null;
+});
+
+// -------------------------------------------------------------
+// MOBILE CONTROLS: D-PAD & LOOK-PAD WIDGETS
+// -------------------------------------------------------------
+const dpadUp = document.getElementById('dpad-up');
+const dpadDown = document.getElementById('dpad-down');
+const dpadLeft = document.getElementById('dpad-left');
+const dpadRight = document.getElementById('dpad-right');
+
+function bindDpad(elem, keyName) {
+  elem.addEventListener('touchstart', (e) => { e.preventDefault(); keys[keyName] = true; });
+  elem.addEventListener('touchend', (e) => { e.preventDefault(); keys[keyName] = false; });
+}
+bindDpad(dpadUp, 'w');
+bindDpad(dpadDown, 's');
+bindDpad(dpadLeft, 'a');
+bindDpad(dpadRight, 'd');
+
+const lookpad = document.getElementById('mobile-lookpad');
+let lookTouchStart = { x: 0, y: 0 };
+let isLooking = false;
+
+lookpad.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  isLooking = true;
+  lookTouchStart.x = e.touches[0].clientX;
+  lookTouchStart.y = e.touches[0].clientY;
+}, { passive: false });
+
+lookpad.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  if (!isLooking) return;
+  const currentX = e.touches[0].clientX;
+  const deltaX = currentX - lookTouchStart.x;
+  camera.rotation.y -= deltaX * 0.005;
+  lookTouchStart.x = currentX;
+}, { passive: false });
+
+lookpad.addEventListener('touchend', (e) => {
+  e.preventDefault();
+  isLooking = false;
+});
+
+// -------------------------------------------------------------
+// KEYBOARD CONTROLS (Q / Z ALTITUDE + WASD MOVE + ARROWS ROTATE)
+// -------------------------------------------------------------
+window.onwheel = (e) => {
+  if (activeBasePanel) {
+    cyclePanelMode(e.deltaY);
+    return;
+  }
+  camera.fov = Math.min(Math.max(camera.fov + e.deltaY * 0.05, 15), 100);
+  camera.updateProjectionMatrix();
 };
 
 window.onkeydown = (e) => { 
-    keys[e.key.toLowerCase()] = true;
-    if (e.key === 'Escape') {
-        deselectAllCannons();
-        clearShotgunHandles();
-        activeBasePanel = null;
-    }
+  const k = e.key.toLowerCase();
+  keys[k] = true;
+
+  if (e.key === 'ArrowLeft') keys['arrowleft'] = true;
+  if (e.key === 'ArrowRight') keys['arrowright'] = true;
+
+  if (e.key === 'Escape') {
+    deselectAllCannons();
+    clearShotgunHandles();
+    activeBasePanel = null;
+  }
 };
-window.onkeyup = (e) => { keys[e.key.toLowerCase()] = false; };
+
+window.onkeyup = (e) => { 
+  const k = e.key.toLowerCase();
+  keys[k] = false;
+  if (e.key === 'ArrowLeft') keys['arrowleft'] = false;
+  if (e.key === 'ArrowRight') keys['arrowright'] = false;
+};
+
 window.onblur = () => { for (let k in keys) keys[k] = false; };
 window.oncontextmenu = (e) => e.preventDefault();
 window.onresize = () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
 };
 
 // Animation Loop
 function animate() {
-    requestAnimationFrame(animate);
+  requestAnimationFrame(animate);
 
-    const dt = Math.min(clock.getDelta(), 0.1);
-    const dt60 = dt * 60;
-    const time = clock.getElapsedTime();
+  const dt = Math.min(clock.getDelta(), 0.1);
+  const dt60 = dt * 60;
 
-    clouds.forEach(c => {
-        c.mesh.position.x += c.speed * dt60;
-        if (c.mesh.position.x > 700) {
-            c.mesh.position.x = -700;
-            c.mesh.position.z = Math.random() * 1200 - 600;
-        }
-    });
+  clouds.forEach(c => {
+    c.mesh.position.x += c.speed * dt60;
+    if (c.mesh.position.x > 700) {
+      c.mesh.position.x = -700;
+      c.mesh.position.z = Math.random() * 1200 - 600;
+    }
+  });
 
-    if (matchStarted && !matchOver) {
-        camera.position.y += (targetCameraAltitude - camera.position.y) * 0.15 * dt60;
-
-        const camSpeed = 1.2 * dt60;
-        const moveVector = new THREE.Vector3(0, 0, 0);
-        if (keys['w']) moveVector.z -= camSpeed;
-        if (keys['s']) moveVector.z += camSpeed;
-        if (keys['q']) moveVector.x -= camSpeed;
-        if (keys['e']) moveVector.x += camSpeed;
-        if (keys['a']) camera.rotation.y += 0.03 * dt60;
-        if (keys['d']) camera.rotation.y -= 0.03 * dt60;
-
-        if (moveVector.length() > 0) {
-            const nextPos = camera.position.clone().add(moveVector.applyQuaternion(camera.quaternion));
-            const edgeLimit = halfBoard - 5;
-            if (Math.abs(nextPos.x) <= edgeLimit && Math.abs(nextPos.z) <= edgeLimit) {
-                camera.position.x = nextPos.x;
-                camera.position.z = nextPos.z;
-            }
-        }
-
-        shotgunHandles.forEach(gun => {
-            if (gun.userData.recoilTimer > 0) {
-                gun.userData.recoilTimer = Math.max(0, gun.userData.recoilTimer - dt * 6);
-                const kick = gun.userData.dirVector.clone().multiplyScalar(-gun.userData.recoilTimer * 0.8);
-                gun.position.copy(gun.userData.originalLocalPos).add(kick);
-            }
-            if (gun.userData.flash.material.opacity > 0) {
-                gun.userData.flash.material.opacity = Math.max(0, gun.userData.flash.material.opacity - dt * 10);
-            }
-        });
-
-        // -------------------------------------------------------------
-        // CANNON PATHING & ANTI-WALL NOSE PENETRATION (NO CHEATING)
-        // -------------------------------------------------------------
-        const allWallObstacles = [...worldPanels.filter(p => p.userData.panelType.startsWith('wall')), ...gameWalls];
-
-        function checkSphereWallCollision(sphereCenter, radius) {
-            const testSphere = new THREE.Sphere(sphereCenter, radius);
-            for (let w of allWallObstacles) {
-                const box = new THREE.Box3().setFromObject(w);
-                if (box.intersectsSphere(testSphere)) return true;
-            }
-            return false;
-        }
-
-        [...cannons, ...opponentCannons].forEach(can => {
-            const forwardDir = new THREE.Vector3(0, 0, 1).applyQuaternion(can.quaternion).normalize();
-            
-            const muzzlePos = new THREE.Vector3(0, 2.5, 0);
-            can.userData.barrelPivot.localToWorld(muzzlePos);
-
-            let pushTries = 0;
-            while ((checkSphereWallCollision(muzzlePos, 0.4) || checkSphereWallCollision(can.position, 1.2)) && pushTries < 15) {
-                can.position.addScaledVector(forwardDir, -0.2);
-                can.userData.targetPos.copy(can.position);
-                muzzlePos.set(0, 2.5, 0);
-                can.userData.barrelPivot.localToWorld(muzzlePos);
-                pushTries++;
-            }
-
-            can.userData.barrelPivot.rotation.x = -can.userData.angle;
-            
-            const planarDist = Math.hypot(can.userData.targetPos.x - can.position.x, can.userData.targetPos.z - can.position.z);
-
-            if (planarDist > 0.1) {
-                const moveDir = new THREE.Vector3(
-                    can.userData.targetPos.x - can.position.x,
-                    0,
-                    can.userData.targetPos.z - can.position.z
-                ).normalize();
-
-                const moveStep = Math.min(0.5 * dt60, planarDist);
-                const nextX = can.position.x + moveDir.x * moveStep;
-                const nextZ = can.position.z + moveDir.z * moveStep;
-
-                const prospectivePos = new THREE.Vector3(nextX, can.position.y, nextZ);
-                const prospectiveQuat = new THREE.Quaternion().setFromRotationMatrix(
-                    new THREE.Matrix4().lookAt(prospectivePos, prospectivePos.clone().add(moveDir), new THREE.Vector3(0, 1, 0))
-                );
-                
-                const prospectiveMuzzle = prospectivePos.clone().add(
-                    new THREE.Vector3(0, 0.5, 2.6).applyQuaternion(prospectiveQuat)
-                );
-
-                const hitsWallAhead = checkSphereWallCollision(prospectiveMuzzle, 0.45) || 
-                                      checkSphereWallCollision(prospectivePos, 1.25);
-
-                if (hitsWallAhead) {
-                    can.userData.targetPos.copy(can.position);
-                    return;
-                }
-
-                const probeOrigin = new THREE.Vector3(nextX, can.position.y + 2.0, nextZ);
-                const probeRay = new THREE.Raycaster(probeOrigin, new THREE.Vector3(0, -1, 0), 0, 50.0);
-                const hits = probeRay.intersectObjects([ground, ...worldPanels, ...bridges], true);
-
-                let canStep = false;
-                let targetY = can.position.y;
-
-                if (hits.length > 0) {
-                    const surfaceY = hits[0].point.y + 0.8;
-                    const heightDelta = surfaceY - can.position.y;
-
-                    if (can.position.y > 2.0 && heightDelta < -1.8) {
-                        canStep = false;
-                    } else if (heightDelta > 1.8) {
-                        canStep = false;
-                    } else {
-                        canStep = true;
-                        targetY = surfaceY;
-                    }
-                }
-
-                if (canStep) {
-                    can.position.x = nextX;
-                    can.position.z = nextZ;
-                    can.position.y += (targetY - can.position.y) * 0.35 * dt60;
-                    can.lookAt(can.userData.targetPos.x, can.position.y, can.userData.targetPos.z);
-                } else {
-                    can.userData.targetPos.x = can.position.x;
-                    can.userData.targetPos.z = can.position.z;
-                }
-
-                if (Math.abs(can.position.z) < (riverWidth / 2) - 1.5 && can.position.y < 2.0) {
-                    const onBridge = bridgeXPositions.some(bx => Math.abs(can.position.x - bx) <= (bridgeWidth / 2));
-                    if (!onBridge) {
-                        if (cannons.includes(can)) socket.emit('destroy_unit', { roomId: currentRoomId, id: can.userData.id });
-                        scene.remove(can);
-                        cannons = cannons.filter(c => c.userData.id !== can.userData.id);
-                        opponentCannons = opponentCannons.filter(c => c.userData.id !== can.userData.id);
-                        updateStatusUI();
-                        updateUnitCountsDisplay();
-                        checkWinCondition();
-                    }
-                }
-            }
-        });
-
-        // Projectile Combat
-        for (let i = activeProjectiles.length - 1; i >= 0; i--) {
-            const p = activeProjectiles[i];
-            const prevPos = p.mesh.position.clone();
-            const frameVel = p.velocity.clone().multiplyScalar(dt60);
-
-            p.mesh.position.add(frameVel);
-            p.velocity.y += p.gravity * dt60;
-            p.life += dt60;
-
-            const rayDir = p.velocity.clone().normalize();
-            const rayLen = frameVel.length() + 0.3;
-
-            const structRay = new THREE.Raycaster(prevPos, rayDir, 0, rayLen);
-            const structHits = structRay.intersectObjects([...worldPanels, ...gameWalls, ...bridges], true);
-            
-            if (structHits.length > 0) {
-                const hit = structHits[0];
-                if (hit.face) {
-                    const normal = hit.face.normal.clone().applyQuaternion(hit.object.quaternion);
-                    p.velocity.reflect(normal).multiplyScalar(0.75);
-                    p.mesh.position.copy(hit.point).add(normal.multiplyScalar(0.2));
-                    continue;
-                }
-            }
-
-            const targetCannons = p.isRemote ? cannons : opponentCannons;
-            let hitTarget = null;
-            for (let can of targetCannons) {
-                if (p.mesh.position.distanceTo(can.position) < 2.5) {
-                    hitTarget = can;
-                    break;
-                }
-            }
-
-            if (hitTarget) {
-                if (!p.isRemote) socket.emit('destroy_unit', { roomId: currentRoomId, id: hitTarget.userData.id });
-                scene.remove(hitTarget);
-                cannons = cannons.filter(c => c.userData.id !== hitTarget.userData.id);
-                opponentCannons = opponentCannons.filter(c => c.userData.id !== hitTarget.userData.id);
-                updateStatusUI();
-                updateUnitCountsDisplay();
-                checkWinCondition();
-
-                scene.remove(p.mesh);
-                activeProjectiles.splice(i, 1);
-                continue;
-            }
-
-            if (p.life > p.maxLife || p.mesh.position.y < 0.1) {
-                scene.remove(p.mesh);
-                activeProjectiles.splice(i, 1);
-            }
-        }
+  if (matchStarted && !matchOver) {
+    // -------------------------------------------------------------
+    // KEYBOARD ALTITUDE VIA Q & Z
+    // -------------------------------------------------------------
+    if (keys['q']) {
+      setAltitude(targetCameraAltitude + 1.2 * dt60);
+    }
+    if (keys['z']) {
+      setAltitude(targetCameraAltitude - 1.2 * dt60);
     }
 
-    if (matchStarted) updateMinimap();
-    renderer.render(scene, camera);
+    camera.position.y += (targetCameraAltitude - camera.position.y) * 0.15 * dt60;
+
+    // Movement & Turning
+    const camSpeed = 1.2 * dt60;
+    const moveVector = new THREE.Vector3(0, 0, 0);
+
+    if (keys['w']) moveVector.z -= camSpeed;
+    if (keys['s']) moveVector.z += camSpeed;
+    if (keys['a']) moveVector.x -= camSpeed;
+    if (keys['d']) moveVector.x += camSpeed;
+
+    if (keys['arrowleft']) camera.rotation.y += 0.03 * dt60;
+    if (keys['arrowright']) camera.rotation.y -= 0.03 * dt60;
+
+    if (moveVector.length() > 0) {
+      const nextPos = camera.position.clone().add(moveVector.applyQuaternion(camera.quaternion));
+      const edgeLimit = halfBoard - 5;
+      if (Math.abs(nextPos.x) <= edgeLimit && Math.abs(nextPos.z) <= edgeLimit) {
+        camera.position.x = nextPos.x;
+        camera.position.z = nextPos.z;
+      }
+    }
+
+    shotgunHandles.forEach(gun => {
+      if (gun.userData.recoilTimer > 0) {
+        gun.userData.recoilTimer = Math.max(0, gun.userData.recoilTimer - dt * 6);
+        const kick = gun.userData.dirVector.clone().multiplyScalar(-gun.userData.recoilTimer * 0.8);
+        gun.position.copy(gun.userData.originalLocalPos).add(kick);
+      }
+      if (gun.userData.flash.material.opacity > 0) {
+        gun.userData.flash.material.opacity = Math.max(0, gun.userData.flash.material.opacity - dt * 10);
+      }
+    });
+
+    const allWallObstacles = [...worldPanels.filter(p => p.userData.panelType.startsWith('wall')), ...gameWalls];
+
+    function checkSphereWallCollision(sphereCenter, radius) {
+      const testSphere = new THREE.Sphere(sphereCenter, radius);
+      for (let w of allWallObstacles) {
+        const box = new THREE.Box3().setFromObject(w);
+        if (box.intersectsSphere(testSphere)) return true;
+      }
+      return false;
+    }
+
+    [...cannons, ...opponentCannons].forEach(can => {
+      const forwardDir = new THREE.Vector3(0, 0, 1).applyQuaternion(can.quaternion).normalize();
+      
+      const muzzlePos = new THREE.Vector3(0, 2.5, 0);
+      can.userData.barrelPivot.localToWorld(muzzlePos);
+
+      let pushTries = 0;
+      while ((checkSphereWallCollision(muzzlePos, 0.4) || checkSphereWallCollision(can.position, 1.2)) && pushTries < 15) {
+        can.position.addScaledVector(forwardDir, -0.2);
+        can.userData.targetPos.copy(can.position);
+        muzzlePos.set(0, 2.5, 0);
+        can.userData.barrelPivot.localToWorld(muzzlePos);
+        pushTries++;
+      }
+
+      can.userData.barrelPivot.rotation.x = -can.userData.angle;
+      
+      const planarDist = Math.hypot(can.userData.targetPos.x - can.position.x, can.userData.targetPos.z - can.position.z);
+
+      if (planarDist > 0.1) {
+        const moveDir = new THREE.Vector3(
+          can.userData.targetPos.x - can.position.x,
+          0,
+          can.userData.targetPos.z - can.position.z
+        ).normalize();
+
+        const moveStep = Math.min(0.5 * dt60, planarDist);
+        const nextX = can.position.x + moveDir.x * moveStep;
+        const nextZ = can.position.z + moveDir.z * moveStep;
+
+        const prospectivePos = new THREE.Vector3(nextX, can.position.y, nextZ);
+        const prospectiveQuat = new THREE.Quaternion().setFromRotationMatrix(
+          new THREE.Matrix4().lookAt(prospectivePos, prospectivePos.clone().add(moveDir), new THREE.Vector3(0, 1, 0))
+        );
+        
+        const prospectiveMuzzle = prospectivePos.clone().add(
+          new THREE.Vector3(0, 0.5, 2.6).applyQuaternion(prospectiveQuat)
+        );
+
+        const hitsWallAhead = checkSphereWallCollision(prospectiveMuzzle, 0.45) || 
+                              checkSphereWallCollision(prospectivePos, 1.25);
+
+        if (hitsWallAhead) {
+          can.userData.targetPos.copy(can.position);
+          return;
+        }
+
+        const probeOrigin = new THREE.Vector3(nextX, can.position.y + 2.0, nextZ);
+        const probeRay = new THREE.Raycaster(probeOrigin, new THREE.Vector3(0, -1, 0), 0, 50.0);
+        const hits = probeRay.intersectObjects([ground, ...worldPanels, ...bridges], true);
+
+        let canStep = false;
+        let targetY = can.position.y;
+
+        if (hits.length > 0) {
+          const surfaceY = hits[0].point.y + 0.8;
+          const heightDelta = surfaceY - can.position.y;
+
+          if (can.position.y > 2.0 && heightDelta < -1.8) {
+            canStep = false;
+          } else if (heightDelta > 1.8) {
+            canStep = false;
+          } else {
+            canStep = true;
+            targetY = surfaceY;
+          }
+        }
+
+        if (canStep) {
+          can.position.x = nextX;
+          can.position.z = nextZ;
+          can.position.y += (targetY - can.position.y) * 0.35 * dt60;
+          can.lookAt(can.userData.targetPos.x, can.position.y, can.userData.targetPos.z);
+        } else {
+          can.userData.targetPos.x = can.position.x;
+          can.userData.targetPos.z = can.position.z;
+        }
+
+        if (Math.abs(can.position.z) < (riverWidth / 2) - 1.5 && can.position.y < 2.0) {
+          const onBridge = bridgeXPositions.some(bx => Math.abs(can.position.x - bx) <= (bridgeWidth / 2));
+          if (!onBridge) {
+            if (cannons.includes(can)) socket.emit('destroy_unit', { roomId: currentRoomId, id: can.userData.id });
+            scene.remove(can);
+            cannons = cannons.filter(c => c.userData.id !== can.userData.id);
+            opponentCannons = opponentCannons.filter(c => c.userData.id !== can.userData.id);
+            updateStatusUI();
+            updateUnitCountsDisplay();
+            checkWinCondition();
+          }
+        }
+      }
+    });
+
+    for (let i = activeProjectiles.length - 1; i >= 0; i--) {
+      const p = activeProjectiles[i];
+      const prevPos = p.mesh.position.clone();
+      const frameVel = p.velocity.clone().multiplyScalar(dt60);
+
+      p.mesh.position.add(frameVel);
+      p.velocity.y += p.gravity * dt60;
+      p.life += dt60;
+
+      const rayDir = p.velocity.clone().normalize();
+      const rayLen = frameVel.length() + 0.3;
+
+      const structRay = new THREE.Raycaster(prevPos, rayDir, 0, rayLen);
+      const structHits = structRay.intersectObjects([...worldPanels, ...gameWalls, ...bridges], true);
+      
+      if (structHits.length > 0) {
+        const hit = structHits[0];
+        if (hit.face) {
+          const normal = hit.face.normal.clone().applyQuaternion(hit.object.quaternion);
+          p.velocity.reflect(normal).multiplyScalar(0.75);
+          p.mesh.position.copy(hit.point).add(normal.multiplyScalar(0.2));
+          continue;
+        }
+      }
+
+      const targetCannons = p.isRemote ? cannons : opponentCannons;
+      let hitTarget = null;
+      for (let can of targetCannons) {
+        if (p.mesh.position.distanceTo(can.position) < 2.5) {
+          hitTarget = can;
+          break;
+        }
+      }
+
+      if (hitTarget) {
+        if (!p.isRemote) socket.emit('destroy_unit', { roomId: currentRoomId, id: hitTarget.userData.id });
+        scene.remove(hitTarget);
+        cannons = cannons.filter(c => c.userData.id !== hitTarget.userData.id);
+        opponentCannons = opponentCannons.filter(c => c.userData.id !== hitTarget.userData.id);
+        updateStatusUI();
+        updateUnitCountsDisplay();
+        checkWinCondition();
+
+        scene.remove(p.mesh);
+        activeProjectiles.splice(i, 1);
+        continue;
+      }
+
+      if (p.life > p.maxLife || p.mesh.position.y < 0.1) {
+        scene.remove(p.mesh);
+        activeProjectiles.splice(i, 1);
+      }
+    }
+  }
+
+  if (matchStarted) updateMinimap();
+  renderer.render(scene, camera);
 }
 
 // Lobby Hooks
 socket.on('lobbies_update', (lobbies) => {
-    const grid = document.getElementById('lobbies-grid');
-    if (!grid) return;
-    grid.innerHTML = '';
+  const grid = document.getElementById('lobbies-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
 
-    lobbies.forEach(lobby => {
-        const isMyCurrentRoom = currentRoomId === lobby.id;
-        const isFull = lobby.playerCount >= 2;
-        const isInGame = lobby.status === 'in_game';
+  lobbies.forEach(lobby => {
+    const isMyCurrentRoom = currentRoomId === lobby.id;
+    const isFull = lobby.playerCount >= 2;
+    const isInGame = lobby.status === 'in_game';
 
-        const card = document.createElement('div');
-        card.className = `arena-card ${isMyCurrentRoom ? 'active-room' : ''}`;
+    const card = document.createElement('div');
+    card.className = `arena-card ${isMyCurrentRoom ? 'active-room' : ''}`;
 
-        let statusBadge = `<span class="arena-badge badge-open">Waiting (${lobby.playerCount}/2)</span>`;
-        if (isInGame) statusBadge = `<span class="arena-badge badge-ingame">In Battle</span>`;
-        else if (isFull) statusBadge = `<span class="arena-badge badge-ready">Full</span>`;
+    let statusBadge = `<span class="arena-badge badge-open">Waiting (${lobby.playerCount}/2)</span>`;
+    if (isInGame) statusBadge = `<span class="arena-badge badge-ingame">In Battle</span>`;
+    else if (isFull) statusBadge = `<span class="arena-badge badge-ready">Full</span>`;
 
-        const p1 = lobby.players[0];
-        const p2 = lobby.players[1];
+    const p1 = lobby.players[0];
+    const p2 = lobby.players[1];
 
-        const slot1Html = p1 
-            ? `<div class="player-slot">
-                 <span class="slot-name ${p1.team === 'blue' ? 'slot-team-blue' : 'slot-team-dark'}">
-                   ${p1.id === socket.id ? '★ YOU' : 'PLAYER 1'}
-                 </span>
-                 <span class="ready-pill ${p1.ready ? 'pill-ready' : 'pill-waiting'}">${p1.ready ? 'READY' : 'WAITING'}</span>
-               </div>`
-            : `<div class="player-slot"><span class="slot-empty">Empty Garrison Slot</span></div>`;
+    const slot1Html = p1 
+      ? `<div class="player-slot">
+           <span class="slot-name ${p1.team === 'blue' ? 'slot-team-blue' : 'slot-team-dark'}">
+             ${p1.id === socket.id ? '★ YOU' : 'PLAYER 1'}
+           </span>
+           <span class="ready-pill ${p1.ready ? 'pill-ready' : 'pill-waiting'}">${p1.ready ? 'READY' : 'WAITING'}</span>
+         </div>`
+      : `<div class="player-slot"><span class="slot-empty">Empty Garrison Slot</span></div>`;
 
-        const slot2Html = p2 
-            ? `<div class="player-slot">
-                 <span class="slot-name ${p2.team === 'blue' ? 'slot-team-blue' : 'slot-team-dark'}">
-                   ${p2.id === socket.id ? '★ YOU' : 'PLAYER 2'}
-                 </span>
-                 <span class="ready-pill ${p2.ready ? 'pill-ready' : 'pill-waiting'}">${p2.ready ? 'READY' : 'WAITING'}</span>
-               </div>`
-            : `<div class="player-slot"><span class="slot-empty">Empty Garrison Slot</span></div>`;
+    const slot2Html = p2 
+      ? `<div class="player-slot">
+           <span class="slot-name ${p2.team === 'blue' ? 'slot-team-blue' : 'slot-team-dark'}">
+             ${p2.id === socket.id ? '★ YOU' : 'PLAYER 2'}
+           </span>
+           <span class="ready-pill ${p2.ready ? 'pill-ready' : 'pill-waiting'}">${p2.ready ? 'READY' : 'WAITING'}</span>
+         </div>`
+      : `<div class="player-slot"><span class="slot-empty">Empty Garrison Slot</span></div>`;
 
-        let actionButtonsHtml = isMyCurrentRoom
-            ? `<button class="btn-ready ${myReadyState ? 'is-ready' : ''}" id="btn-ready-${lobby.id}">${myReadyState ? '✓ READY' : 'CONFIRM READY'}</button>
-               <button class="btn-leave" id="btn-leave-${lobby.id}">LEAVE</button>`
-            : `<button class="btn-join" ${isInGame || isFull || currentRoomId !== null ? 'disabled' : ''} id="btn-join-${lobby.id}">
-                 ${isInGame ? 'IN BATTLE' : (isFull ? 'ARENA FULL' : 'JOIN ARENA')}
-               </button>`;
+    let actionButtonsHtml = isMyCurrentRoom
+      ? `<button class="btn-ready ${myReadyState ? 'is-ready' : ''}" id="btn-ready-${lobby.id}">${myReadyState ? '✓ READY' : 'CONFIRM READY'}</button>
+         <button class="btn-leave" id="btn-leave-${lobby.id}">LEAVE</button>`
+      : `<button class="btn-join" ${isInGame || isFull || currentRoomId !== null ? 'disabled' : ''} id="btn-join-${lobby.id}">
+           ${isInGame ? 'IN BATTLE' : (isFull ? 'ARENA FULL' : 'JOIN ARENA')}
+         </button>`;
 
-        card.innerHTML = `
-            <div>
-                <div class="card-top"><span class="arena-name">${lobby.name}</span>${statusBadge}</div>
-                <div class="player-slots">${slot1Html}${slot2Html}</div>
-            </div>
-            <div class="card-actions">${actionButtonsHtml}</div>
-        `;
-        grid.appendChild(card);
+    card.innerHTML = `
+      <div>
+        <div class="card-top"><span class="arena-name">${lobby.name}</span>${statusBadge}</div>
+        <div class="player-slots">${slot1Html}${slot2Html}</div>
+      </div>
+      <div class="card-actions">${actionButtonsHtml}</div>
+    `;
+    grid.appendChild(card);
 
-        const joinBtn = document.getElementById(`btn-join-${lobby.id}`);
-        if (joinBtn) joinBtn.onclick = () => socket.emit('join_room', lobby.id);
+    const joinBtn = document.getElementById(`btn-join-${lobby.id}`);
+    if (joinBtn) joinBtn.onclick = () => socket.emit('join_room', lobby.id);
 
-        const readyBtn = document.getElementById(`btn-ready-${lobby.id}`);
-        if (readyBtn) readyBtn.onclick = () => { socket.emit('toggle_ready', lobby.id); myReadyState = !myReadyState; };
+    const readyBtn = document.getElementById(`btn-ready-${lobby.id}`);
+    if (readyBtn) readyBtn.onclick = () => { socket.emit('toggle_ready', lobby.id); myReadyState = !myReadyState; };
 
-        const leaveBtn = document.getElementById(`btn-leave-${lobby.id}`);
-        if (leaveBtn) leaveBtn.onclick = () => socket.emit('leave_room');
-    });
+    const leaveBtn = document.getElementById(`btn-leave-${lobby.id}`);
+    if (leaveBtn) leaveBtn.onclick = () => socket.emit('leave_room');
+  });
 });
 
 socket.on('room_joined', (data) => {
-    currentRoomId = data.roomId;
-    myPlayerIndex = data.playerIndex;
-    myReadyState = false;
+  currentRoomId = data.roomId;
+  myPlayerIndex = data.playerIndex;
+  myReadyState = false;
 });
 
 socket.on('left_room_success', () => {
-    currentRoomId = null;
-    myReadyState = false;
+  currentRoomId = null;
+  myReadyState = false;
 });
 
 socket.on('lobby_error', (msg) => alert(msg));
 socket.on('build_error', (msg) => {
-    statusText.innerText = msg;
-    statusText.style.color = '#ff4444';
-    setTimeout(() => { statusText.style.color = '#00ff00'; updateStatusUI(); }, 2500);
+  statusText.innerText = msg;
+  statusText.style.color = '#ff4444';
+  setTimeout(() => { statusText.style.color = '#00ff00'; updateStatusUI(); }, 2500);
 });
 
 socket.on('start_match_countdown', (data) => {
-    myPlayerIndex = data.playerIndex;
-    currentRoomId = data.roomId;
+  myPlayerIndex = data.playerIndex;
+  currentRoomId = data.roomId;
 
-    document.getElementById('lobby-screen').style.display = 'none';
-    const countdownEl = document.getElementById('match-countdown');
-    const countdownNum = document.getElementById('countdown-num');
-    const roleText = document.getElementById('countdown-role-text');
+  document.getElementById('lobby-screen').style.display = 'none';
+  const countdownEl = document.getElementById('match-countdown');
+  const countdownNum = document.getElementById('countdown-num');
+  const roleText = document.getElementById('countdown-role-text');
 
-    const roleString = myPlayerIndex === 1 ? "BLUE FORCES (South Keep)" : "DARK FORCES (North Keep)";
-    roleText.innerText = `YOU ARE ${roleString.toUpperCase()}`;
-    countdownEl.style.display = 'flex';
+  const roleString = myPlayerIndex === 1 ? "BLUE FORCES (South Keep)" : "DARK FORCES (North Keep)";
+  roleText.innerText = `YOU ARE ${roleString.toUpperCase()}`;
+  countdownEl.style.display = 'flex';
 
-    let count = 3;
-    countdownNum.innerText = count;
-    const timer = setInterval(() => {
-        count--;
-        if (count > 0) {
-            countdownNum.innerText = count;
+  let count = 3;
+  countdownNum.innerText = count;
+  const timer = setInterval(() => {
+    count--;
+    if (count > 0) {
+      countdownNum.innerText = count;
+    } else {
+      clearInterval(timer);
+      countdownEl.style.display = 'none';
+      document.getElementById('ui').style.display = 'block';
+      document.getElementById('minimap-container').style.display = 'block';
+      document.getElementById('mode-legend').style.display = 'flex';
+      altitudeControlBox.style.display = 'flex';
+      document.getElementById('role-display').innerText = roleString;
+
+      // Enable mobile HUD controls
+      const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+      if (isTouch) {
+        document.getElementById('mobile-dpad').style.display = 'grid';
+        document.getElementById('mobile-lookpad').style.display = 'flex';
+      }
+
+      if (myPlayerIndex === 2) {
+        setAltitude(5.0);
+        camera.position.set(0, 5, -135);
+        camera.rotation.y = Math.PI;
+      } else {
+        setAltitude(5.0);
+        camera.position.set(0, 5, 135);
+        camera.rotation.y = 0;
+      }
+
+      if (!gameInitialized) {
+        gameInitialized = true;
+        if (myPlayerIndex === 1) {
+          for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), 120, 0x012169, false, `blue_${i+1}`, i+1);
+          for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), -120, 0x222222, true, `dark_${i+1}`, i+1);
         } else {
-            clearInterval(timer);
-            countdownEl.style.display = 'none';
-            document.getElementById('ui').style.display = 'block';
-            document.getElementById('minimap-container').style.display = 'block';
-            document.getElementById('mode-legend').style.display = 'flex';
-            altitudeControlBox.style.display = 'flex';
-            document.getElementById('role-display').innerText = roleString;
-
-            if (myPlayerIndex === 2) {
-                targetCameraAltitude = 5.0;
-                altitudeSlider.value = 5;
-                altValText.innerText = "Y: 5";
-                camera.position.set(0, 5, -135);
-                camera.rotation.y = Math.PI;
-            } else {
-                targetCameraAltitude = 5.0;
-                altitudeSlider.value = 5;
-                altValText.innerText = "Y: 5";
-                camera.position.set(0, 5, 135);
-                camera.rotation.y = 0;
-            }
-
-            if (!gameInitialized) {
-                gameInitialized = true;
-                if (myPlayerIndex === 1) {
-                    for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), 120, 0x012169, false, `blue_${i+1}`, i+1);
-                    for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), -120, 0x222222, true, `dark_${i+1}`, i+1);
-                } else {
-                    for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), -120, 0x222222, false, `dark_${i+1}`, i+1);
-                    for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), 120, 0x012169, true, `blue_${i+1}`, i+1);
-                }
-            }
-            updateUnitCountsDisplay();
-            statusText.innerText = "STATUS: MATCH STARTED!";
-            matchStarted = true;
+          for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), -120, 0x222222, false, `dark_${i+1}`, i+1);
+          for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), 120, 0x012169, true, `blue_${i+1}`, i+1);
         }
-    }, 1000);
+      }
+      updateUnitCountsDisplay();
+      statusText.innerText = "STATUS: MATCH STARTED!";
+      matchStarted = true;
+    }
+  }, 1000);
 });
 
 socket.on('update_counts', (data) => {
-    const statsEl = document.getElementById('server-stats');
-    if (statsEl) statsEl.innerText = `Online: ${data.totalOnline} | Arena Match`;
+  const statsEl = document.getElementById('server-stats');
+  if (statsEl) statsEl.innerText = `Online: ${data.totalOnline} | Arena Match`;
 });
 
 socket.on('opponent_disconnected', () => {
-    alert("Opponent disconnected!");
-    location.reload();
+  alert("Opponent disconnected!");
+  location.reload();
 });
 
 socket.on('trigger_game_over', (data) => {
-    matchOver = true;
-    const modal = document.getElementById('game-over-modal');
-    const title = document.getElementById('modal-title');
-    const didIWin = data.winnerIndex === myPlayerIndex;
-    title.innerText = didIWin ? "VICTORY ACHIEVED!" : "DEFEAT";
-    title.style.color = didIWin ? "#00ff00" : "#ff4444";
-    document.getElementById('stat-winner').innerText = data.winnerIndex === 1 ? "Blue Forces" : "Dark Forces";
-    document.getElementById('stat-my-units').innerText = myPlayerIndex === 1 ? data.p1Count : data.p2Count;
-    document.getElementById('stat-enemy-units').innerText = myPlayerIndex === 1 ? data.p2Count : data.p1Count;
-    modal.style.display = 'flex';
+  matchOver = true;
+  const modal = document.getElementById('game-over-modal');
+  const title = document.getElementById('modal-title');
+  const didIWin = data.winnerIndex === myPlayerIndex;
+  title.innerText = didIWin ? "VICTORY ACHIEVED!" : "DEFEAT";
+  title.style.color = didIWin ? "#00ff00" : "#ff4444";
+  document.getElementById('stat-winner').innerText = data.winnerIndex === 1 ? "Blue Forces" : "Dark Forces";
+  document.getElementById('stat-my-units').innerText = myPlayerIndex === 1 ? data.p1Count : data.p2Count;
+  document.getElementById('stat-enemy-units').innerText = myPlayerIndex === 1 ? data.p2Count : data.p1Count;
+  modal.style.display = 'flex';
 });
 
 socket.on('restart_game', () => location.reload());
 
 document.getElementById('restart-btn').onclick = () => {
-    socket.emit('request_restart', { roomId: currentRoomId });
+  socket.emit('request_restart', { roomId: currentRoomId });
 };
 
 animate();
