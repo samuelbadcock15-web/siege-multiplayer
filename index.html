@@ -1443,6 +1443,14 @@ function calculateBallistics(sourceCan, target) {
   return { start, vx, vy, vz, gravity, targetTime };
 }
 
+function checkMuzzleObstruction(sourceCan, muzzlePos) {
+  const barrelDir = new THREE.Vector3(0, 1, 0).applyQuaternion(sourceCan.userData.barrelPivot.quaternion).normalize();
+  const muzzleRay = new THREE.Raycaster(muzzlePos, barrelDir, 0, 1.2);
+  const obstacles = [...worldPanels, ...gameWalls];
+  const hits = muzzleRay.intersectObjects(obstacles, true);
+  return hits.length > 0;
+}
+
 function updateTrajectoryArc(sourceCan, target) {
   const originalRot = sourceCan.quaternion.clone();
   sourceCan.lookAt(target.x, sourceCan.position.y, target.z);
@@ -1450,21 +1458,10 @@ function updateTrajectoryArc(sourceCan, target) {
   const muzzlePos = new THREE.Vector3(0, 2.5, 0);
   sourceCan.userData.barrelPivot.localToWorld(muzzlePos);
 
-  // Target walls only (allows firing freely from under ramps/bridges)
-  const allWalls = [...worldPanels.filter(p => p.userData.panelType.startsWith('wall')), ...gameWalls];
-  const muzzleSphere = new THREE.Sphere(muzzlePos, 0.25);
-  let touchesWall = false;
-  for (let w of allWalls) {
-    if (new THREE.Box3().setFromObject(w).intersectsSphere(muzzleSphere)) {
-      touchesWall = true;
-      break;
-    }
-  }
-
-  if (touchesWall) {
+  if (checkMuzzleObstruction(sourceCan, muzzlePos)) {
     sourceCan.quaternion.copy(originalRot);
     trajectoryLine.visible = false;
-    statusText.innerText = "BARREL BLOCKED BY WALL!";
+    statusText.innerText = "BARREL JAMMED AGAINST OBSTACLE!";
     statusText.style.color = "#ff4444";
     return;
   }
@@ -1494,16 +1491,11 @@ function spawnProjectile(sourceCan, target, isRemote = false) {
   const muzzleCheck = new THREE.Vector3(0, 2.5, 0);
   sourceCan.userData.barrelPivot.localToWorld(muzzleCheck);
 
-  // Target walls only (allows firing freely from under ramps/bridges)
-  const allWalls = [...worldPanels.filter(p => p.userData.panelType.startsWith('wall')), ...gameWalls];
-  const muzzleSphere = new THREE.Sphere(muzzleCheck, 0.25);
-  for (let w of allWalls) {
-    if (new THREE.Box3().setFromObject(w).intersectsSphere(muzzleSphere)) {
-      statusText.innerText = "CANNOT FIRE: BARREL IS OBSTRUCTED!";
-      statusText.style.color = "#ff4444";
-      setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2000);
-      return;
-    }
+  if (checkMuzzleObstruction(sourceCan, muzzleCheck)) {
+    statusText.innerText = "CANNOT FIRE: BARREL IS JAMMED!";
+    statusText.style.color = "#ff4444";
+    setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2000);
+    return;
   }
 
   const b = calculateBallistics(sourceCan, target);
@@ -1753,7 +1745,7 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
     return true;
   }
 
-  // 3. Ground / Panels / Bridges (Cannons can now freely cross over to enemy side if air bridges connect)
+  // 3. Ground / Panels / Bridges
   const walkableHits = raycaster.intersectObjects([ground, ...worldPanels, ...bridges], true);
   if (walkableHits.length > 0) {
     const pt = walkableHits[0].point;
