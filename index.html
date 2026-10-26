@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<!-- Disable mobile pinch-to-zoom and double-tap browser zoom -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Siege - Clear Horizons Tactical Edition</title>
 <style>
@@ -75,7 +74,7 @@
     cursor: grab; pointer-events: none;
   }
 
-  /* Ergonomic Positioned Extra-Large Mobile D-Pad */
+  /* Ergonomic Mobile D-Pad */
   #mobile-dpad {
     position: absolute; bottom: 35px; left: 55px; width: 220px; height: 220px;
     z-index: 260; display: none; grid-template-columns: repeat(3, 1fr);
@@ -89,7 +88,7 @@
   }
   .dpad-btn:active { background: #ffd700; color: #000; transform: scale(0.92); }
 
-  /* Mobile Look Pad */
+  /* Dedicated Look Pad */
   #panel-lookpad {
     position: absolute; bottom: 270px; left: 55px; width: 220px; height: 110px;
     border-radius: 18px; background: rgba(15, 23, 42, 0.85); border: 2px dashed #00ffcc;
@@ -116,7 +115,7 @@
     box-shadow: 0 0 20px #00ff00; font-weight: 900;
   }
 
-  /* Mobile Aim Mode Switcher */
+  /* Mobile Aim Mode Switcher with Disabled Initial State */
   #mobile-aim-toggle {
     position: absolute; bottom: 45px; right: 90px; width: 85px; height: 85px;
     border-radius: 50%; background: rgba(15, 23, 42, 0.9); border: 3px solid #ff4400;
@@ -363,7 +362,6 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87CEEB);
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1500);
 
-// Lock camera rotation order to 'YXZ' to prevent roll tilt
 camera.rotation.order = 'YXZ';
 camera.position.set(0, 5, 135);
 
@@ -378,9 +376,7 @@ const ctx = minimapCanvas.getContext('2d');
 minimapCanvas.width = 120;
 minimapCanvas.height = 120;
 
-// -------------------------------------------------------------
-// RESPONSIVE ALTITUDE SLIDER GAUGE
-// -------------------------------------------------------------
+// Altitude Slider Gauge
 const altTrack = document.getElementById('alt-track');
 const altFill = document.getElementById('alt-fill');
 const altThumb = document.getElementById('alt-thumb');
@@ -406,7 +402,6 @@ function updateAltitudeFromY(clientY) {
   setAltitude(MIN_ALT + pct * (MAX_ALT - MIN_ALT));
 }
 
-// Touch handler on altitude box
 altitudeControlBox.addEventListener('touchstart', (e) => {
   e.preventDefault();
   e.stopPropagation();
@@ -419,7 +414,6 @@ altitudeControlBox.addEventListener('touchmove', (e) => {
   updateAltitudeFromY(e.touches[0].clientY);
 }, { passive: false });
 
-// PC pointer click/drag on altitude box
 let isPointerDraggingAlt = false;
 altitudeControlBox.addEventListener('mousedown', (e) => {
   isPointerDraggingAlt = true;
@@ -432,9 +426,7 @@ window.addEventListener('mouseup', () => {
   isPointerDraggingAlt = false;
 });
 
-// -------------------------------------------------------------
-// MOBILE VERTICAL BUILD MODE SLIDER & LOOK PAD REFS
-// -------------------------------------------------------------
+// Mobile Build Mode Slider & Look Pad
 const mobileBuildSlider = document.getElementById('mobile-build-slider');
 const panelDeselectBtn = document.getElementById('panel-deselect-btn');
 const buildTrack = document.getElementById('build-track');
@@ -466,11 +458,11 @@ function handleBuildSliderTouch(clientY) {
   const rect = buildTrack.getBoundingClientRect();
   const relY = (clientY - rect.top) / rect.height;
   if (relY <= 0.33) {
-    setBuildModeDirect(1); // Floor
+    setBuildModeDirect(1);
   } else if (relY <= 0.66) {
-    setBuildModeDirect(2); // Wall
+    setBuildModeDirect(2);
   } else {
-    setBuildModeDirect(3); // Ramp
+    setBuildModeDirect(3);
   }
 }
 
@@ -498,7 +490,6 @@ segFloor.onclick = (e) => { e.stopPropagation(); setBuildModeDirect(1); };
 segWall.onclick = (e) => { e.stopPropagation(); setBuildModeDirect(2); };
 segRamp.onclick = (e) => { e.stopPropagation(); setBuildModeDirect(3); };
 
-// Dedicated Panel Look Pad Touch Handler
 let lookPadLast = { x: 0, y: 0 };
 panelLookpad.addEventListener('touchstart', (e) => {
   e.preventDefault();
@@ -648,7 +639,6 @@ const panelMaterials = {
 const worldPanels = [];
 const shotgunHandles = [];
 
-// Tactile Two-Phase Shotgun Racking System State
 let activeBasePanel = null;
 let pumpingShotgun = null;
 let pumpScreenStart = new THREE.Vector2();
@@ -734,14 +724,14 @@ function createShotgunHandle(dirVector, modeColor, id, isExtender = false, isLev
   return gunGroup;
 }
 
-// -------------------------------------------------------------
-// CRITICAL FIX: CLEAN MULTI-DIRECTIONAL RAMP ORIENTATION LOGIC
-// -------------------------------------------------------------
+// Extract true ground-plane travel direction from ramp rotation
 function getRampForwardVector(rampMesh) {
-  // Ramps are angled around local pitch X, forward direction is along local -Z projected onto ground
-  const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(rampMesh.quaternion);
-  forward.y = 0;
-  return forward.normalize();
+  if (rampMesh.userData.forwardDir) {
+    return rampMesh.userData.forwardDir.clone();
+  }
+  const f = new THREE.Vector3(0, 0, -1).applyQuaternion(rampMesh.quaternion);
+  f.y = 0;
+  return f.normalize();
 }
 
 function renderPanelHandles(panel) {
@@ -773,10 +763,8 @@ function renderPanelHandles(panel) {
     const forward = getRampForwardVector(panel);
     const rampNormal = new THREE.Vector3(0, 1, 0).applyQuaternion(panel.quaternion);
 
-    // Incline slope vector points upward along the ramp
     const inclineSlope = forward.clone().multiplyScalar(Math.cos(RAMP_ANGLE)).add(new THREE.Vector3(0, Math.sin(RAMP_ANGLE), 0)).normalize();
 
-    // Extender handle placed slightly forward from base
     const extenderPos = panel.position.clone()
       .addScaledVector(inclineSlope, 2.0)
       .addScaledVector(rampNormal, 1.2);
@@ -789,7 +777,6 @@ function renderPanelHandles(panel) {
       isLevelOut: false
     });
 
-    // Summit level-out handle placed at summit lip
     const summitPos = panel.position.clone()
       .addScaledVector(forward, totalRun / 2)
       .add(new THREE.Vector3(0, (totalRise / 2) + 0.5, 0));
@@ -838,7 +825,6 @@ function renderPanelHandles(panel) {
     ];
   }
   else if (mode === 3) {
-    // Ramp Spawners: direction vectors match the upward incline
     configs = [
       { id: 'north', dir: new THREE.Vector3(0, Math.sin(RAMP_ANGLE), -Math.cos(RAMP_ANGLE)), offset: new THREE.Vector3(0, 1.2, -half), isExtender: false, isLevelOut: false },
       { id: 'south', dir: new THREE.Vector3(0, Math.sin(RAMP_ANGLE), Math.cos(RAMP_ANGLE)),  offset: new THREE.Vector3(0, 1.2, half), isExtender: false, isLevelOut: false },
@@ -889,7 +875,7 @@ function cyclePanelMode(delta) {
   updatePanelVisualMode(activeBasePanel);
 }
 
-function placePanel(type, position, rotation, isRemote = false, customId = null) {
+function placePanel(type, position, rotation, isRemote = false, customId = null, forwardDir = null) {
   let matKey = type.startsWith('wall') ? 'wall' : type;
   const mat = panelMaterials[matKey].clone();
   let mesh;
@@ -906,7 +892,8 @@ function placePanel(type, position, rotation, isRemote = false, customId = null)
       rampLength: RAMP_DIAG,
       baseElevation: position.y - (WALL_HEIGHT / 4),
       id: customId || Math.random().toString(),
-      permanent: true
+      permanent: true,
+      forwardDir: forwardDir ? forwardDir.clone() : new THREE.Vector3(0, 0, -1)
     };
   } else {
     const geo = (panelGeometries[type] || panelGeometries.floor).clone();
@@ -940,9 +927,6 @@ function placePanel(type, position, rotation, isRemote = false, customId = null)
   return mesh;
 }
 
-// -------------------------------------------------------------
-// SEAMLESS MULTI-DIRECTIONAL RAMP EXTENSION
-// -------------------------------------------------------------
 function extendRampDirectly(rampMesh, isRemote = false) {
   const forward = getRampForwardVector(rampMesh);
 
@@ -966,7 +950,6 @@ function extendRampDirectly(rampMesh, isRemote = false) {
   rampMesh.geometry.computeBoundingBox();
   rampMesh.geometry.computeBoundingSphere();
 
-  // Shift mesh center by half of run and rise to keep base anchored seamlessly
   rampMesh.position.addScaledVector(forward, PANEL_SIZE / 2);
   rampMesh.position.y += WALL_HEIGHT / 2;
 
@@ -1062,7 +1045,6 @@ function triggerBranchBuild(parentPanel, gunId) {
     const totalRun = PANEL_SIZE * segs;
     const forward = getRampForwardVector(parentPanel);
 
-    // Flat floor lands at top summit lip
     const flatPos = parentPanel.position.clone()
       .addScaledVector(forward, (totalRun / 2) + (PANEL_SIZE / 2));
     flatPos.y = (parentPanel.position.y + (totalRise / 2));
@@ -1086,6 +1068,7 @@ function triggerBranchBuild(parentPanel, gunId) {
   let newRot = new THREE.Euler(0, 0, 0);
   let buildType = 'floor';
   let checkDepth = PANEL_SIZE;
+  let rampDir = null;
 
   if (pType === 'wall_x') {
     buildType = 'wall_x';
@@ -1112,7 +1095,7 @@ function triggerBranchBuild(parentPanel, gunId) {
   else if (gunId === 'spawn_wall_south') {
     buildType = 'wall_x';
     newPos.y += (WALL_HEIGHT / 2);
-    newPos.z += (PANEL_SIZE / 2);
+    newPos.z -= (PANEL_SIZE / 2);
     checkDepth = PANEL_THICKNESS;
   } 
   else if (gunId === 'spawn_wall_east') {
@@ -1136,22 +1119,25 @@ function triggerBranchBuild(parentPanel, gunId) {
     if (gunId === 'up')    newPos.y += WALL_HEIGHT;
   } 
   else if (parentPanel.userData.buildMode === 3) {
-    // RAMP MODE: Rotate YAW to point in travel direction, tilt PITCH around X
     buildType = 'ramp';
     newPos.y += (WALL_HEIGHT / 4);
 
     if (gunId === 'north') {
       newPos.z -= (PANEL_SIZE / 2);
-      newRot.set(RAMP_ANGLE, 0, 0); // Yaw 0, Pitch up North
+      newRot.set(RAMP_ANGLE, 0, 0);
+      rampDir = new THREE.Vector3(0, 0, -1);
     } else if (gunId === 'south') {
       newPos.z += (PANEL_SIZE / 2);
-      newRot.set(RAMP_ANGLE, Math.PI, 0); // Yaw 180, Pitch up South
+      newRot.set(-RAMP_ANGLE, 0, 0);
+      rampDir = new THREE.Vector3(0, 0, 1);
     } else if (gunId === 'east') {
       newPos.x += (PANEL_SIZE / 2);
-      newRot.set(RAMP_ANGLE, -Math.PI / 2, 0); // Yaw -90, Pitch up East
+      newRot.set(0, 0, -RAMP_ANGLE);
+      rampDir = new THREE.Vector3(1, 0, 0);
     } else if (gunId === 'west') {
       newPos.x -= (PANEL_SIZE / 2);
-      newRot.set(RAMP_ANGLE, Math.PI / 2, 0); // Yaw 90, Pitch up West
+      newRot.set(0, 0, RAMP_ANGLE);
+      rampDir = new THREE.Vector3(-1, 0, 0);
     } else if (gunId === 'up') {
       buildType = 'floor';
       newPos.y = basePos.y + WALL_HEIGHT;
@@ -1165,7 +1151,7 @@ function triggerBranchBuild(parentPanel, gunId) {
     return;
   }
 
-  const spawned = placePanel(buildType, newPos, newRot);
+  const spawned = placePanel(buildType, newPos, newRot, false, null, rampDir);
   activeBasePanel = spawned;
   selectPanel(spawned);
 }
@@ -1178,7 +1164,6 @@ const keys = {};
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
-// Trajectory Preview Arc System
 const TRAJECTORY_POINTS = 40;
 const trajPositions = new Float32Array(TRAJECTORY_POINTS * 3);
 const trajGeo = new THREE.BufferGeometry();
@@ -1196,7 +1181,6 @@ scene.add(trajectoryLine);
 let isAimingCannon = false;
 let currentAimTarget = new THREE.Vector3();
 
-// Dedicated Mobile Aim & Fire Mode State
 let mobileAimModeActive = false;
 const mobileAimToggle = document.getElementById('mobile-aim-toggle');
 const mobileDeselectBtn = document.getElementById('mobile-deselect-btn');
@@ -1539,7 +1523,7 @@ function updateMinimap() {
 }
 
 // -------------------------------------------------------------
-// CORE INTERACTION ENGINE
+// CORE INTERACTION ENGINE: FIXED FIRST PANEL PC PLACEMENT
 // -------------------------------------------------------------
 function handlePointerDown(clientX, clientY, isSecondary = false) {
   if (!matchStarted || matchOver) return false;
@@ -1623,7 +1607,7 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
     return true;
   }
 
-  // 3. Ground / Panels / Bridges
+  // 3. Ground / Panels / Bridges (CRITICAL FIX FOR FIRST PANEL ON PC)
   const walkableHits = raycaster.intersectObjects([ground, ...worldPanels, ...bridges], true);
   if (walkableHits.length > 0) {
     const pt = walkableHits[0].point;
@@ -1633,10 +1617,11 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
       selectedCannon.userData.targetPos.set(pt.x, selectedCannon.position.y, pt.z);
       socket.emit('player_move', { roomId: currentRoomId, id: selectedCannon.userData.id, tx: pt.x, tz: pt.z });
       return true;
-    } else if (hitObj.userData.isPanel) {
+    } else if (hitObj.userData && hitObj.userData.isPanel) {
       selectPanel(hitObj);
       return true;
     } else if (worldPanels.length === 0) {
+      // Placing the very first base panel on grass
       const snapX = Math.round(pt.x / PANEL_SIZE) * PANEL_SIZE;
       const snapZ = Math.round(pt.z / PANEL_SIZE) * PANEL_SIZE;
       if (isWithinMyBuildingTerritory(snapZ, PANEL_SIZE)) {
@@ -1794,9 +1779,6 @@ function handlePointerUp() {
   }
 }
 
-// -------------------------------------------------------------
-// SEPARATED POINTER LISTENERS
-// -------------------------------------------------------------
 let isTouchDeviceActive = false;
 
 window.onmousedown = (e) => {
@@ -1829,9 +1811,6 @@ window.onmouseup = (e) => {
   handlePointerUp();
 };
 
-// -------------------------------------------------------------
-// TOUCH EVENT SYSTEM (CRITICAL FIX: NO-ROLL ROTATION)
-// -------------------------------------------------------------
 let touchStartPos = { x: 0, y: 0 };
 let touchLastPos = { x: 0, y: 0 };
 let isTouchLooking = false;
@@ -1887,9 +1866,6 @@ window.addEventListener('touchend', (e) => {
   activeTouchId = null;
 });
 
-// -------------------------------------------------------------
-// MOBILE BIG MOVEMENT ARROWS (D-PAD)
-// -------------------------------------------------------------
 const dpadUp = document.getElementById('dpad-up');
 const dpadDown = document.getElementById('dpad-down');
 const dpadLeft = document.getElementById('dpad-left');
@@ -1904,9 +1880,6 @@ bindDpad(dpadDown, 's');
 bindDpad(dpadLeft, 'a');
 bindDpad(dpadRight, 'd');
 
-// -------------------------------------------------------------
-// KEYBOARD CONTROLS (WASD TANK DRIVE + Q/Z ALTITUDE)
-// -------------------------------------------------------------
 window.onwheel = (e) => {
   if (activeBasePanel) {
     cyclePanelMode(e.deltaY);
@@ -1961,13 +1934,11 @@ function animate() {
   });
 
   if (matchStarted && !matchOver) {
-    // Keyboard altitude via Q and Z
     if (keys['q']) setAltitude(targetCameraAltitude + 1.2 * dt60);
     if (keys['z']) setAltitude(targetCameraAltitude - 1.2 * dt60);
 
     camera.position.y += (targetCameraAltitude - camera.position.y) * 0.15 * dt60;
 
-    // Tank Turning (A/D turn left/right, W/S move forward/back)
     const turnSpeed = 0.03 * dt60;
     if (keys['a'] || keys['arrowleft']) camera.rotation.y += turnSpeed;
     if (keys['d'] || keys['arrowright']) camera.rotation.y -= turnSpeed;
@@ -2001,9 +1972,6 @@ function animate() {
       }
     });
 
-    // -------------------------------------------------------------
-    // CRITICAL FIX: PATHING, RAMP CLIMBING & CANNON ELEVATION
-    // -------------------------------------------------------------
     const allWallObstacles = [...worldPanels.filter(p => p.userData.panelType.startsWith('wall')), ...gameWalls];
 
     function checkSphereWallCollision(sphereCenter, radius) {
@@ -2062,7 +2030,6 @@ function animate() {
           return;
         }
 
-        // Raycast down from high above to accurately hug ground, floors, and ramps!
         const probeOrigin = new THREE.Vector3(nextX, can.position.y + 12.0, nextZ);
         const probeRay = new THREE.Raycaster(probeOrigin, new THREE.Vector3(0, -1, 0), 0, 60.0);
         const hits = probeRay.intersectObjects([ground, ...worldPanels, ...bridges], true);
@@ -2079,7 +2046,7 @@ function animate() {
         if (canStep) {
           can.position.x = nextX;
           can.position.z = nextZ;
-          can.position.y += (targetY - can.position.y) * 0.45 * dt60; // Smooth climb up ramps
+          can.position.y += (targetY - can.position.y) * 0.45 * dt60;
           can.lookAt(can.userData.targetPos.x, can.position.y, can.userData.targetPos.z);
         } else {
           can.userData.targetPos.x = can.position.x;
