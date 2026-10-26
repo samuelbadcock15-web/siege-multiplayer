@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<!-- Disable mobile pinch-to-zoom and double-tap browser zoom -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Siege - Clear Horizons Tactical Edition</title>
 <style>
@@ -48,7 +47,6 @@
   }
   #pump-bar { width: 0%; height: 100%; background: #ffd700; transition: width 0.04s linear; }
 
-  /* Tactical Vertical Altitude Gauge */
   #camera-altitude-control {
     position: absolute; right: 14px; top: 140px; bottom: 120px; width: 62px;
     background: rgba(10, 15, 26, 0.94); border: 2px solid #ffd700; border-radius: 31px;
@@ -75,7 +73,6 @@
     cursor: grab; pointer-events: none;
   }
 
-  /* Ergonomic Centered Mobile D-Pad (Bigger & Shifted Right-Inward) */
   #mobile-dpad {
     position: absolute; bottom: 35px; left: 90px; width: 230px; height: 230px;
     z-index: 260; display: none; grid-template-columns: repeat(3, 1fr);
@@ -89,7 +86,6 @@
   }
   .dpad-btn:active { background: #ffd700; color: #000; transform: scale(0.92); }
 
-  /* Dedicated Big Look Pad: Bottom-Right Center Position */
   #panel-lookpad {
     position: absolute; bottom: 35px; right: 175px; width: 135px; height: 135px;
     border-radius: 24px; background: rgba(15, 23, 42, 0.9); border: 2.5px dashed #00ffcc;
@@ -102,7 +98,6 @@
     background: rgba(0, 255, 204, 0.2); border-style: solid;
   }
 
-  /* Mobile Cannon Deselect Button (Scaled Up) */
   #mobile-deselect-btn {
     position: absolute; bottom: 155px; right: 55px; width: 95px; height: 58px;
     border-radius: 29px; background: rgba(15, 23, 42, 0.88); border: 2.5px solid #555e75;
@@ -116,7 +111,6 @@
     box-shadow: 0 0 22px #00ff00; font-weight: 900;
   }
 
-  /* Mobile Fire / Aim Button (Scaled Up) */
   #mobile-aim-toggle {
     position: absolute; bottom: 45px; right: 55px; width: 95px; height: 95px;
     border-radius: 50%; background: rgba(15, 23, 42, 0.92); border: 3.5px solid #ff4400;
@@ -134,7 +128,6 @@
     box-shadow: 0 0 30px #ff4400; opacity: 1.0;
   }
 
-  /* Mobile Vertical Build Mode Cluster (Scaled Up & Enlarged) */
   #mobile-build-slider {
     position: absolute; bottom: 225px; right: 55px; width: 105px; height: 240px;
     background: rgba(10, 15, 26, 0.95); border: 2.5px solid #ffd700; border-radius: 22px;
@@ -244,7 +237,6 @@
 
 <div id="minimap-container"><canvas id="minimap"></canvas></div>
 
-<!-- Tactical Vertical Altitude Gauge -->
 <div id="camera-altitude-control">
   <div class="alt-header">ALT<br>SKY</div>
   <div class="alt-value-display" id="alt-val-text">5m</div>
@@ -255,7 +247,6 @@
   <div class="alt-header" style="color: #8892b0;">GND</div>
 </div>
 
-<!-- Mobile Ergonomic D-Pad -->
 <div id="mobile-dpad">
   <div></div>
   <div class="dpad-btn" id="dpad-up">▲</div>
@@ -268,13 +259,11 @@
   <div></div>
 </div>
 
-<!-- Dedicated Look Pad (Bottom Right Center) -->
 <div id="panel-lookpad">
   <span>DRAG TO LOOK</span>
   <span style="font-size: 9px; opacity: 0.7; margin-top: 3px;">(PANEL ACTIVE)</span>
 </div>
 
-<!-- Mobile Vertical Build Mode Cluster -->
 <div id="mobile-build-slider">
   <button id="panel-deselect-btn">DESELECT</button>
   <div class="build-slider-title">BUILD MODE</div>
@@ -285,10 +274,8 @@
   </div>
 </div>
 
-<!-- Mobile Cannon Deselect Button -->
 <div id="mobile-deselect-btn">DESELECT</div>
 
-<!-- Mobile Fire / Aim Mode Switcher -->
 <div id="mobile-aim-toggle" class="disabled">
   <span>AIM</span>
   <span style="font-size: 9px;">& FIRE</span>
@@ -357,7 +344,6 @@ let matchOver = false;
 let gameInitialized = false;
 let matchStarted = false;
 
-// Independent base placement enforcement
 let myBasePanelPlaced = false;
 
 const clock = new THREE.Clock();
@@ -381,7 +367,6 @@ const ctx = minimapCanvas.getContext('2d');
 minimapCanvas.width = 120;
 minimapCanvas.height = 120;
 
-// Altitude Slider Gauge
 const altTrack = document.getElementById('alt-track');
 const altFill = document.getElementById('alt-fill');
 const altThumb = document.getElementById('alt-thumb');
@@ -431,7 +416,6 @@ window.addEventListener('mouseup', () => {
   isPointerDraggingAlt = false;
 });
 
-// Mobile Build Mode Slider & Look Pad
 const mobileBuildSlider = document.getElementById('mobile-build-slider');
 const panelDeselectBtn = document.getElementById('panel-deselect-btn');
 const buildTrack = document.getElementById('build-track');
@@ -495,7 +479,6 @@ segFloor.onclick = (e) => { e.stopPropagation(); setBuildModeDirect(1); };
 segWall.onclick = (e) => { e.stopPropagation(); setBuildModeDirect(2); };
 segRamp.onclick = (e) => { e.stopPropagation(); setBuildModeDirect(3); };
 
-// Dedicated Panel Look Pad Touch Handler (Bottom Right Center)
 let lookPadLast = { x: 0, y: 0 };
 panelLookpad.addEventListener('touchstart', (e) => {
   e.preventDefault();
@@ -519,12 +502,10 @@ panelLookpad.addEventListener('touchmove', (e) => {
   lookPadLast.y = t.clientY;
 }, { passive: false });
 
-// Lighting
 const light = new THREE.DirectionalLight(0xffffff, 1.5);
 light.position.set(100, 100, 50);
 scene.add(light, new THREE.AmbientLight(0x606060));
 
-// Board Boundaries & River
 const boardSize = 600;
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(boardSize, boardSize), new THREE.MeshStandardMaterial({ color: 0x3a5a2a }));
 ground.rotation.x = -Math.PI / 2;
@@ -556,7 +537,6 @@ bridgeXPositions.forEach(bx => {
   bridges.push(bridge);
 });
 
-// Perimeter Castle Walls
 const wallHeight = 40;
 const wallThickness = 10;
 const halfBoard = boardSize / 2;
@@ -596,7 +576,6 @@ const southWall = createCastleWall(boardSize, false); southWall.position.set(0, 
 const eastWall = createCastleWall(boardSize, true); eastWall.position.set(halfBoard, 0, 0); scene.add(eastWall); gameWalls.push(eastWall);
 const westWall = createCastleWall(boardSize, true); westWall.position.set(-halfBoard, 0, 0); scene.add(westWall); gameWalls.push(westWall);
 
-// Clouds
 const clouds = [];
 function createCloudTexture() {
   const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 128;
@@ -613,20 +592,18 @@ for (let i = 0; i < 60; i++) {
   clouds.push({ mesh: cloud, speed: 0.1 + Math.random() * 0.15 });
 }
 
-// Modular Snap Engine Constants
 const PANEL_SIZE = 12;
 const WALL_HEIGHT = 8;
 const PANEL_THICKNESS = 1.0;
 const RAMP_DIAG = Math.hypot(PANEL_SIZE, WALL_HEIGHT);
 const RAMP_ANGLE = Math.atan2(WALL_HEIGHT, PANEL_SIZE);
 
-// Accurate territory evaluation for both Blue (South) and Dark (North)
 function isWithinMyBuildingTerritory(targetZ, panelDepth = PANEL_SIZE) {
   const halfDepth = panelDepth / 2;
   if (myPlayerIndex === 1) {
-    return (targetZ - halfDepth) >= 5.0; // South Territory
+    return (targetZ - halfDepth) >= 5.0;
   } else {
-    return (targetZ + halfDepth) <= -5.0; // North Territory
+    return (targetZ + halfDepth) <= -5.0;
   }
 }
 
@@ -636,9 +613,6 @@ const panelGeometries = {
   wall_z: new THREE.BoxGeometry(PANEL_THICKNESS, WALL_HEIGHT, PANEL_SIZE)
 };
 
-// -------------------------------------------------------------
-// RAMP GEOMETRY: (0,0,0) is bottom connecting edge, slopes up away along -Z
-// -------------------------------------------------------------
 function createAlignedRampGeometry(length) {
   const geo = new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, length);
   geo.rotateX(RAMP_ANGLE);
@@ -659,17 +633,12 @@ const panelMaterials = {
 const worldPanels = [];
 const shotgunHandles = [];
 
-// -------------------------------------------------------------
-// DYNAMIC SHOTGUN MUZZLE BURST & SHARD PARTICLES
-// -------------------------------------------------------------
 const shotgunShards = [];
-
 const shardGeometries = [
   new THREE.ConeGeometry(0.08, 0.35, 4),
   new THREE.BoxGeometry(0.12, 0.12, 0.12),
   new THREE.DodecahedronGeometry(0.09)
 ];
-
 const shardMaterials = [
   new THREE.MeshBasicMaterial({ color: 0xffcc00 }),
   new THREE.MeshBasicMaterial({ color: 0xff4400 }),
@@ -688,7 +657,6 @@ function spawnShotgunBlast(muzzlePos, forwardDir, isDemolish = false) {
 
     mesh.position.copy(muzzlePos);
 
-    // Random velocity along barrel forward axis with conical spread
     const vel = forwardDir.clone()
       .add(new THREE.Vector3(
         (Math.random() - 0.5) * spread,
@@ -709,6 +677,38 @@ function spawnShotgunBlast(muzzlePos, forwardDir, isDemolish = false) {
       rotSpeed: new THREE.Vector3(Math.random() * 0.2, Math.random() * 0.2, Math.random() * 0.2)
     });
   }
+}
+
+// Falling Ejected Shotgun Shells (Real-time Unloading Physics & Fadeout)
+const ejectedShells = [];
+
+function spawnEjectedShell(ejectPos, gunDir) {
+  const shellGroup = new THREE.Group();
+  const hull = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.09, 0.09, 0.35, 12),
+    new THREE.MeshStandardMaterial({ color: 0xff3300, roughness: 0.4 })
+  );
+  const brass = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.092, 0.092, 0.12, 12),
+    new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.9, roughness: 0.2 })
+  );
+  brass.position.y = -0.15;
+  shellGroup.add(hull, brass);
+  shellGroup.position.copy(ejectPos);
+  scene.add(shellGroup);
+
+  const rightDir = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion).normalize();
+  const ejectVel = rightDir.multiplyScalar(0.35 + Math.random() * 0.25)
+    .add(new THREE.Vector3(0, 0.4 + Math.random() * 0.2, 0))
+    .add(gunDir.clone().multiplyScalar(0.1));
+
+  ejectedShells.push({
+    mesh: shellGroup,
+    velocity: ejectVel,
+    rotSpeed: new THREE.Vector3(Math.random() * 0.3 - 0.15, Math.random() * 0.3 - 0.15, Math.random() * 0.3 - 0.15),
+    life: 0,
+    maxLife: 90
+  });
 }
 
 let activeBasePanel = null;
@@ -835,7 +835,6 @@ function renderPanelHandles(panel) {
 
     const inclineSlope = forward.clone().multiplyScalar(Math.cos(RAMP_ANGLE)).add(new THREE.Vector3(0, Math.sin(RAMP_ANGLE), 0)).normalize();
 
-    // Extender handle placed slightly up the incline
     const extenderPos = panel.position.clone()
       .addScaledVector(forward, 2.0 * Math.cos(RAMP_ANGLE))
       .add(new THREE.Vector3(0, 2.0 * Math.sin(RAMP_ANGLE) + 1.2, 0));
@@ -848,7 +847,6 @@ function renderPanelHandles(panel) {
       isLevelOut: false
     });
 
-    // Summit level-out handle placed right at top summit edge
     const summitPos = panel.position.clone()
       .addScaledVector(forward, totalRun)
       .add(new THREE.Vector3(0, totalRise + 0.6, 0));
@@ -1073,7 +1071,7 @@ function undoDemolishPanel(panel, isRemote = false) {
       });
     }
 
-    statusText.innerText = "PANEL DEMOLISHED!";
+    statusText.innerText = "PANEL DEMOLISHED & UNLOADED!";
     statusText.style.color = "#ff9900";
     setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2000);
   }
@@ -1223,7 +1221,6 @@ function triggerBranchBuild(parentPanel, gunId) {
   selectPanel(spawned);
 }
 
-// Units & Cannon System
 let cannons = [];
 let opponentCannons = [];
 const activeProjectiles = [];
@@ -1490,7 +1487,6 @@ function spawnProjectile(sourceCan, target, isRemote = false) {
   }
 }
 
-// Combat Events
 socket.on('opponent_move', (data) => {
   if (!matchStarted) return;
   opponentCannons.forEach(can => {
@@ -1538,7 +1534,6 @@ function checkWinCondition() {
   }
 }
 
-// Minimap
 const MAP_SCALE = 120 / boardSize;
 const MAP_CENTER = { x: 60, y: 60 };
 
@@ -1596,9 +1591,6 @@ function updateMinimap() {
   });
 }
 
-// -------------------------------------------------------------
-// EXACT RAYCAST ENGINE: NO INVISIBLE PROXIMITY THEFT
-// -------------------------------------------------------------
 function handlePointerDown(clientX, clientY, isSecondary = false) {
   if (!matchStarted || matchOver) return false;
 
@@ -1606,7 +1598,6 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
   mouse.y = -(clientY / window.innerHeight) * 2 + 1;
   raycaster.setFromCamera(mouse, camera);
 
-  // STEP 1: MUST PLACE STARTING BASE SQUARE BEFORE ANYTHING ELSE
   if (!myBasePanelPlaced) {
     const groundHits = raycaster.intersectObject(ground, false);
     if (groundHits.length > 0) {
@@ -1651,7 +1642,6 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
     return false;
   }
 
-  // 1. Check shotgun handles
   const gunIntersects = raycaster.intersectObjects(shotgunHandles, true);
   if (gunIntersects.length > 0) {
     let hitObj = gunIntersects[0].object;
@@ -1687,7 +1677,6 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
     }
   }
 
-  // 2. Check Cannon Click: EXACT VISIBLE OBJECT CHECK
   let clickedCannon = null;
   for (let can of cannons) {
     if (raycaster.intersectObject(can, true).length > 0) {
@@ -1708,7 +1697,6 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
     return true;
   }
 
-  // 3. Ground / Panels / Bridges
   const walkableHits = raycaster.intersectObjects([ground, ...worldPanels, ...bridges], true);
   if (walkableHits.length > 0) {
     const pt = walkableHits[0].point;
@@ -1822,7 +1810,7 @@ function handlePointerMove(clientX, clientY) {
       if (pushAmt >= 1.0) {
         pumpStage = 'push_forward_primed';
         pumpScreenStart.set(clientX, clientY);
-        pumpText.innerText = "⚠ READY! RELEASE OR PULL BACK TO DEMOLISH! ⚠";
+        pumpText.innerText = "⚠ READY! RELEASE OR PULL BACK TO DEMOLISH & UNLOAD! ⚠";
         pumpText.style.color = "#ff3300";
         pumpBar.style.background = '#ff0033';
         pumpBar.style.width = '50%';
@@ -1833,12 +1821,16 @@ function handlePointerMove(clientX, clientY) {
 
       pumpBar.style.width = `${50 + (pullBackAmt * 50)}%`;
       pumpBar.style.background = '#ff0033';
-      pumpText.innerText = "RACK BACK TO DEMOLISH!";
+      pumpText.innerText = "RACK BACK TO DEMOLISH & UNLOAD!";
       pumpText.style.color = "#ff3300";
 
       if (pullBackAmt >= 1.0) {
         const muzzlePos = pumpingShotgun.position.clone().add(pumpingShotgun.userData.dirVector.clone().multiplyScalar(3.2));
         spawnShotgunBlast(muzzlePos, pumpingShotgun.userData.dirVector, true);
+
+        // Spawn falling ejected shell from port during reverse rack
+        const ejectPos = pumpingShotgun.position.clone().add(new THREE.Vector3(0, 0.5, 0));
+        spawnEjectedShell(ejectPos, pumpingShotgun.userData.dirVector);
 
         pumpingShotgun.userData.recoilTimer = 1.0;
         pumpingShotgun.userData.flash.material.opacity = 1.0;
@@ -1855,9 +1847,6 @@ function handlePointerMove(clientX, clientY) {
   }
 }
 
-// -------------------------------------------------------------
-// DUAL TRIGGER POINTER UP (MUZZLE BLAST & SHARDS FIRED)
-// -------------------------------------------------------------
 function handlePointerUp() {
   if (isAimingCannon) {
     const selectedCannon = cannons.find(c => c.userData.selected);
@@ -1882,6 +1871,10 @@ function handlePointerUp() {
       const muzzlePos = pumpingShotgun.position.clone().add(pumpingShotgun.userData.dirVector.clone().multiplyScalar(3.2));
       spawnShotgunBlast(muzzlePos, pumpingShotgun.userData.dirVector, true);
 
+      // Spawn falling ejected shell on release/demolish trigger
+      const ejectPos = pumpingShotgun.position.clone().add(new THREE.Vector3(0, 0.5, 0));
+      spawnEjectedShell(ejectPos, pumpingShotgun.userData.dirVector);
+
       pumpingShotgun.userData.recoilTimer = 1.0;
       pumpingShotgun.userData.flash.material.opacity = 1.0;
       undoDemolishPanel(activeBasePanel);
@@ -1896,7 +1889,6 @@ function handlePointerUp() {
   }
 }
 
-let isTouchDeviceActive = false;
 let lastTouchTime = 0;
 
 window.onmousedown = (e) => {
@@ -1937,7 +1929,6 @@ let activeTouchId = null;
 let touchHandledOnDown = false;
 
 window.addEventListener('touchstart', (e) => {
-  isTouchDeviceActive = true;
   lastTouchTime = Date.now();
   if (e.target.closest('#ui') || e.target.closest('#lobby-screen') || e.target.closest('#camera-altitude-control') || e.target.closest('#mobile-dpad') || e.target.closest('#mobile-aim-toggle') || e.target.closest('#mobile-deselect-btn') || e.target.closest('#mobile-build-slider') || e.target.closest('#panel-lookpad')) return;
 
@@ -2057,7 +2048,6 @@ window.onresize = () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 };
 
-// Animation Loop
 function animate() {
   requestAnimationFrame(animate);
 
@@ -2072,12 +2062,11 @@ function animate() {
     }
   });
 
-  // Update Shotgun Muzzle Burst Particles
   for (let i = shotgunShards.length - 1; i >= 0; i--) {
     const s = shotgunShards[i];
     s.mesh.position.addScaledVector(s.velocity, dt60);
-    s.velocity.y -= 0.015 * dt60; // Shard gravity
-    s.velocity.multiplyScalar(Math.pow(0.92, dt60)); // Air drag
+    s.velocity.y -= 0.015 * dt60;
+    s.velocity.multiplyScalar(Math.pow(0.92, dt60));
     s.mesh.rotation.x += s.rotSpeed.x * dt60;
     s.mesh.rotation.y += s.rotSpeed.y * dt60;
     s.mesh.rotation.z += s.rotSpeed.z * dt60;
@@ -2090,6 +2079,35 @@ function animate() {
     if (s.life >= s.maxLife) {
       scene.remove(s.mesh);
       shotgunShards.splice(i, 1);
+    }
+  }
+
+  // Update Ejected Shotgun Shells (Physics, ground stop, scale fade out)
+  for (let i = ejectedShells.length - 1; i >= 0; i--) {
+    const shell = ejectedShells[i];
+    shell.mesh.position.addScaledVector(shell.velocity, dt60);
+    shell.velocity.y -= 0.02 * dt60;
+    shell.velocity.multiplyScalar(Math.pow(0.96, dt60));
+
+    shell.mesh.rotation.x += shell.rotSpeed.x * dt60;
+    shell.mesh.rotation.y += shell.rotSpeed.y * dt60;
+    shell.mesh.rotation.z += shell.rotSpeed.z * dt60;
+
+    if (shell.mesh.position.y <= 0.2) {
+      shell.mesh.position.y = 0.2;
+      shell.velocity.set(0, 0, 0);
+      shell.rotSpeed.set(0, 0, 0);
+    }
+
+    shell.life += dt60;
+    if (shell.life >= shell.maxLife - 20) {
+      const fadeProgress = (shell.life - (shell.maxLife - 20)) / 20;
+      shell.mesh.scale.setScalar(Math.max(0.001, 1.0 - fadeProgress));
+    }
+
+    if (shell.life >= shell.maxLife) {
+      scene.remove(shell.mesh);
+      ejectedShells.splice(i, 1);
     }
   }
 
@@ -2143,7 +2161,7 @@ function animate() {
       return false;
     }
 
-    [...cannons, ...opponentCannons].forEach(can => {
+    ([...cannons, ...opponentCannons]).forEach(can => {
       const forwardDir = new THREE.Vector3(0, 0, 1).applyQuaternion(can.quaternion).normalize();
       
       const muzzlePos = new THREE.Vector3(0, 2.5, 0);
@@ -2183,7 +2201,7 @@ function animate() {
         );
 
         const hitsWallAhead = checkSphereWallCollision(prospectiveMuzzle, 0.45) || 
-                              checkSphereWallCollision(prospectivePos, 1.25);
+                            checkSphereWallCollision(prospectivePos, 1.25);
 
         if (hitsWallAhead) {
           can.userData.targetPos.copy(can.position);
@@ -2296,7 +2314,6 @@ function animate() {
   renderer.render(scene, camera);
 }
 
-// Lobby Hooks
 socket.on('lobbies_update', (lobbies) => {
   const grid = document.getElementById('lobbies-grid');
   if (!grid) return;
