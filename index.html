@@ -669,7 +669,6 @@ function extendRampDirectly(rampMesh, isRemote = false) {
 
     rampMesh.geometry.dispose();
     rampMesh.geometry = new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, newLength);
-    // Crucial Raycast Bounding Refresh
     rampMesh.geometry.computeBoundingBox();
     rampMesh.geometry.computeBoundingSphere();
 
@@ -914,7 +913,7 @@ function createCannon(x, z, mainColor, isOpp = false, customId = null, unitNumbe
     const barrelPivot = new THREE.Group();
     barrelPivot.position.y = 0.5;
 
-    // Cannon Barrel (2.5 length, tip extends ~2.5 forward)
+    // Cannon Barrel
     const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.5, 2.5), new THREE.MeshStandardMaterial({ color: 0x1a1a1a }));
     barrel.geometry.translate(0, 1.25, 0);
     barrel.rotation.x = Math.PI / 2;
@@ -1004,6 +1003,33 @@ function calculateBallistics(sourceCan, target) {
 }
 
 function updateTrajectoryArc(sourceCan, target) {
+    const originalRot = sourceCan.quaternion.clone();
+    sourceCan.lookAt(target.x, sourceCan.position.y, target.z);
+
+    const muzzlePos = new THREE.Vector3(0, 2.5, 0);
+    sourceCan.userData.barrelPivot.localToWorld(muzzlePos);
+
+    const allWalls = [...worldPanels.filter(p => p.userData.panelType.startsWith('wall')), ...gameWalls];
+    const muzzleSphere = new THREE.Sphere(muzzlePos, 0.4);
+    let touchesWall = false;
+    for (let w of allWalls) {
+        if (new THREE.Box3().setFromObject(w).intersectsSphere(muzzleSphere)) {
+            touchesWall = true;
+            break;
+        }
+    }
+
+    if (touchesWall) {
+        sourceCan.quaternion.copy(originalRot);
+        trajectoryLine.visible = false;
+        statusText.innerText = "BARREL BLOCKED BY WALL!";
+        statusText.style.color = "#ff4444";
+        return;
+    }
+
+    const localTarget = sourceCan.worldToLocal(target.clone());
+    sourceCan.userData.angle = Math.atan2(localTarget.y, Math.sqrt(localTarget.x**2 + localTarget.z**2));
+
     const b = calculateBallistics(sourceCan, target);
     const posAttr = trajectoryLine.geometry.attributes.position;
     const stepTime = b.targetTime / (TRAJECTORY_POINTS - 1);
@@ -1018,17 +1044,26 @@ function updateTrajectoryArc(sourceCan, target) {
     posAttr.needsUpdate = true;
     trajectoryLine.computeLineDistances();
     trajectoryLine.visible = true;
-
-    // Point Cannon towards target during aiming
-    sourceCan.lookAt(target.x, sourceCan.position.y, target.z);
-    const localTarget = sourceCan.worldToLocal(target.clone());
-    sourceCan.userData.angle = Math.atan2(localTarget.y, Math.sqrt(localTarget.x**2 + localTarget.z**2));
 }
 
 function spawnProjectile(sourceCan, target, isRemote = false) {
     if (!matchStarted || matchOver) return;
-    const b = calculateBallistics(sourceCan, target);
 
+    const muzzleCheck = new THREE.Vector3(0, 2.5, 0);
+    sourceCan.userData.barrelPivot.localToWorld(muzzleCheck);
+
+    const allWalls = [...worldPanels.filter(p => p.userData.panelType.startsWith('wall')), ...gameWalls];
+    const muzzleSphere = new THREE.Sphere(muzzleCheck, 0.4);
+    for (let w of allWalls) {
+        if (new THREE.Box3().setFromObject(w).intersectsSphere(muzzleSphere)) {
+            statusText.innerText = "CANNOT FIRE: BARREL IS OBSTRUCTED!";
+            statusText.style.color = "#ff4444";
+            setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2000);
+            return;
+        }
+    }
+
+    const b = calculateBallistics(sourceCan, target);
     const obj = new THREE.Mesh(new THREE.SphereGeometry(0.6), new THREE.MeshStandardMaterial({ color: 0xff4400, emissive: 0xffaa00 }));
     obj.position.copy(b.start);
 
@@ -1153,7 +1188,7 @@ function updateMinimap() {
     });
 }
 
-// Mouse Controls with Anti-Cheat Barrel Wall Raycasting & Aim Trajectory
+// Mouse Controls
 window.onmousedown = (e) => {
     if (!matchStarted || matchOver) return;
     if (e.target.closest('#ui') || e.target.closest('#lobby-screen') || e.target.closest('#mode-legend') || e.target.closest('#camera-altitude-control')) return;
@@ -1174,7 +1209,6 @@ window.onmousedown = (e) => {
     if (e.button === 0) {
         raycaster.setFromCamera(mouse, camera);
 
-        // 1. Check Shotgun Handle Click
         const gunIntersects = raycaster.intersectObjects(shotgunHandles, true);
         if (gunIntersects.length > 0) {
             let hitObj = gunIntersects[0].object;
@@ -1195,7 +1229,6 @@ window.onmousedown = (e) => {
             }
         }
 
-        // 2. Cannon Selection & Deselection Toggle
         let clickedCannon = null;
         cannons.forEach(can => {
             if (raycaster.intersectObject(can, true).length > 0) clickedCannon = can;
@@ -1214,7 +1247,6 @@ window.onmousedown = (e) => {
             return;
         }
 
-        // 3. March Units across Ground, Ramps & Walkways
         const walkableHits = raycaster.intersectObjects([ground, ...worldPanels, ...bridges], true);
         if (walkableHits.length > 0) {
             const pt = walkableHits[0].point;
@@ -1242,7 +1274,6 @@ window.onmousedown = (e) => {
 
         const selectedCannon = cannons.find(c => c.userData.selected);
 
-        // CASE 1: CANNON IS SELECTED -> START AIMING & SHOW TRAJECTORY ARC
         if (selectedCannon) {
             const combatHits = raycaster.intersectObjects([ground, river, ...bridges, ...worldPanels, ...gameWalls, ...opponentCannons], true);
             if (combatHits.length > 0) {
@@ -1253,7 +1284,6 @@ window.onmousedown = (e) => {
             return;
         }
 
-        // CASE 2: NO CANNON SELECTED -> SELECT PANEL FOR MODULAR BUILDING
         const panelHits = raycaster.intersectObjects(worldPanels, false);
         if (panelHits.length > 0) {
             selectPanel(panelHits[0].object);
@@ -1265,7 +1295,6 @@ window.onmousemove = (e) => {
     mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
 
-    // Update real-time trajectory if RMB is held down
     if (isAimingCannon) {
         raycaster.setFromCamera(mouse, camera);
         const combatHits = raycaster.intersectObjects([ground, river, ...bridges, ...worldPanels, ...gameWalls, ...opponentCannons], true);
@@ -1276,7 +1305,6 @@ window.onmousemove = (e) => {
         }
     }
 
-    // Shotgun slide dragging
     if (pumpingShotgun && activeBasePanel) {
         const gunWorldPos = pumpingShotgun.position.clone();
         const dirEndpoint = gunWorldPos.clone().add(pumpingShotgun.userData.dirVector.clone().multiplyScalar(4));
@@ -1352,7 +1380,6 @@ window.onmousemove = (e) => {
 };
 
 window.onmouseup = (e) => {
-    // Release RMB to Fire with preview
     if (e.button === 2 && isAimingCannon) {
         const selectedCannon = cannons.find(c => c.userData.selected);
         if (selectedCannon) {
@@ -1450,7 +1477,6 @@ function animate() {
             }
         }
 
-        // Shotgun Handle Animations
         shotgunHandles.forEach(gun => {
             if (gun.userData.recoilTimer > 0) {
                 gun.userData.recoilTimer = Math.max(0, gun.userData.recoilTimer - dt * 6);
@@ -1465,7 +1491,32 @@ function animate() {
         // -------------------------------------------------------------
         // CANNON PATHING & ANTI-WALL NOSE PENETRATION (NO CHEATING)
         // -------------------------------------------------------------
+        const allWallObstacles = [...worldPanels.filter(p => p.userData.panelType.startsWith('wall')), ...gameWalls];
+
+        function checkSphereWallCollision(sphereCenter, radius) {
+            const testSphere = new THREE.Sphere(sphereCenter, radius);
+            for (let w of allWallObstacles) {
+                const box = new THREE.Box3().setFromObject(w);
+                if (box.intersectsSphere(testSphere)) return true;
+            }
+            return false;
+        }
+
         [...cannons, ...opponentCannons].forEach(can => {
+            const forwardDir = new THREE.Vector3(0, 0, 1).applyQuaternion(can.quaternion).normalize();
+            
+            const muzzlePos = new THREE.Vector3(0, 2.5, 0);
+            can.userData.barrelPivot.localToWorld(muzzlePos);
+
+            let pushTries = 0;
+            while ((checkSphereWallCollision(muzzlePos, 0.4) || checkSphereWallCollision(can.position, 1.2)) && pushTries < 15) {
+                can.position.addScaledVector(forwardDir, -0.2);
+                can.userData.targetPos.copy(can.position);
+                muzzlePos.set(0, 2.5, 0);
+                can.userData.barrelPivot.localToWorld(muzzlePos);
+                pushTries++;
+            }
+
             can.userData.barrelPivot.rotation.x = -can.userData.angle;
             
             const planarDist = Math.hypot(can.userData.targetPos.x - can.position.x, can.userData.targetPos.z - can.position.z);
@@ -1481,26 +1532,23 @@ function animate() {
                 const nextX = can.position.x + moveDir.x * moveStep;
                 const nextZ = can.position.z + moveDir.z * moveStep;
 
-                // Anti-clipping probe: Check if the cannon nose (2.6 units forward) will hit a wall/panel
-                const forwardProbeRay = new THREE.Raycaster(
-                    new THREE.Vector3(can.position.x, can.position.y + 0.5, can.position.z),
-                    moveDir,
-                    0,
-                    2.8 // Barrel length (2.5) + margin
+                const prospectivePos = new THREE.Vector3(nextX, can.position.y, nextZ);
+                const prospectiveQuat = new THREE.Quaternion().setFromRotationMatrix(
+                    new THREE.Matrix4().lookAt(prospectivePos, prospectivePos.clone().add(moveDir), new THREE.Vector3(0, 1, 0))
                 );
-                const wallHits = forwardProbeRay.intersectObjects([...worldPanels, ...gameWalls], true);
-                const isWallObstacle = wallHits.some(h => {
-                    const isRampOrWalkway = h.object.userData && (h.object.userData.panelType === 'floor' || h.object.userData.panelType === 'ramp');
-                    // Treat vertical panels & perimeter walls as impassable blockers
-                    return !isRampOrWalkway || (h.face && Math.abs(h.face.normal.y) < 0.2);
-                });
+                
+                const prospectiveMuzzle = prospectivePos.clone().add(
+                    new THREE.Vector3(0, 0.5, 2.6).applyQuaternion(prospectiveQuat)
+                );
 
-                if (isWallObstacle) {
+                const hitsWallAhead = checkSphereWallCollision(prospectiveMuzzle, 0.45) || 
+                                      checkSphereWallCollision(prospectivePos, 1.25);
+
+                if (hitsWallAhead) {
                     can.userData.targetPos.copy(can.position);
                     return;
                 }
 
-                // Vertical terrain / bridge surface detection
                 const probeOrigin = new THREE.Vector3(nextX, can.position.y + 2.0, nextZ);
                 const probeRay = new THREE.Raycaster(probeOrigin, new THREE.Vector3(0, -1, 0), 0, 50.0);
                 const hits = probeRay.intersectObjects([ground, ...worldPanels, ...bridges], true);
@@ -1532,7 +1580,6 @@ function animate() {
                     can.userData.targetPos.z = can.position.z;
                 }
 
-                // River Hazard Check
                 if (Math.abs(can.position.z) < (riverWidth / 2) - 1.5 && can.position.y < 2.0) {
                     const onBridge = bridgeXPositions.some(bx => Math.abs(can.position.x - bx) <= (bridgeWidth / 2));
                     if (!onBridge) {
@@ -1548,9 +1595,7 @@ function animate() {
             }
         });
 
-        // -------------------------------------------------------------
-        // PROJECTILE BALLISTICS & BOUNCE
-        // -------------------------------------------------------------
+        // Projectile Combat
         for (let i = activeProjectiles.length - 1; i >= 0; i--) {
             const p = activeProjectiles[i];
             const prevPos = p.mesh.position.clone();
@@ -1610,7 +1655,7 @@ function animate() {
     renderer.render(scene, camera);
 }
 
-// Socket & Match Events
+// Lobby Hooks
 socket.on('lobbies_update', (lobbies) => {
     const grid = document.getElementById('lobbies-grid');
     if (!grid) return;
