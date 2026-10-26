@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Siege - Clear Horizons Fixed Ramp Shotgun Edition</title>
+<title>Siege - Clear Horizons Tactical Edition</title>
 <style>
   body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Courier New', Courier, monospace; cursor: crosshair; user-select: none; }
   #ui { position: absolute; top: 15px; left: 15px; color: white; background: rgba(15, 15, 20, 0.95); padding: 18px; border-radius: 8px; border: 2px solid #ffd700; width: 440px; z-index: 101; box-shadow: 0 0 30px rgba(0,0,0,0.7); display: none; }
@@ -15,8 +15,7 @@
   .info-grid { display: flex; gap: 15px; text-align: left; margin-top: 8px; }
   .info-column { flex: 1; font-size: 11px; }
   .info-column h3 { margin: 0 0 5px 0; color: #ffd700; font-size: 13px; }
-  
-  /* Modular Mode Legend & Spring HUD */
+
   #mode-legend {
     position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
     background: rgba(10, 14, 25, 0.95); border: 2px solid #ffd700; border-radius: 8px;
@@ -25,7 +24,7 @@
   }
   .legend-item { display: flex; align-items: center; gap: 8px; }
   .legend-dot { width: 12px; height: 12px; border-radius: 3px; }
-  
+
   #pump-hud {
     display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
     pointer-events: none; z-index: 300; text-align: center; font-weight: bold;
@@ -38,7 +37,6 @@
   }
   #pump-bar { width: 0%; height: 100%; background: #00ff00; transition: width 0.04s linear; }
 
-  /* CAMERA ALTITUDE SLIDER */
   #camera-altitude-control {
     position: absolute; right: 25px; top: 240px; bottom: 80px; width: 60px;
     background: rgba(10, 14, 25, 0.92); border: 2px solid #ffd700; border-radius: 10px;
@@ -64,7 +62,6 @@
     box-shadow: 0 0 10px #ffd700; border: 2px solid #ffffff;
   }
 
-  /* 6-ROOM LOBBY SYSTEM */
   #lobby-screen { 
     position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; 
     background: radial-gradient(circle at center, #1b2033 0%, #0a0c13 100%); 
@@ -116,7 +113,6 @@
   #countdown-num { font-size: clamp(60px, 15vw, 120px); font-weight: 900; color: #ffd700; margin: 20px 0; animation: popIn 0.5s ease-out; }
   @keyframes popIn { 0% { transform: scale(0.3); opacity: 0; } 80% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(1); } }
 
-  /* Game Over Overlay */
   #game-over-modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 1000; font-family: 'Courier New', Courier, monospace; }
   .modal-content { background: #111; border: 3px solid #ffd700; padding: 30px; border-radius: 12px; text-align: center; width: 450px; box-shadow: 0 0 50px rgba(255,215,0,0.4); color: white; }
   .modal-content h1 { font-size: 28px; margin-top: 0; letter-spacing: 3px; }
@@ -131,7 +127,7 @@
 <div id="lobby-screen">
     <div class="lobby-header">
         <h1>SIEGE: CLEAR HORIZONS</h1>
-        <p>Fixed-Anchor Ramp & Modular Combat Siege | Ready up to deploy!</p>
+        <p>Tactical Ballistics & Modular Fortifications | Ready up to deploy!</p>
     </div>
     <div id="lobbies-grid"></div>
 </div>
@@ -144,7 +140,6 @@
 
 <div id="minimap-container"><canvas id="minimap"></canvas></div>
 
-<!-- CAMERA ALTITUDE SLIDER -->
 <div id="camera-altitude-control">
   <div class="alt-header">ALT<br>SKY</div>
   <div class="alt-slider-wrapper">
@@ -171,9 +166,9 @@
   </div>
   <div style="font-size: 10px; margin-top: 15px; color: #aaa; border-top: 1px solid #333; padding-top: 8px; line-height: 1.4;">
     [LMB Cannon] Select / Deselect | [LMB Ground/Panel] March<br>
-    [RMB on Surface/Target] Fire Cannonball (Ricochets off ALL Panels!)<br>
+    [Hold RMB Cannon] Preview Arc Trajectory -> Release to Fire!<br>
     [RMB on Panel with NO Cannon] Select Panel to Build / Extend<br>
-    [Ramp Extender Shotgun] Fixed on ramp foot (above surface) - pull back & release!
+    Anti-Clipping Bounding Active: Cannons cannot penetrate structures!
   </div>
   <span id="status" class="sys">STATUS: STANDBY</span>
 </div>
@@ -182,9 +177,6 @@
   <div class="legend-item"><div class="legend-dot" style="background:#22c55e;"></div>Floor Mode</div>
   <div class="legend-item"><div class="legend-dot" style="background:#0ea5e9;"></div>Wall Mode (4 Edge Shotguns)</div>
   <div class="legend-item"><div class="legend-dot" style="background:#f97316;"></div>Ramp Mode</div>
-  <div class="legend-item" style="color: #ffd700; border-left: 1px solid #444; padding-left: 12px;">
-    Ramp Extender is mounted ABOVE the surface at the foot & stays fixed!
-  </div>
 </div>
 
 <div id="pump-hud">
@@ -220,7 +212,7 @@ let matchStarted = false;
 const clock = new THREE.Clock();
 let targetCameraAltitude = 5.0;
 
-// Scene, Camera, Renderer
+// Scene Setup
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87CEEB);
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1500);
@@ -237,7 +229,7 @@ const ctx = minimapCanvas.getContext('2d');
 minimapCanvas.width = 200;
 minimapCanvas.height = 200;
 
-// Altitude Slider Bindings
+// Altitude Slider
 const altitudeSlider = document.getElementById('altitude-slider');
 const altValText = document.getElementById('alt-val-text');
 const altitudeControlBox = document.getElementById('camera-altitude-control');
@@ -257,10 +249,6 @@ const boardSize = 600;
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(boardSize, boardSize), new THREE.MeshStandardMaterial({ color: 0x3a5a2a }));
 ground.rotation.x = -Math.PI / 2;
 scene.add(ground);
-
-const gridHelper = new THREE.GridHelper(boardSize, 12, 0xffd700, 0x224422);
-gridHelper.position.y = 0.02;
-scene.add(gridHelper);
 
 const riverWidth = 30;
 const river = new THREE.Mesh(new THREE.PlaneGeometry(boardSize, riverWidth), new THREE.MeshStandardMaterial({ color: 0x0077be, transparent: true, opacity: 0.8 }));
@@ -345,9 +333,7 @@ for (let i = 0; i < 60; i++) {
     clouds.push({ mesh: cloud, speed: 0.1 + Math.random() * 0.15 });
 }
 
-// =================================================================
-// MODULAR 3D SNAP BUILDING ENGINE
-// =================================================================
+// Modular Snap Engine Constants
 const PANEL_SIZE = 12;
 const WALL_HEIGHT = 8;
 const PANEL_THICKNESS = 1.0;
@@ -379,8 +365,6 @@ const panelMaterials = {
 const worldPanels = [];
 const shotgunHandles = [];
 let activeBasePanel = null;
-let hoveredShotgun = null;
-
 let pumpingShotgun = null;
 let pumpStartMouse = { x: 0, y: 0 };
 let currentAction = 'none';
@@ -394,14 +378,12 @@ const pumpText = document.getElementById('pump-text');
 function clearShotgunHandles() {
     shotgunHandles.forEach(h => scene.remove(h));
     shotgunHandles.length = 0;
-    hoveredShotgun = null;
     pumpingShotgun = null;
     pumpHud.style.display = 'none';
 }
 
 function createShotgunHandle(dirVector, modeColor, id, isExtender = false, isLevelOut = false) {
     const gunGroup = new THREE.Group();
-
     const steelColor = isExtender ? 0x332211 : (isLevelOut ? 0x113322 : 0x222225);
     const steelMat = new THREE.MeshStandardMaterial({
         color: steelColor,
@@ -419,37 +401,29 @@ function createShotgunHandle(dirVector, modeColor, id, isExtender = false, isLev
     const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.35, 1.2, 0.5), steelMat);
     receiver.position.set(0, 0.4, -0.1);
 
-    const portMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
-    const port = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.5, 0.2), portMat);
+    const port = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.5, 0.2), new THREE.MeshBasicMaterial({ color: 0x111111 }));
     port.position.set(0.01, 0.4, 0.05);
 
     const woodColor = isLevelOut ? 0x225522 : (isExtender ? 0x8a4513 : 0x5a2d0c);
-    const woodMat = new THREE.MeshStandardMaterial({ color: woodColor, roughness: 0.7 });
-    const stock = new THREE.Mesh(new THREE.BoxGeometry(0.28, 1.4, 0.4), woodMat);
+    const stock = new THREE.Mesh(new THREE.BoxGeometry(0.28, 1.4, 0.4), new THREE.MeshStandardMaterial({ color: woodColor, roughness: 0.7 }));
     stock.position.set(0, -0.8, -0.2);
     stock.rotation.x = 0.2;
 
-    const pumpGeo = new THREE.CylinderGeometry(0.22, 0.22, 1.0, 12);
-    const pumpMat = new THREE.MeshStandardMaterial({ color: isLevelOut ? 0x338833 : (isExtender ? 0xb8621b : 0x6e3810), roughness: 0.6 });
-    const pumpSlide = new THREE.Mesh(pumpGeo, pumpMat);
+    const pumpSlide = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 1.0, 12), new THREE.MeshStandardMaterial({ color: isLevelOut ? 0x338833 : (isExtender ? 0xb8621b : 0x6e3810), roughness: 0.6 }));
     pumpSlide.position.set(0, 1.4, -0.1);
 
     const shellGroup = new THREE.Group();
-    const hullMat = new THREE.MeshStandardMaterial({ color: isLevelOut ? 0x00ff88 : (isExtender ? 0xff8800 : 0xcc1111), roughness: 0.4 });
-    const brassMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.9, roughness: 0.2 });
-    const hull = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.35, 12), hullMat);
-    const brass = new THREE.Mesh(new THREE.CylinderGeometry(0.092, 0.092, 0.12, 12), brassMat);
+    const hull = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.35, 12), new THREE.MeshStandardMaterial({ color: isLevelOut ? 0x00ff88 : (isExtender ? 0xff8800 : 0xcc1111), roughness: 0.4 }));
+    const brass = new THREE.Mesh(new THREE.CylinderGeometry(0.092, 0.092, 0.12, 12), new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.9, roughness: 0.2 }));
     brass.position.y = -0.15;
     shellGroup.add(hull, brass);
     shellGroup.scale.set(0.001, 0.001, 0.001);
     shellGroup.position.set(0, 0.3, -0.2);
 
-    const flashMat = new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0 });
-    const flash = new THREE.Mesh(new THREE.ConeGeometry(0.6, 1.2, 8), flashMat);
+    const flash = new THREE.Mesh(new THREE.ConeGeometry(0.6, 1.2, 8), new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0 }));
     flash.position.y = 3.6;
 
-    const ringMat = new THREE.MeshBasicMaterial({ color: modeColor });
-    const tipRing = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.2, 12), ringMat);
+    const tipRing = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.2, 12), new THREE.MeshBasicMaterial({ color: modeColor }));
     tipRing.position.y = 3.1;
 
     gunGroup.add(barrel, magTube, receiver, port, stock, pumpSlide, shellGroup, flash, tipRing);
@@ -473,7 +447,6 @@ function createShotgunHandle(dirVector, modeColor, id, isExtender = false, isLev
     return gunGroup;
 }
 
-// RENDER ALL SHOTGUNS DEPENDING ON PANEL TYPE
 function renderPanelHandles(panel) {
     clearShotgunHandles();
     if (!panel) return;
@@ -486,9 +459,6 @@ function renderPanelHandles(panel) {
 
     let configs = [];
 
-    // =============================================================
-    // 1. RAMP PANEL: EXTENDER IS FIXED AT FOOT (ABOVE SURFACE)
-    // =============================================================
     if (pType === 'ramp') {
         const segs = panel.userData.rampSegments || 1;
         const totalRun = PANEL_SIZE * segs;
@@ -505,14 +475,12 @@ function renderPanelHandles(panel) {
         const inclineSlope = new THREE.Vector3(dirX * Math.cos(RAMP_ANGLE), Math.sin(RAMP_ANGLE), dirZ * Math.cos(RAMP_ANGLE)).normalize();
         const rampNormal = new THREE.Vector3(0, 1, 0).applyEuler(panel.rotation);
 
-        // Fixed foot position (remains invariant as ramp extends)
         const footPos = new THREE.Vector3(
             panel.position.x - dirX * (totalRun / 2),
             panel.position.y - (totalRise / 2),
             panel.position.z - dirZ * (totalRun / 2)
         );
 
-        // 1. EXTENDER SHOTGUN: MOUNTED ON TOP (ABOVE) SURFACE AT THE FOOT - NEVER MOVES!
         const extenderPos = footPos.clone()
             .addScaledVector(inclineSlope, 2.2)
             .addScaledVector(rampNormal, 1.4);
@@ -527,7 +495,6 @@ function renderPanelHandles(panel) {
             isLevelOut: false
         });
 
-        // 2. HORIZONTAL LEVEL-OUT SHOTGUN: MOUNTED AT THE SUMMIT LIP
         const summitPos = new THREE.Vector3(
             footPos.x + dirX * totalRun,
             footPos.y + totalRise,
@@ -543,9 +510,6 @@ function renderPanelHandles(panel) {
             isLevelOut: true
         });
     }
-    // =============================================================
-    // 2. WALL PANEL: 4 EDGE SHOTGUNS (UP, DOWN, LEFT, RIGHT)
-    // =============================================================
     else if (pType === 'wall_x') {
         const halfH = WALL_HEIGHT / 2;
         configs = [
@@ -564,9 +528,6 @@ function renderPanelHandles(panel) {
             { id: 'wall_right', dir: new THREE.Vector3(0, 0, 1), offset: new THREE.Vector3(0, 0, half + 1.4), isExtender: false, isLevelOut: false }
         ];
     }
-    // =============================================================
-    // 3. FLOOR PANEL: MODE 1 (EXPAND FLOOR)
-    // =============================================================
     else if (mode === 1) {
         configs = [
             { id: 'north', dir: new THREE.Vector3(0, 0, -1), offset: new THREE.Vector3(0, 1.2, -half), isExtender: false, isLevelOut: false },
@@ -576,9 +537,6 @@ function renderPanelHandles(panel) {
             { id: 'up',    dir: new THREE.Vector3(0, 1, 0),  offset: new THREE.Vector3(0, 2.4, 0), isExtender: false, isLevelOut: false }
         ];
     }
-    // =============================================================
-    // 4. FLOOR PANEL: MODE 2 (SPAWN WALLS)
-    // =============================================================
     else if (mode === 2) {
         configs = [
             { id: 'spawn_wall_north', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 1.4, -half), isExtender: false, isLevelOut: false },
@@ -587,9 +545,6 @@ function renderPanelHandles(panel) {
             { id: 'spawn_wall_west',  dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(-half, 1.4, 0), isExtender: false, isLevelOut: false }
         ];
     }
-    // =============================================================
-    // 5. FLOOR PANEL: MODE 3 (SPAWN RAMPS)
-    // =============================================================
     else if (mode === 3) {
         configs = [
             { id: 'north', dir: new THREE.Vector3(0, Math.sin(RAMP_ANGLE), -Math.cos(RAMP_ANGLE)), offset: new THREE.Vector3(0, 1.2, -half), isExtender: false, isLevelOut: false },
@@ -648,6 +603,8 @@ function placePanel(type, position, rotation, isRemote = false, customId = null)
 
     if (type === 'ramp') {
         const geo = new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, RAMP_DIAG);
+        geo.computeBoundingBox();
+        geo.computeBoundingSphere();
         mesh = new THREE.Mesh(geo, mat);
         mesh.userData = {
             isPanel: true,
@@ -659,7 +616,9 @@ function placePanel(type, position, rotation, isRemote = false, customId = null)
             permanent: true
         };
     } else {
-        const geo = panelGeometries[type] || panelGeometries.floor;
+        const geo = (panelGeometries[type] || panelGeometries.floor).clone();
+        geo.computeBoundingBox();
+        geo.computeBoundingSphere();
         mesh = new THREE.Mesh(geo, mat);
         mesh.userData = {
             isPanel: true,
@@ -710,6 +669,9 @@ function extendRampDirectly(rampMesh, isRemote = false) {
 
     rampMesh.geometry.dispose();
     rampMesh.geometry = new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, newLength);
+    // Crucial Raycast Bounding Refresh
+    rampMesh.geometry.computeBoundingBox();
+    rampMesh.geometry.computeBoundingSphere();
 
     rampMesh.position.add(new THREE.Vector3(0, WALL_HEIGHT / 2, 0));
     
@@ -743,6 +705,8 @@ function undoDemolishPanel(panel, isRemote = false) {
 
         panel.geometry.dispose();
         panel.geometry = new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, newLength);
+        panel.geometry.computeBoundingBox();
+        panel.geometry.computeBoundingSphere();
 
         panel.position.sub(new THREE.Vector3(0, WALL_HEIGHT / 2, 0));
         if (Math.abs(panel.rotation.x) > 0.1) {
@@ -908,7 +872,7 @@ function triggerBranchBuild(parentPanel, gunId) {
     }
 
     if (!isWithinMyBuildingTerritory(newPos.z, checkDepth)) {
-        statusText.innerText = "CANNOT BUILD INTO ENEMY TERRITORY! (HALFWAY RIVER LIMIT)";
+        statusText.innerText = "CANNOT BUILD INTO ENEMY TERRITORY!";
         statusText.style.color = "#ff4444";
         setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2500);
         return;
@@ -919,9 +883,7 @@ function triggerBranchBuild(parentPanel, gunId) {
     selectPanel(spawned);
 }
 
-// =================================================================
-// UNITS & COMBAT SYSTEM
-// =================================================================
+// Units & Cannon System
 let cannons = [];
 let opponentCannons = [];
 const activeProjectiles = [];
@@ -929,11 +891,30 @@ const keys = {};
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
+// Trajectory Preview Arc System
+const TRAJECTORY_POINTS = 40;
+const trajPositions = new Float32Array(TRAJECTORY_POINTS * 3);
+const trajGeo = new THREE.BufferGeometry();
+trajGeo.setAttribute('position', new THREE.BufferAttribute(trajPositions, 3));
+const trajMat = new THREE.LineDashedMaterial({
+    color: 0x00ffcc,
+    dashSize: 1.2,
+    gapSize: 0.8,
+    linewidth: 2
+});
+const trajectoryLine = new THREE.Line(trajGeo, trajMat);
+trajectoryLine.visible = false;
+scene.add(trajectoryLine);
+
+let isAimingCannon = false;
+let currentAimTarget = new THREE.Vector3();
+
 function createCannon(x, z, mainColor, isOpp = false, customId = null, unitNumber = 1) {
     const cGroup = new THREE.Group();
     const barrelPivot = new THREE.Group();
     barrelPivot.position.y = 0.5;
 
+    // Cannon Barrel (2.5 length, tip extends ~2.5 forward)
     const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.5, 2.5), new THREE.MeshStandardMaterial({ color: 0x1a1a1a }));
     barrel.geometry.translate(0, 1.25, 0);
     barrel.rotation.x = Math.PI / 2;
@@ -978,6 +959,8 @@ function deselectAllCannons() {
         c.userData.selected = false;
         c.userData.barrel.material.emissive.set(0x000000);
     });
+    trajectoryLine.visible = false;
+    isAimingCannon = false;
     updateStatusUI();
 }
 
@@ -990,41 +973,22 @@ function updateStatusUI() {
 
     if (matchStarted && statusText.innerText !== "STATUS: MATCH STARTED!") {
         if (selectedNum !== null) {
-            statusText.innerText = `ACTIVE COMMAND: CANNON #${selectedNum} [RMB = AIM & FIRE]`;
+            statusText.innerText = `ACTIVE COMMAND: CANNON #${selectedNum} [HOLD RMB = PREVIEW ARC & FIRE]`;
         } else {
             statusText.innerText = "STATUS: STANDBY (CLICK CANNON TO SELECT | RMB PANEL TO BUILD)";
         }
     }
 }
 
-function checkWinCondition() {
-    if (matchOver || !matchStarted) return;
-    const myCount = cannons.length;
-    const oppCount = opponentCannons.length;
-
-    if (myCount === 0 || oppCount === 0) {
-        const winnerIdx = myCount > 0 ? myPlayerIndex : (myPlayerIndex === 1 ? 2 : 1);
-        socket.emit('check_game_over', {
-            roomId: currentRoomId,
-            winnerIndex: winnerIdx,
-            p1Count: myPlayerIndex === 1 ? myCount : oppCount,
-            p2Count: myPlayerIndex === 2 ? myCount : oppCount
-        });
-    }
-}
-
-function spawnProjectile(sourceCan, target, isRemote = false) {
-    if (!matchStarted || matchOver) return;
-    const obj = new THREE.Mesh(new THREE.SphereGeometry(0.6), new THREE.MeshStandardMaterial({ color: 0xff4400, emissive: 0xffaa00 }));
+function calculateBallistics(sourceCan, target) {
     const start = new THREE.Vector3(0, 2.5, 0);
     sourceCan.userData.barrelPivot.localToWorld(start);
-    obj.position.copy(start);
 
     const maxAllowedRange = Math.abs(sourceCan.userData.startZ || 120) * 1.5;
     const dx = target.x - start.x, dz = target.z - start.z, dy = target.y - start.y;
     const horizontalDist = Math.sqrt(dx * dx + dz * dz);
     const clampedDist = Math.min(horizontalDist, maxAllowedRange);
-    const ratio = clampedDist / horizontalDist;
+    const ratio = clampedDist / (horizontalDist || 1);
     const realisticTargetX = start.x + dx * ratio;
     const realisticTargetZ = start.z + dz * ratio;
     const finalDx = realisticTargetX - start.x;
@@ -1036,15 +1000,43 @@ function spawnProjectile(sourceCan, target, isRemote = false) {
     const vz = finalDz / targetTime;
     const vy = (dy - (0.5 * gravity * Math.pow(targetTime, 2))) / targetTime;
 
+    return { start, vx, vy, vz, gravity, targetTime };
+}
+
+function updateTrajectoryArc(sourceCan, target) {
+    const b = calculateBallistics(sourceCan, target);
+    const posAttr = trajectoryLine.geometry.attributes.position;
+    const stepTime = b.targetTime / (TRAJECTORY_POINTS - 1);
+
+    for (let i = 0; i < TRAJECTORY_POINTS; i++) {
+        const t = i * stepTime;
+        const px = b.start.x + b.vx * t;
+        const py = b.start.y + b.vy * t + 0.5 * b.gravity * (t * t);
+        const pz = b.start.z + b.vz * t;
+        posAttr.setXYZ(i, px, py, pz);
+    }
+    posAttr.needsUpdate = true;
+    trajectoryLine.computeLineDistances();
+    trajectoryLine.visible = true;
+
+    // Point Cannon towards target during aiming
     sourceCan.lookAt(target.x, sourceCan.position.y, target.z);
     const localTarget = sourceCan.worldToLocal(target.clone());
     sourceCan.userData.angle = Math.atan2(localTarget.y, Math.sqrt(localTarget.x**2 + localTarget.z**2));
+}
+
+function spawnProjectile(sourceCan, target, isRemote = false) {
+    if (!matchStarted || matchOver) return;
+    const b = calculateBallistics(sourceCan, target);
+
+    const obj = new THREE.Mesh(new THREE.SphereGeometry(0.6), new THREE.MeshStandardMaterial({ color: 0xff4400, emissive: 0xffaa00 }));
+    obj.position.copy(b.start);
 
     scene.add(obj);
     activeProjectiles.push({
         mesh: obj,
-        velocity: new THREE.Vector3(vx, vy, vz),
-        gravity,
+        velocity: new THREE.Vector3(b.vx, b.vy, b.vz),
+        gravity: b.gravity,
         life: 0,
         maxLife: 600,
         isRemote
@@ -1055,7 +1047,7 @@ function spawnProjectile(sourceCan, target, isRemote = false) {
     }
 }
 
-// Socket In-Game Events
+// Combat Events
 socket.on('opponent_move', (data) => {
     if (!matchStarted) return;
     opponentCannons.forEach(can => {
@@ -1086,6 +1078,22 @@ socket.on('opponent_destroy', (data) => {
         }
     });
 });
+
+function checkWinCondition() {
+    if (matchOver || !matchStarted) return;
+    const myCount = cannons.length;
+    const oppCount = opponentCannons.length;
+
+    if (myCount === 0 || oppCount === 0) {
+        const winnerIdx = myCount > 0 ? myPlayerIndex : (myPlayerIndex === 1 ? 2 : 1);
+        socket.emit('check_game_over', {
+            roomId: currentRoomId,
+            winnerIndex: winnerIdx,
+            p1Count: myPlayerIndex === 1 ? myCount : oppCount,
+            p2Count: myPlayerIndex === 2 ? myCount : oppCount
+        });
+    }
+}
 
 // Minimap
 const MAP_SCALE = 200 / boardSize;
@@ -1145,9 +1153,7 @@ function updateMinimap() {
     });
 }
 
-// =================================================================
-// DEDICATED LMB UNIT MOVEMENT & RMB CANNON TARGETING
-// =================================================================
+// Mouse Controls with Anti-Cheat Barrel Wall Raycasting & Aim Trajectory
 window.onmousedown = (e) => {
     if (!matchStarted || matchOver) return;
     if (e.target.closest('#ui') || e.target.closest('#lobby-screen') || e.target.closest('#mode-legend') || e.target.closest('#camera-altitude-control')) return;
@@ -1168,7 +1174,7 @@ window.onmousedown = (e) => {
     if (e.button === 0) {
         raycaster.setFromCamera(mouse, camera);
 
-        // 1. Check if user is clicking a Shotgun Handle
+        // 1. Check Shotgun Handle Click
         const gunIntersects = raycaster.intersectObjects(shotgunHandles, true);
         if (gunIntersects.length > 0) {
             let hitObj = gunIntersects[0].object;
@@ -1189,7 +1195,7 @@ window.onmousedown = (e) => {
             }
         }
 
-        // 2. Cannon Selection & TOGGLE DESELECTION
+        // 2. Cannon Selection & Deselection Toggle
         let clickedCannon = null;
         cannons.forEach(can => {
             if (raycaster.intersectObject(can, true).length > 0) clickedCannon = can;
@@ -1222,10 +1228,6 @@ window.onmousedown = (e) => {
                 if (isWithinMyBuildingTerritory(snapZ, PANEL_SIZE)) {
                     const rootPanel = placePanel('floor', new THREE.Vector3(snapX, PANEL_THICKNESS / 2, snapZ), new THREE.Euler(0, 0, 0));
                     selectPanel(rootPanel);
-                } else {
-                    statusText.innerText = "CANNOT PLACE BASE IN ENEMY HALF OF RIVER!";
-                    statusText.style.color = "#ff4444";
-                    setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2500);
                 }
             } else {
                 clearShotgunHandles();
@@ -1240,11 +1242,13 @@ window.onmousedown = (e) => {
 
         const selectedCannon = cannons.find(c => c.userData.selected);
 
-        // CASE 1: CANNON IS SELECTED -> FIRE AT TARGET (BOUNCES OFF ALL PANELS)
+        // CASE 1: CANNON IS SELECTED -> START AIMING & SHOW TRAJECTORY ARC
         if (selectedCannon) {
             const combatHits = raycaster.intersectObjects([ground, river, ...bridges, ...worldPanels, ...gameWalls, ...opponentCannons], true);
             if (combatHits.length > 0) {
-                spawnProjectile(selectedCannon, combatHits[0].point);
+                isAimingCannon = true;
+                currentAimTarget.copy(combatHits[0].point);
+                updateTrajectoryArc(selectedCannon, currentAimTarget);
             }
             return;
         }
@@ -1257,13 +1261,22 @@ window.onmousedown = (e) => {
     }
 };
 
-// =================================================================
-// SPRING-LOADED CHARGE & REVERSE-UNDO MOUSE TRACKING
-// =================================================================
 window.onmousemove = (e) => {
     mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
 
+    // Update real-time trajectory if RMB is held down
+    if (isAimingCannon) {
+        raycaster.setFromCamera(mouse, camera);
+        const combatHits = raycaster.intersectObjects([ground, river, ...bridges, ...worldPanels, ...gameWalls, ...opponentCannons], true);
+        const selectedCannon = cannons.find(c => c.userData.selected);
+        if (combatHits.length > 0 && selectedCannon) {
+            currentAimTarget.copy(combatHits[0].point);
+            updateTrajectoryArc(selectedCannon, currentAimTarget);
+        }
+    }
+
+    // Shotgun slide dragging
     if (pumpingShotgun && activeBasePanel) {
         const gunWorldPos = pumpingShotgun.position.clone();
         const dirEndpoint = gunWorldPos.clone().add(pumpingShotgun.userData.dirVector.clone().multiplyScalar(4));
@@ -1339,6 +1352,17 @@ window.onmousemove = (e) => {
 };
 
 window.onmouseup = (e) => {
+    // Release RMB to Fire with preview
+    if (e.button === 2 && isAimingCannon) {
+        const selectedCannon = cannons.find(c => c.userData.selected);
+        if (selectedCannon) {
+            spawnProjectile(selectedCannon, currentAimTarget);
+        }
+        isAimingCannon = false;
+        trajectoryLine.visible = false;
+        return;
+    }
+
     if (e.button === 0 && pumpingShotgun && activeBasePanel) {
         const firedGunId = pumpingShotgun.userData.arrowId;
 
@@ -1389,9 +1413,7 @@ window.onresize = () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
 };
 
-// =================================================================
-// DELTA-TIME ANIMATION LOOP + KINETIC BOUNCE ACROSS ALL PANELS
-// =================================================================
+// Animation Loop
 function animate() {
     requestAnimationFrame(animate);
 
@@ -1428,58 +1450,20 @@ function animate() {
             }
         }
 
-        // Shotgun Hover & Recoil Loop
-        raycaster.setFromCamera(mouse, camera);
-        const gunIntersects = raycaster.intersectObjects(shotgunHandles, true);
-        let currentHover = null;
-
-        if (gunIntersects.length > 0) {
-            let hitObj = gunIntersects[0].object;
-            while (hitObj.parent && !hitObj.userData.isShotgunHandle) hitObj = hitObj.parent;
-            if (hitObj.userData.isShotgunHandle) currentHover = hitObj;
-        }
-
+        // Shotgun Handle Animations
         shotgunHandles.forEach(gun => {
-            const isHovered = (gun === currentHover) || (gun === pumpingShotgun);
-            const pulse = (Math.sin(time * 8) + 1) * 0.5;
-
             if (gun.userData.recoilTimer > 0) {
                 gun.userData.recoilTimer = Math.max(0, gun.userData.recoilTimer - dt * 6);
                 const kick = gun.userData.dirVector.clone().multiplyScalar(-gun.userData.recoilTimer * 0.8);
                 gun.position.copy(gun.userData.originalLocalPos).add(kick);
             }
-
             if (gun.userData.flash.material.opacity > 0) {
                 gun.userData.flash.material.opacity = Math.max(0, gun.userData.flash.material.opacity - dt * 10);
-            }
-
-            if (gun === pumpingShotgun) {
-                if (isActionFullyCharged) {
-                    const lockGlow = currentAction === 'fire' ? 0x00ff00 : 0xff0000;
-                    gun.userData.steelMat.emissive.setHex(lockGlow);
-                    gun.userData.steelMat.emissiveIntensity = 1.0 + (pulse * 0.5);
-                    const s = 1.35 + (pulse * 0.08);
-                    gun.scale.set(s, s, s);
-                } else {
-                    const chargingGlow = currentAction === 'fire' ? 0xffaa00 : 0xff5500;
-                    gun.userData.steelMat.emissive.setHex(chargingGlow);
-                    gun.userData.steelMat.emissiveIntensity = 0.5 + (currentProgress * 0.4);
-                    gun.scale.set(1.2, 1.2, 1.2);
-                }
-            } else if (isHovered) {
-                const glowHex = gun.userData.isRampLevelOut ? 0x00ffaa : (gun.userData.isRampExtender ? 0xff6600 : 0xffaa00);
-                gun.userData.steelMat.emissive.setHex(glowHex);
-                gun.userData.steelMat.emissiveIntensity = 0.5 + (pulse * 0.4);
-                gun.scale.set(1.25, 1.25, 1.25);
-            } else {
-                gun.userData.steelMat.emissive.setHex(0x000000);
-                gun.userData.steelMat.emissiveIntensity = 0.0;
-                gun.scale.set(1, 1, 1);
             }
         });
 
         // -------------------------------------------------------------
-        // CANNON PATHING & STRICT LEDGE-CLAMPING
+        // CANNON PATHING & ANTI-WALL NOSE PENETRATION (NO CHEATING)
         // -------------------------------------------------------------
         [...cannons, ...opponentCannons].forEach(can => {
             can.userData.barrelPivot.rotation.x = -can.userData.angle;
@@ -1497,6 +1481,26 @@ function animate() {
                 const nextX = can.position.x + moveDir.x * moveStep;
                 const nextZ = can.position.z + moveDir.z * moveStep;
 
+                // Anti-clipping probe: Check if the cannon nose (2.6 units forward) will hit a wall/panel
+                const forwardProbeRay = new THREE.Raycaster(
+                    new THREE.Vector3(can.position.x, can.position.y + 0.5, can.position.z),
+                    moveDir,
+                    0,
+                    2.8 // Barrel length (2.5) + margin
+                );
+                const wallHits = forwardProbeRay.intersectObjects([...worldPanels, ...gameWalls], true);
+                const isWallObstacle = wallHits.some(h => {
+                    const isRampOrWalkway = h.object.userData && (h.object.userData.panelType === 'floor' || h.object.userData.panelType === 'ramp');
+                    // Treat vertical panels & perimeter walls as impassable blockers
+                    return !isRampOrWalkway || (h.face && Math.abs(h.face.normal.y) < 0.2);
+                });
+
+                if (isWallObstacle) {
+                    can.userData.targetPos.copy(can.position);
+                    return;
+                }
+
+                // Vertical terrain / bridge surface detection
                 const probeOrigin = new THREE.Vector3(nextX, can.position.y + 2.0, nextZ);
                 const probeRay = new THREE.Raycaster(probeOrigin, new THREE.Vector3(0, -1, 0), 0, 50.0);
                 const hits = probeRay.intersectObjects([ground, ...worldPanels, ...bridges], true);
@@ -1545,7 +1549,7 @@ function animate() {
         });
 
         // -------------------------------------------------------------
-        // PROJECTILE COMBAT: CLEAN BOUNCE OFF PANELS, DEFLECTION & RICOCHET
+        // PROJECTILE BALLISTICS & BOUNCE
         // -------------------------------------------------------------
         for (let i = activeProjectiles.length - 1; i >= 0; i--) {
             const p = activeProjectiles[i];
@@ -1559,7 +1563,6 @@ function animate() {
             const rayDir = p.velocity.clone().normalize();
             const rayLen = frameVel.length() + 0.3;
 
-            // Structure Collisions: Panels (Air & Ground), Walls, Bridges
             const structRay = new THREE.Raycaster(prevPos, rayDir, 0, rayLen);
             const structHits = structRay.intersectObjects([...worldPanels, ...gameWalls, ...bridges], true);
             
@@ -1573,7 +1576,6 @@ function animate() {
                 }
             }
 
-            // Direct Unit Hits
             const targetCannons = p.isRemote ? cannons : opponentCannons;
             let hitTarget = null;
             for (let can of targetCannons) {
@@ -1608,9 +1610,7 @@ function animate() {
     renderer.render(scene, camera);
 }
 
-// =================================================================
-// LOBBY SETUP & SOCKET HOOKS
-// =================================================================
+// Socket & Match Events
 socket.on('lobbies_update', (lobbies) => {
     const grid = document.getElementById('lobbies-grid');
     if (!grid) return;
@@ -1688,6 +1688,11 @@ socket.on('left_room_success', () => {
 });
 
 socket.on('lobby_error', (msg) => alert(msg));
+socket.on('build_error', (msg) => {
+    statusText.innerText = msg;
+    statusText.style.color = '#ff4444';
+    setTimeout(() => { statusText.style.color = '#00ff00'; updateStatusUI(); }, 2500);
+});
 
 socket.on('start_match_countdown', (data) => {
     myPlayerIndex = data.playerIndex;
