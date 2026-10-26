@@ -195,6 +195,7 @@ io.on('connection', (socket) => {
         }
     });
 
+    // Dedicated handler for shortening / undoing ramp segments
     socket.on('shorten_ramp', (data) => {
         const room = rooms[data.roomId];
         const player = room?.players[socket.id];
