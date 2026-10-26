@@ -36,15 +36,6 @@
   .info-column { flex: 1; font-size: 11px; }
   .info-column h3 { margin: 0 0 3px 0; color: #ffd700; font-size: 12px; }
 
-  #mode-legend {
-    position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%);
-    background: rgba(10, 14, 25, 0.95); border: 2px solid #ffd700; border-radius: 8px;
-    padding: 6px 14px; display: none; gap: 12px; z-index: 200; align-items: center; color: white;
-    font-size: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.6); pointer-events: none;
-  }
-  .legend-item { display: flex; align-items: center; gap: 6px; }
-  .legend-dot { width: 10px; height: 10px; border-radius: 3px; }
-
   #pump-hud {
     display: none; position: absolute; top: 35%; left: 50%; transform: translate(-50%, -50%);
     pointer-events: none; z-index: 300; text-align: center; font-weight: bold;
@@ -126,6 +117,35 @@
     background: #ff4400; color: #fff; border-color: #ffd700;
     box-shadow: 0 0 25px #ff4400;
   }
+
+  /* Tactical Vertical Build Mode Slider (Positioned directly above Deselect button) */
+  #mobile-build-slider {
+    position: absolute; bottom: 202px; right: 90px; width: 85px; height: 165px;
+    background: rgba(10, 15, 26, 0.94); border: 2px solid #ffd700; border-radius: 20px;
+    display: none; flex-direction: column; align-items: center; justify-content: space-between;
+    padding: 8px 6px; z-index: 260; box-shadow: 0 0 25px rgba(0,0,0,0.7);
+    touch-action: none; user-select: none; -webkit-user-select: none;
+  }
+  .build-slider-title {
+    font-size: 9px; font-weight: 900; color: #ffd700; letter-spacing: 1px; text-align: center;
+    pointer-events: none;
+  }
+  #build-track {
+    position: relative; flex: 1; width: 100%; display: flex; flex-direction: column;
+    justify-content: space-between; margin: 4px 0; cursor: pointer;
+  }
+  .build-segment {
+    flex: 1; display: flex; align-items: center; justify-content: center; font-size: 10px;
+    font-weight: bold; border-radius: 8px; margin: 2px 0; color: #ffffff;
+    transition: all 0.15s ease; opacity: 0.45;
+  }
+  .build-segment.active {
+    opacity: 1.0; transform: scale(1.04); box-shadow: 0 0 12px currentColor;
+    border: 1.5px solid #ffffff;
+  }
+  #seg-floor { background: #22c55e; }
+  #seg-wall { background: #0ea5e9; }
+  #seg-ramp { background: #f97316; }
 
   #lobby-screen { 
     position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; 
@@ -223,6 +243,16 @@
   <div></div>
 </div>
 
+<!-- Mobile Vertical Build Mode Slider (Starts on selected panel mode) -->
+<div id="mobile-build-slider">
+  <div class="build-slider-title">BUILD MODE</div>
+  <div id="build-track">
+    <div class="build-segment active" id="seg-floor" data-mode="1">FLOOR</div>
+    <div class="build-segment" id="seg-wall" data-mode="2">WALL</div>
+    <div class="build-segment" id="seg-ramp" data-mode="3">RAMP</div>
+  </div>
+</div>
+
 <!-- Mobile Deselect Button -->
 <div id="mobile-deselect-btn">DESELECT</div>
 
@@ -248,17 +278,11 @@
     </div>
   </div>
   <div style="font-size: 9.5px; margin-top: 10px; color: #aaa; border-top: 1px solid #333; padding-top: 6px; line-height: 1.3;">
-    [PC] W/S = Move | A/D = Turn | Q/Z = Altitude<br>
-    [Mobile] D-Pad = Move | Drag Screen = Look (Level Horizon) | AIM = Fire Arc<br>
-    [Building] First Grass Click = 1 Base Square (Branch Out with Shotgun Pumps)
+    [PC] W/S = Move | A/D = Turn | Q/Z = Altitude | Mouse Wheel = Cycle Build Mode<br>
+    [Mobile] D-Pad = Move | Drag Screen = Look | Build Slider = Switch Floor/Wall/Ramp<br>
+    [Shotgun Racking] Pull Back to Cock -> Push Forward to Fire/Build!
   </div>
   <span id="status" class="sys">STATUS: STANDBY</span>
-</div>
-
-<div id="mode-legend">
-  <div class="legend-item"><div class="legend-dot" style="background:#22c55e;"></div>Floor</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#0ea5e9;"></div>Wall</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#f97316;"></div>Ramp</div>
 </div>
 
 <div id="pump-hud">
@@ -310,7 +334,7 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87CEEB);
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1500);
 
-// CRITICAL FIX: Lock camera rotation order to 'YXZ' and prevent roll tilt
+// Lock camera rotation order to 'YXZ' to prevent roll tilt
 camera.rotation.order = 'YXZ';
 camera.position.set(0, 5, 135);
 
@@ -353,7 +377,7 @@ function updateAltitudeFromY(clientY) {
   setAltitude(MIN_ALT + pct * (MAX_ALT - MIN_ALT));
 }
 
-// Direct touch handler for mobile
+// Touch handler on altitude box
 altitudeControlBox.addEventListener('touchstart', (e) => {
   e.preventDefault();
   e.stopPropagation();
@@ -366,7 +390,7 @@ altitudeControlBox.addEventListener('touchmove', (e) => {
   updateAltitudeFromY(e.touches[0].clientY);
 }, { passive: false });
 
-// PC pointer click/drag
+// PC pointer click/drag on altitude box
 let isPointerDraggingAlt = false;
 altitudeControlBox.addEventListener('mousedown', (e) => {
   isPointerDraggingAlt = true;
@@ -378,6 +402,63 @@ window.addEventListener('mousemove', (e) => {
 window.addEventListener('mouseup', () => {
   isPointerDraggingAlt = false;
 });
+
+// -------------------------------------------------------------
+// MOBILE VERTICAL BUILD MODE SLIDER WIDGET
+// -------------------------------------------------------------
+const mobileBuildSlider = document.getElementById('mobile-build-slider');
+const buildTrack = document.getElementById('build-track');
+const segFloor = document.getElementById('seg-floor');
+const segWall = document.getElementById('seg-wall');
+const segRamp = document.getElementById('seg-ramp');
+
+function updateBuildSliderUI(mode) {
+  segFloor.classList.remove('active');
+  segWall.classList.remove('active');
+  segRamp.classList.remove('active');
+
+  if (mode === 1) segFloor.classList.add('active');
+  else if (mode === 2) segWall.classList.add('active');
+  else if (mode === 3) segRamp.classList.add('active');
+}
+
+function setBuildModeDirect(mode) {
+  if (!activeBasePanel) return;
+  const pType = activeBasePanel.userData.panelType;
+  if (pType === 'ramp' || pType === 'wall_x' || pType === 'wall_z') return;
+  activeBasePanel.userData.buildMode = mode;
+  updatePanelVisualMode(activeBasePanel);
+  updateBuildSliderUI(mode);
+}
+
+function handleBuildSliderTouch(clientY) {
+  const rect = buildTrack.getBoundingClientRect();
+  const relY = (clientY - rect.top) / rect.height;
+  if (relY <= 0.33) {
+    setBuildModeDirect(1); // Floor
+  } else if (relY <= 0.66) {
+    setBuildModeDirect(2); // Wall
+  } else {
+    setBuildModeDirect(3); // Ramp
+  }
+}
+
+mobileBuildSlider.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  handleBuildSliderTouch(e.touches[0].clientY);
+}, { passive: false });
+
+mobileBuildSlider.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  handleBuildSliderTouch(e.touches[0].clientY);
+}, { passive: false });
+
+// PC click fallback for build segments
+segFloor.onclick = (e) => { e.stopPropagation(); setBuildModeDirect(1); };
+segWall.onclick = (e) => { e.stopPropagation(); setBuildModeDirect(2); };
+segRamp.onclick = (e) => { e.stopPropagation(); setBuildModeDirect(3); };
 
 // Lighting
 const light = new THREE.DirectionalLight(0xffffff, 1.5);
@@ -522,6 +603,7 @@ function clearShotgunHandles() {
   pumpingShotgun = null;
   pumpStage = 'idle';
   pumpHud.style.display = 'none';
+  mobileBuildSlider.style.display = 'none'; // Hide build mode slider when deselecting panels
 }
 
 function createShotgunHandle(dirVector, modeColor, id, isExtender = false, isLevelOut = false) {
@@ -598,6 +680,14 @@ function renderPanelHandles(panel) {
   const pos = panel.position.clone();
   const half = PANEL_SIZE / 2;
   const color = mode === 1 ? 0x22c55e : (mode === 2 ? 0x0ea5e9 : 0xf97316);
+
+  // Show the mobile build slider whenever a standard floor/base panel is selected
+  if (pType === 'floor') {
+    mobileBuildSlider.style.display = 'flex';
+    updateBuildSliderUI(mode);
+  } else {
+    mobileBuildSlider.style.display = 'none';
+  }
 
   let configs = [];
 
@@ -1132,7 +1222,7 @@ function deselectAllCannons() {
   });
   trajectoryLine.visible = false;
   isAimingCannon = false;
-  setMobileAimMode(false); // CRITICAL FIX: Automatically reset red aim button state on deselect
+  setMobileAimMode(false); // Reset aim button state on deselect
   updateStatusUI();
 }
 
@@ -1637,7 +1727,7 @@ let isTouchDeviceActive = false;
 
 window.onmousedown = (e) => {
   if (isTouchDeviceActive) return;
-  if (e.target.closest('#ui') || e.target.closest('#lobby-screen') || e.target.closest('#mode-legend') || e.target.closest('#camera-altitude-control') || e.target.closest('#mobile-dpad') || e.target.closest('#mobile-aim-toggle') || e.target.closest('#mobile-deselect-btn')) return;
+  if (e.target.closest('#ui') || e.target.closest('#lobby-screen') || e.target.closest('#camera-altitude-control') || e.target.closest('#mobile-dpad') || e.target.closest('#mobile-aim-toggle') || e.target.closest('#mobile-deselect-btn') || e.target.closest('#mobile-build-slider')) return;
 
   if (e.target === minimapCanvas && e.button === 0) {
     const rect = minimapCanvas.getBoundingClientRect();
@@ -1675,7 +1765,7 @@ let activeTouchId = null;
 
 window.addEventListener('touchstart', (e) => {
   isTouchDeviceActive = true;
-  if (e.target.closest('#ui') || e.target.closest('#lobby-screen') || e.target.closest('#mode-legend') || e.target.closest('#camera-altitude-control') || e.target.closest('#mobile-dpad') || e.target.closest('#mobile-aim-toggle') || e.target.closest('#mobile-deselect-btn')) return;
+  if (e.target.closest('#ui') || e.target.closest('#lobby-screen') || e.target.closest('#camera-altitude-control') || e.target.closest('#mobile-dpad') || e.target.closest('#mobile-aim-toggle') || e.target.closest('#mobile-deselect-btn') || e.target.closest('#mobile-build-slider')) return;
 
   const t = e.touches[0];
   activeTouchId = t.identifier;
@@ -1705,7 +1795,7 @@ window.addEventListener('touchmove', (e) => {
         // Look Up & Down (Pitch), clamped safely
         camera.rotation.x = Math.max(-Math.PI / 3, Math.min(Math.PI / 4, camera.rotation.x - dy * 0.004));
 
-        // CRITICAL FIX: Explicitly zero-out roll so the horizon never slants
+        // Hard-lock roll to zero to keep horizon perfectly flat
         camera.rotation.z = 0;
       } else {
         handlePointerMove(t.clientX, t.clientY);
@@ -1811,7 +1901,7 @@ function animate() {
     if (keys['a'] || keys['arrowleft']) camera.rotation.y += turnSpeed;
     if (keys['d'] || keys['arrowright']) camera.rotation.y -= turnSpeed;
 
-    // Keep camera roll locked to 0
+    // Hard lock roll to 0
     camera.rotation.z = 0;
 
     const camSpeed = 1.2 * dt60;
@@ -1821,7 +1911,6 @@ function animate() {
     if (keys['s']) moveVector.z += camSpeed;
 
     if (moveVector.length() > 0) {
-      // Horizontal forward vector based strictly on camera yaw (ignores pitch tilt so movement stays grounded)
       const forwardYawQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), camera.rotation.y);
       const nextPos = camera.position.clone().add(moveVector.applyQuaternion(forwardYawQuat));
       const edgeLimit = halfBoard - 5;
@@ -2113,7 +2202,6 @@ socket.on('start_match_countdown', (data) => {
       countdownEl.style.display = 'none';
       document.getElementById('ui').style.display = 'block';
       document.getElementById('minimap-container').style.display = 'block';
-      document.getElementById('mode-legend').style.display = 'flex';
       altitudeControlBox.style.display = 'flex';
       document.getElementById('role-display').innerText = roleString;
 
