@@ -36,6 +36,14 @@
   .info-column { flex: 1; font-size: 11px; }
   .info-column h3 { margin: 0 0 3px 0; color: #ffd700; font-size: 12px; }
 
+  #objective-banner {
+    position: fixed; top: 15px; left: 50%; transform: translateX(-50%);
+    background: rgba(10, 15, 26, 0.95); border: 2px solid #ffd700; border-radius: 10px;
+    padding: 10px 20px; color: #ffd700; font-size: 13px; font-weight: 900;
+    letter-spacing: 1px; z-index: 400; text-align: center; box-shadow: 0 0 25px rgba(255, 215, 0, 0.5);
+    display: none; pointer-events: none; width: min(500px, 90vw);
+  }
+
   #pump-hud {
     display: none; position: absolute; top: 35%; left: 50%; transform: translate(-50%, -50%);
     pointer-events: none; z-index: 300; text-align: center; font-weight: bold;
@@ -244,6 +252,11 @@
 
 <div id="minimap-container"><canvas id="minimap"></canvas></div>
 
+<!-- Big Objective 1 Alert Banner on Start -->
+<div id="objective-banner">
+  ★ OBJECTIVE 1: TAP YOUR SIDE OF THE GRASS TO BUILD YOUR STARTING BASE SQUARE! ★
+</div>
+
 <!-- Tactical Vertical Altitude Gauge -->
 <div id="camera-altitude-control">
   <div class="alt-header">ALT<br>SKY</div>
@@ -361,14 +374,14 @@ let matchStarted = false;
 let myBasePanelPlaced = false;
 
 const clock = new THREE.Clock();
-let targetCameraAltitude = 5.0;
+let targetCameraAltitude = 12.0;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87CEEB);
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1500);
 
 camera.rotation.order = 'YXZ';
-camera.position.set(0, 5, 135);
+camera.position.set(0, 12, 135);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -376,6 +389,7 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 document.body.appendChild(renderer.domElement);
 
 const statusText = document.getElementById('status');
+const objectiveBanner = document.getElementById('objective-banner');
 const minimapCanvas = document.getElementById('minimap');
 const ctx = minimapCanvas.getContext('2d');
 minimapCanvas.width = 120;
@@ -523,7 +537,7 @@ const light = new THREE.DirectionalLight(0xffffff, 1.5);
 light.position.set(100, 100, 50);
 scene.add(light, new THREE.AmbientLight(0x606060));
 
-// Board Boundaries & River (DoubleSide prevents reverse angle raycast misses for Player 2)
+// Double-sided ground geometry
 const boardSize = 600;
 const groundMat = new THREE.MeshStandardMaterial({ color: 0x3a5a2a, side: THREE.DoubleSide });
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(boardSize, boardSize), groundMat);
@@ -636,6 +650,9 @@ const panelGeometries = {
   wall_z: new THREE.BoxGeometry(PANEL_THICKNESS, WALL_HEIGHT, PANEL_SIZE)
 };
 
+// -------------------------------------------------------------
+// RAMP GEOMETRY: (0,0,0) is bottom connecting edge, slopes up away along -Z
+// -------------------------------------------------------------
 function createAlignedRampGeometry(length) {
   const geo = new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, length);
   geo.rotateX(RAMP_ANGLE);
@@ -870,6 +887,7 @@ function renderPanelHandles(panel) {
 
     const inclineSlope = forward.clone().multiplyScalar(Math.cos(RAMP_ANGLE)).add(new THREE.Vector3(0, Math.sin(RAMP_ANGLE), 0)).normalize();
 
+    // Extender handle placed slightly up the incline
     const extenderPos = panel.position.clone()
       .addScaledVector(forward, 2.0 * Math.cos(RAMP_ANGLE))
       .add(new THREE.Vector3(0, 2.0 * Math.sin(RAMP_ANGLE) + 1.2, 0));
@@ -882,6 +900,7 @@ function renderPanelHandles(panel) {
       isLevelOut: false
     });
 
+    // Summit level-out handle placed right at top summit edge
     const summitPos = panel.position.clone()
       .addScaledVector(forward, totalRun)
       .add(new THREE.Vector3(0, totalRise + 0.6, 0));
@@ -1387,9 +1406,14 @@ function updateStatusUI() {
   if (!matchStarted) return;
 
   if (!myBasePanelPlaced) {
-    statusText.innerText = "★ STEP 1: CLICK/TAP YOUR SIDE OF THE GRASS TO BUILD YOUR BASE SQUARE! ★";
+    const sideMsg = myPlayerIndex === 1 ? "SOUTH KEEP (Z > 0)" : "NORTH KEEP (Z < 0)";
+    objectiveBanner.style.display = 'block';
+    objectiveBanner.innerText = `★ OBJECTIVE 1: TAP GRASS ON YOUR SIDE [${sideMsg}] TO PLACE BASE SQUARE! ★`;
+    statusText.innerText = "WAITING FOR BASE FOUNDATION PLACEMENT...";
     statusText.style.color = "#ffd700";
     return;
+  } else {
+    objectiveBanner.style.display = 'none';
   }
 
   let selectedNum = null;
@@ -1634,12 +1658,17 @@ function updateMinimap() {
 // -------------------------------------------------------------
 const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0); // Mathematical y=0 plane
 
+function updatePointerCoords(clientX, clientY) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+}
+
 function handlePointerDown(clientX, clientY, isSecondary = false) {
   if (!matchStarted || matchOver) return false;
 
-  mouse.x = (clientX / window.innerWidth) * 2 - 1;
-  mouse.y = -(clientY / window.innerHeight) * 2 + 1;
-  raycaster.setFromCamera(mouse, camera);
+  updatePointerCoords(clientX, clientY);
 
   // -------------------------------------------------------------
   // STEP 1: MANDATORY STARTING BASE SQUARE (UNFAILING RAY-PLANE MATH)
@@ -1771,11 +1800,9 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
 }
 
 function handlePointerMove(clientX, clientY) {
-  mouse.x = (clientX / window.innerWidth) * 2 - 1;
-  mouse.y = -(clientY / window.innerHeight) * 2 + 1;
+  updatePointerCoords(clientX, clientY);
 
   if (isAimingCannon) {
-    raycaster.setFromCamera(mouse, camera);
     const combatHits = raycaster.intersectObjects([ground, river, ...bridges, ...worldPanels, ...gameWalls, ...opponentCannons], true);
     const selectedCannon = cannons.find(c => c.userData.selected);
     if (combatHits.length > 0 && selectedCannon) {
@@ -1998,17 +2025,13 @@ window.addEventListener('touchstart', (e) => {
   isTouchLooking = false;
   touchHandledOnDown = false;
 
-  // Intercept shotgun handles or active aim preview on touchstart
-  mouse.x = (t.clientX / window.innerWidth) * 2 - 1;
-  mouse.y = -(t.clientY / window.innerHeight) * 2 + 1;
-  raycaster.setFromCamera(mouse, camera);
+  updatePointerCoords(t.clientX, t.clientY);
 
   const gunHits = raycaster.intersectObjects(shotgunHandles, true);
   if (gunHits.length > 0 || mobileAimModeActive) {
     handlePointerDown(t.clientX, t.clientY, false);
     touchHandledOnDown = true;
   } else {
-    // If panel is not placed, allow clean tap on grass; else allow screen looking
     if (!myBasePanelPlaced) {
       isTouchLooking = false;
     } else if (!activeBasePanel) {
@@ -2044,8 +2067,7 @@ window.addEventListener('touchmove', (e) => {
 window.addEventListener('touchend', (e) => {
   lastTouchTime = Date.now();
 
-  // Clean tap (< 18px drift) triggers pointerdown once
-  if (!touchHandledOnDown && touchTotalDist < 18 && !pumpingShotgun && !isAimingCannon) {
+  if (!touchHandledOnDown && touchTotalDist < 20 && !pumpingShotgun && !isAimingCannon) {
     handlePointerDown(touchStartPos.x, touchStartPos.y, false);
   }
 
@@ -2214,9 +2236,6 @@ function animate() {
       }
     });
 
-    // -------------------------------------------------------------
-    // ANTI-TELEPORT PATHING & REALISTIC SURFACE ELEVATION
-    // -------------------------------------------------------------
     const allWallObstacles = [...worldPanels.filter(p => p.userData.panelType.startsWith('wall')), ...gameWalls];
 
     function checkSphereWallCollision(sphereCenter, radius) {
@@ -2502,14 +2521,15 @@ socket.on('start_match_countdown', (data) => {
         document.getElementById('mobile-deselect-btn').style.display = 'flex';
       }
 
+      // CRITICAL FIX: Give initial downward pitch (-0.28 rad / -16 deg) so screen taps hit the player's own floor
       if (myPlayerIndex === 2) {
-        setAltitude(5.0);
-        camera.position.set(0, 5, -135);
-        camera.rotation.set(0, Math.PI, 0);
+        setAltitude(14.0);
+        camera.position.set(0, 14, -135);
+        camera.rotation.set(-0.28, Math.PI, 0); // Angled down towards North Keep
       } else {
-        setAltitude(5.0);
-        camera.position.set(0, 5, 135);
-        camera.rotation.set(0, 0, 0);
+        setAltitude(14.0);
+        camera.position.set(0, 14, 135);
+        camera.rotation.set(-0.28, 0, 0); // Angled down towards South Keep
       }
 
       if (!gameInitialized) {
