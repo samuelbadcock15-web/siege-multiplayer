@@ -24,7 +24,7 @@
     z-index: 101; box-shadow: 0 0 30px rgba(0,0,0,0.7); display: none; pointer-events: auto;
   }
   #minimap-container { 
-    position: absolute; top: 15px; right: 80px; width: 120px; height: 120px; 
+    position: absolute; top: 15px; right: 90px; width: 120px; height: 120px; 
     background: rgba(0, 0, 0, 0.7); border: 2px solid #ffcc00; border-radius: 4px; 
     z-index: 100; overflow: hidden; display: none; 
   }
@@ -57,44 +57,46 @@
   }
   #pump-bar { width: 0%; height: 100%; background: #ffd700; transition: width 0.04s linear; }
 
+  /* Sleek Tactical Vertical Altitude Gauge */
   #camera-altitude-control {
-    position: absolute; right: 12px; top: 150px; bottom: 150px; width: 50px;
-    background: rgba(10, 14, 25, 0.92); border: 2px solid #ffd700; border-radius: 8px;
+    position: absolute; right: 16px; top: 140px; bottom: 120px; width: 48px;
+    background: rgba(10, 15, 26, 0.92); border: 2px solid #ffd700; border-radius: 24px;
     display: none; flex-direction: column; align-items: center; justify-content: space-between;
-    padding: 10px 4px; z-index: 250; box-shadow: 0 0 20px rgba(0,0,0,0.7);
+    padding: 12px 6px; z-index: 250; box-shadow: 0 0 25px rgba(0,0,0,0.7);
     color: #ffd700; touch-action: none;
   }
-  .alt-header { font-size: 9px; font-weight: bold; text-align: center; letter-spacing: 1px; }
-  .alt-value-display { font-size: 10px; font-weight: bold; color: #00ffcc; margin: 4px 0; }
-  .alt-slider-wrapper { flex: 1; display: flex; align-items: center; justify-content: center; width: 100%; }
-  #altitude-slider {
-    -webkit-appearance: none; appearance: none; width: 180px; height: 6px;
-    background: #1e293b; border-radius: 4px; outline: none; transform: rotate(-90deg);
-    cursor: pointer; border: 1px solid #444; touch-action: none;
+  .alt-header { font-size: 9px; font-weight: 900; text-align: center; letter-spacing: 1.5px; }
+  .alt-value-display { font-size: 11px; font-weight: bold; color: #00ffcc; margin: 6px 0; text-shadow: 0 0 8px #00ffcc; }
+  
+  #alt-track {
+    position: relative; flex: 1; width: 10px; background: #1e293b;
+    border-radius: 5px; border: 1px solid rgba(255,215,0,0.3);
+    margin: 8px 0; cursor: pointer; display: flex; justify-content: center;
   }
-  #altitude-slider::-webkit-slider-thumb {
-    -webkit-appearance: none; appearance: none; width: 22px; height: 22px;
-    border-radius: 50%; background: #ffd700; cursor: pointer; box-shadow: 0 0 10px #ffd700;
-    border: 2px solid #ffffff;
+  #alt-fill {
+    position: absolute; bottom: 0; width: 100%; background: linear-gradient(to top, #00ffcc, #ffd700);
+    border-radius: 5px; height: 0%; pointer-events: none;
   }
-  #altitude-slider::-moz-range-thumb {
-    width: 22px; height: 22px; border-radius: 50%; background: #ffd700; cursor: pointer;
-    box-shadow: 0 0 10px #ffd700; border: 2px solid #ffffff;
+  #alt-thumb {
+    position: absolute; width: 28px; height: 28px; background: #ffd700;
+    border-radius: 50%; border: 3px solid #ffffff; box-shadow: 0 0 12px #ffd700;
+    bottom: 0%; transform: translate(-50%, 50%); left: 50%;
+    cursor: grab; pointer-events: none;
   }
 
-  /* Big Mobile Movement D-Pad */
+  /* Extra Large Ergonomic Mobile D-Pad */
   #mobile-dpad {
-    position: absolute; bottom: 25px; left: 20px; width: 180px; height: 180px;
+    position: absolute; bottom: 30px; left: 20px; width: 210px; height: 210px;
     z-index: 260; display: none; grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: repeat(3, 1fr); gap: 8px; touch-action: none;
+    grid-template-rows: repeat(3, 1fr); gap: 10px; touch-action: none;
   }
   .dpad-btn {
-    background: rgba(15, 23, 42, 0.85); border: 2.5px solid #ffd700; border-radius: 12px;
-    color: #ffd700; font-weight: bold; font-size: 26px; display: flex; align-items: center;
+    background: rgba(15, 23, 42, 0.88); border: 2.5px solid #ffd700; border-radius: 16px;
+    color: #ffd700; font-weight: 900; font-size: 34px; display: flex; align-items: center;
     justify-content: center; user-select: none; -webkit-user-select: none;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.6);
   }
-  .dpad-btn:active { background: #ffd700; color: #000; transform: scale(0.95); }
+  .dpad-btn:active { background: #ffd700; color: #000; transform: scale(0.92); }
 
   #lobby-screen { 
     position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; 
@@ -168,16 +170,18 @@
 
 <div id="minimap-container"><canvas id="minimap"></canvas></div>
 
+<!-- Sleek Tactical Vertical Altitude Gauge -->
 <div id="camera-altitude-control">
   <div class="alt-header">ALT<br>SKY</div>
-  <div class="alt-slider-wrapper">
-    <input type="range" id="altitude-slider" min="5" max="220" value="5" step="1">
+  <div class="alt-value-display" id="alt-val-text">5m</div>
+  <div id="alt-track">
+    <div id="alt-fill"></div>
+    <div id="alt-thumb"></div>
   </div>
-  <div class="alt-value-display" id="alt-val-text">Y: 5</div>
-  <div class="alt-header" style="color: #aaa;">GND</div>
+  <div class="alt-header" style="color: #8892b0;">GND</div>
 </div>
 
-<!-- Mobile Large D-Pad -->
+<!-- Extra Large Ergonomic Mobile D-Pad -->
 <div id="mobile-dpad">
   <div></div>
   <div class="dpad-btn" id="dpad-up">▲</div>
@@ -280,20 +284,52 @@ const ctx = minimapCanvas.getContext('2d');
 minimapCanvas.width = 120;
 minimapCanvas.height = 120;
 
-// Altitude Slider Sync Helper
-const altitudeSlider = document.getElementById('altitude-slider');
+// -------------------------------------------------------------
+// NEW GAUGE: TACTICAL VERTICAL ALTITUDE BAR
+// -------------------------------------------------------------
+const altTrack = document.getElementById('alt-track');
+const altFill = document.getElementById('alt-fill');
+const altThumb = document.getElementById('alt-thumb');
 const altValText = document.getElementById('alt-val-text');
 const altitudeControlBox = document.getElementById('camera-altitude-control');
 
+const MIN_ALT = 5.0;
+const MAX_ALT = 220.0;
+
 function setAltitude(newAlt) {
-  targetCameraAltitude = Math.min(220, Math.max(5, newAlt));
-  altitudeSlider.value = targetCameraAltitude;
-  altValText.innerText = `Y: ${Math.round(targetCameraAltitude)}`;
+  targetCameraAltitude = Math.min(MAX_ALT, Math.max(MIN_ALT, newAlt));
+  const pct = (targetCameraAltitude - MIN_ALT) / (MAX_ALT - MIN_ALT);
+  altFill.style.height = `${pct * 100}%`;
+  altThumb.style.bottom = `${pct * 100}%`;
+  altValText.innerText = `${Math.round(targetCameraAltitude)}m`;
 }
 
-altitudeSlider.oninput = (e) => {
-  setAltitude(parseFloat(e.target.value));
-};
+function updateAltitudeFromClientY(clientY) {
+  const rect = altTrack.getBoundingClientRect();
+  const trackHeight = rect.height;
+  const clampedY = Math.max(rect.top, Math.min(rect.bottom, clientY));
+  const pct = 1.0 - ((clampedY - rect.top) / trackHeight);
+  setAltitude(MIN_ALT + pct * (MAX_ALT - MIN_ALT));
+}
+
+let isDraggingAlt = false;
+
+altTrack.addEventListener('pointerdown', (e) => {
+  isDraggingAlt = true;
+  altTrack.setPointerCapture(e.pointerId);
+  updateAltitudeFromClientY(e.clientY);
+});
+
+altTrack.addEventListener('pointermove', (e) => {
+  if (isDraggingAlt) {
+    updateAltitudeFromClientY(e.clientY);
+  }
+});
+
+altTrack.addEventListener('pointerup', (e) => {
+  isDraggingAlt = false;
+  try { altTrack.releasePointerCapture(e.pointerId); } catch(err) {}
+});
 
 // Lighting
 const light = new THREE.DirectionalLight(0xffffff, 1.5);
@@ -1340,17 +1376,13 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
     const selected = cannons.find(c => c.userData.selected);
 
     if (selected) {
-      // Move active cannon
       selected.userData.targetPos.set(pt.x, selected.position.y, pt.z);
       socket.emit('player_move', { roomId: currentRoomId, id: selected.userData.id, tx: pt.x, tz: pt.z });
       return true;
     } else if (hitObj.userData.isPanel) {
-      // Direct panel tap/click: Select existing panel without creating loose squares
       selectPanel(hitObj);
       return true;
     } else if (worldPanels.length === 0) {
-      // STRICT RULE: ONLY 1 INITIAL BASE SQUARE ALLOWED!
-      // Once placed, missed clicks on grass will NEVER create unwanted random squares!
       const snapX = Math.round(pt.x / PANEL_SIZE) * PANEL_SIZE;
       const snapZ = Math.round(pt.z / PANEL_SIZE) * PANEL_SIZE;
       if (isWithinMyBuildingTerritory(snapZ, PANEL_SIZE)) {
@@ -1360,7 +1392,6 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
         return true;
       }
     } else {
-      // Panel already exists: do not lay duplicate starting base squares on miss
       clearShotgunHandles();
       activeBasePanel = null;
       updateStatusUI();
