@@ -1,31 +1,3 @@
-{
-
-  "name": "siege-multiplayer",
-
-  "version": "1.0.0",
-
-  "description": "Human vs Human Siege Game",
-
-  "main": "server.js",
-
-  "scripts": {
-
-    "start": "node server.js"
-
-  },
-
-  "dependencies": {
-
-    "express": "^4.22.2",
-
-    "socket.io": "^4.8.3"
-
-  }
-
-}
-
-
-
 const express = require('express');
 
 const http = require('http');
