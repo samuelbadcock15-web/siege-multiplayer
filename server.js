@@ -83,9 +83,8 @@ function removePlayerFromCurrentRoom(socket) {
 
 function isLegalTerritory(playerIndex, targetZ, panelDepth = PANEL_SIZE) {
     const halfDepth = panelDepth / 2;
-    // Player 1 (Blue) is South (Z > 0), Player 2 (Dark) is North (Z < 0)
     if (playerIndex === 1) {
-        return (targetZ - halfDepth) >= 5.0; // Keep off river buffer
+        return (targetZ - halfDepth) >= 5.0;
     } else {
         return (targetZ + halfDepth) <= -5.0;
     }
@@ -180,6 +179,7 @@ io.on('connection', (socket) => {
             return;
         }
 
+        // Store panel in room state so existing or syncing data is maintained
         room.panels[data.id] = data;
         socket.to(data.roomId).emit('opponent_build', data);
     });
@@ -191,6 +191,8 @@ io.on('connection', (socket) => {
 
         const panel = room.panels[data.id];
         if (panel) {
+            // Keep track of ramp extension length if needed
+            panel.rampSegments = data.rampSegments;
             socket.to(data.roomId).emit('opponent_extend_ramp', data);
         }
     });
