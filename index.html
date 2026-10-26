@@ -621,15 +621,17 @@ const panelGeometries = {
   wall_z: new THREE.BoxGeometry(PANEL_THICKNESS, WALL_HEIGHT, PANEL_SIZE)
 };
 
-function createAlignedRampGeometry(length) {
-  const geo = new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, length);
-  geo.rotateX(RAMP_ANGLE);
-  const run = PANEL_SIZE * (length / RAMP_DIAG);
-  const rise = WALL_HEIGHT * (length / RAMP_DIAG);
-  geo.translate(0, rise / 2, -run / 2);
-  geo.computeBoundingBox();
-  geo.computeBoundingSphere();
-  return geo;
+function createAlignedDownRampGeometry(length) {
+    const geo = new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, length);
+    // Rotate negatively on X so it slopes down instead of up
+    geo.rotateX(-RAMP_ANGLE);
+    const run = PANEL_SIZE * (length / RAMP_DIAG);
+    const rise = WALL_HEIGHT * (length / RAMP_DIAG);
+    // Translate downwards and outwards to match the edge connection point perfectly
+    geo.translate(0, -rise / 2, -run / 2);
+    geo.computeBoundingBox();
+    geo.computeBoundingSphere();
+    return geo;
 }
 
 const panelMaterials = {
