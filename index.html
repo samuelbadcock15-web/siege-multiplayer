@@ -609,9 +609,9 @@ const RAMP_ANGLE = Math.atan2(WALL_HEIGHT, PANEL_SIZE);
 function isWithinMyBuildingTerritory(targetZ, panelDepth = PANEL_SIZE) {
   const halfDepth = panelDepth / 2;
   if (myPlayerIndex === 1) {
-    return (targetZ - halfDepth) >= 0.0;
+    return (targetZ - halfDepth) >= 5.0;
   } else {
-    return (targetZ + halfDepth) <= 0.0;
+    return (targetZ + halfDepth) <= -5.0;
   }
 }
 
@@ -1009,7 +1009,7 @@ function extendRampDirectly(rampMesh, isRemote = false) {
     const segs = rampMesh.userData.rampSegments || 1;
     const testZ = rampMesh.position.z + forward.z * (PANEL_SIZE * segs);
     if (!isWithinMyBuildingTerritory(testZ, PANEL_SIZE)) {
-      statusText.innerText = "CANNOT EXTEND RAMP ACROSS THE CENTERLINE!";
+      statusText.innerText = "CANNOT EXTEND RAMP INTO ENEMY TERRITORY!";
       statusText.style.color = "#ff4444";
       setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2500);
       return;
@@ -1151,7 +1151,7 @@ function triggerBranchBuild(parentPanel, gunId) {
     flatPos.y = parentPanel.position.y + totalRise;
 
     if (!isWithinMyBuildingTerritory(flatPos.z, PANEL_SIZE)) {
-      statusText.innerText = "CANNOT BUILD ACROSS THE CENTERLINE!";
+      statusText.innerText = "CANNOT BUILD INTO ENEMY TERRITORY!";
       statusText.style.color = "#ff4444";
       setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2500);
       return;
@@ -1246,7 +1246,7 @@ function triggerBranchBuild(parentPanel, gunId) {
   }
 
   if (!isWithinMyBuildingTerritory(newPos.z, checkDepth)) {
-    statusText.innerText = "CANNOT BUILD ACROSS THE CENTERLINE!";
+    statusText.innerText = "CANNOT BUILD INTO ENEMY TERRITORY!";
     statusText.style.color = "#ff4444";
     setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2500);
     return;
@@ -1421,7 +1421,7 @@ function updateStatusUI() {
 }
 
 function calculateBallistics(sourceCan, target) {
-  const start = new THREE.Vector3(0, 3.0, 0);
+  const start = new THREE.Vector3(0, 2.5, 0);
   sourceCan.userData.barrelPivot.localToWorld(start);
 
   const maxAllowedRange = Math.abs(sourceCan.userData.startZ || 120) * 1.5;
@@ -1443,25 +1443,27 @@ function calculateBallistics(sourceCan, target) {
   return { start, vx, vy, vz, gravity, targetTime };
 }
 
-function checkMuzzleObstruction(sourceCan, muzzlePos) {
-  const barrelDir = new THREE.Vector3(0, 1, 0).applyQuaternion(sourceCan.userData.barrelPivot.quaternion).normalize();
-  const muzzleRay = new THREE.Raycaster(muzzlePos, barrelDir, 0, 1.5);
-  const allObstacles = [...worldPanels, ...gameWalls];
-  const hits = muzzleRay.intersectObjects(allObstacles, true);
-  return hits.length > 0;
-}
-
 function updateTrajectoryArc(sourceCan, target) {
   const originalRot = sourceCan.quaternion.clone();
   sourceCan.lookAt(target.x, sourceCan.position.y, target.z);
 
-  const muzzlePos = new THREE.Vector3(0, 3.0, 0);
+  const muzzlePos = new THREE.Vector3(0, 2.5, 0);
   sourceCan.userData.barrelPivot.localToWorld(muzzlePos);
 
-  if (checkMuzzleObstruction(sourceCan, muzzlePos)) {
+  const allWalls = [...worldPanels.filter(p => p.userData.panelType.startsWith('wall')), ...gameWalls];
+  const muzzleSphere = new THREE.Sphere(muzzlePos, 0.4);
+  let touchesWall = false;
+  for (let w of allWalls) {
+    if (new THREE.Box3().setFromObject(w).intersectsSphere(muzzleSphere)) {
+      touchesWall = true;
+      break;
+    }
+  }
+
+  if (touchesWall) {
     sourceCan.quaternion.copy(originalRot);
     trajectoryLine.visible = false;
-    statusText.innerText = "BARREL BLOCKED BY OBSTACLE!";
+    statusText.innerText = "BARREL BLOCKED BY WALL!";
     statusText.style.color = "#ff4444";
     return;
   }
@@ -1488,14 +1490,18 @@ function updateTrajectoryArc(sourceCan, target) {
 function spawnProjectile(sourceCan, target, isRemote = false) {
   if (!matchStarted || matchOver) return;
 
-  const muzzleCheck = new THREE.Vector3(0, 3.0, 0);
+  const muzzleCheck = new THREE.Vector3(0, 2.5, 0);
   sourceCan.userData.barrelPivot.localToWorld(muzzleCheck);
 
-  if (checkMuzzleObstruction(sourceCan, muzzleCheck)) {
-    statusText.innerText = "CANNOT FIRE: BARREL IS BLOCKED!";
-    statusText.style.color = "#ff4444";
-    setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2000);
-    return;
+  const allWalls = [...worldPanels.filter(p => p.userData.panelType.startsWith('wall')), ...gameWalls];
+  const muzzleSphere = new THREE.Sphere(muzzleCheck, 0.4);
+  for (let w of allWalls) {
+    if (new THREE.Box3().setFromObject(w).intersectsSphere(muzzleSphere)) {
+      statusText.innerText = "CANNOT FIRE: BARREL IS OBSTRUCTED!";
+      statusText.style.color = "#ff4444";
+      setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2000);
+      return;
+    }
   }
 
   const b = calculateBallistics(sourceCan, target);
@@ -1628,7 +1634,6 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
   mouse.y = -(clientY / window.innerHeight) * 2 + 1;
   raycaster.setFromCamera(mouse, camera);
 
-  // STEP 1: MUST PLACE STARTING BASE SQUARE BEFORE ANYTHING ELSE
   if (!myBasePanelPlaced) {
     const groundHits = raycaster.intersectObject(ground, false);
     if (groundHits.length > 0) {
@@ -1667,33 +1672,17 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
 
     const panelHits = raycaster.intersectObjects(worldPanels, false);
     if (panelHits.length > 0) {
-      const hitPanel = panelHits[0].object;
-      if (isWithinMyBuildingTerritory(hitPanel.position.z, PANEL_SIZE)) {
-        selectPanel(hitPanel);
-      } else {
-        statusText.innerText = "CANNOT SELECT ENEMY PANELS!";
-        statusText.style.color = "#ff4444";
-        setTimeout(() => updateStatusUI(), 2000);
-      }
+      selectPanel(panelHits[0].object);
       return true;
     }
     return false;
   }
 
-  // 1. Check shotgun handles with strict territory ownership verification
   const gunIntersects = raycaster.intersectObjects(shotgunHandles, true);
   if (gunIntersects.length > 0) {
     let hitObj = gunIntersects[0].object;
     while (hitObj.parent && !hitObj.userData.isShotgunHandle) hitObj = hitObj.parent;
-    
     if (hitObj.userData.isShotgunHandle && activeBasePanel) {
-      if (!isWithinMyBuildingTerritory(hitObj.position.z, PANEL_SIZE)) {
-        statusText.innerText = "CANNOT USE ENEMY SHOTGUNS!";
-        statusText.style.color = "#ff4444";
-        setTimeout(() => updateStatusUI(), 2000);
-        return false;
-      }
-
       pumpingShotgun = hitObj;
       pumpStage = 'idle';
 
@@ -1724,7 +1713,6 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
     }
   }
 
-  // 2. Check Cannon Click
   let clickedCannon = null;
   for (let can of cannons) {
     if (raycaster.intersectObject(can, true).length > 0) {
@@ -1745,7 +1733,6 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
     return true;
   }
 
-  // 3. Ground / Panels / Bridges
   const walkableHits = raycaster.intersectObjects([ground, ...worldPanels, ...bridges], true);
   if (walkableHits.length > 0) {
     const pt = walkableHits[0].point;
@@ -1756,13 +1743,7 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
       socket.emit('player_move', { roomId: currentRoomId, id: selectedCannon.userData.id, tx: pt.x, tz: pt.z });
       return true;
     } else if (hitObj.userData && hitObj.userData.isPanel) {
-      if (isWithinMyBuildingTerritory(hitObj.position.z, PANEL_SIZE)) {
-        selectPanel(hitObj);
-      } else {
-        statusText.innerText = "CANNOT SELECT ENEMY PANELS!";
-        statusText.style.color = "#ff4444";
-        setTimeout(() => updateStatusUI(), 2000);
-      }
+      selectPanel(hitObj);
       return true;
     } else {
       if (!activeBasePanel) {
@@ -1833,8 +1814,7 @@ function handlePointerMove(clientX, clientY) {
 
       if (pushForwardAmt >= 1.0) {
         const firedGunId = pumpingShotgun.userData.arrowId;
-        const muzzlePos = new THREE.Vector3(0, 3.0, 0);
-        pumpingShotgun.userData.barrelPivot.localToWorld(muzzlePos);
+        const muzzlePos = pumpingShotgun.position.clone().add(pumpingShotgun.userData.dirVector.clone().multiplyScalar(3.2));
         spawnShotgunBlast(muzzlePos, pumpingShotgun.userData.dirVector, false);
 
         pumpingShotgun.userData.recoilTimer = 1.0;
@@ -1881,7 +1861,7 @@ function handlePointerMove(clientX, clientY) {
       pumpText.style.color = "#ff3300";
 
       if (pullBackAmt >= 1.0) {
-        const muzzlePos = new THREE.Vector3(0, 3.0, 0);
+        const muzzlePos = pumpingShotgun.position.clone().add(pumpingShotgun.userData.dirVector.clone().multiplyScalar(3.2));
         spawnShotgunBlast(muzzlePos, pumpingShotgun.userData.dirVector, true);
 
         const ejectPos = pumpingShotgun.position.clone().add(new THREE.Vector3(0, 0.5, 0));
@@ -1916,14 +1896,14 @@ function handlePointerUp() {
   if (pumpingShotgun) {
     if (pumpStage === 'pull_back_primed') {
       const firedGunId = pumpingShotgun.userData.arrowId;
-      const muzzlePos = new THREE.Vector3(0, 3.0, 0);
+      const muzzlePos = pumpingShotgun.position.clone().add(pumpingShotgun.userData.dirVector.clone().multiplyScalar(3.2));
       spawnShotgunBlast(muzzlePos, pumpingShotgun.userData.dirVector, false);
 
       pumpingShotgun.userData.recoilTimer = 1.0;
       pumpingShotgun.userData.flash.material.opacity = 1.0;
       triggerBranchBuild(activeBasePanel, firedGunId);
     } else if (pumpStage === 'push_forward_primed') {
-      const muzzlePos = new THREE.Vector3(0, 3.0, 0);
+      const muzzlePos = pumpingShotgun.position.clone().add(pumpingShotgun.userData.dirVector.clone().multiplyScalar(3.2));
       spawnShotgunBlast(muzzlePos, pumpingShotgun.userData.dirVector, true);
 
       const ejectPos = pumpingShotgun.position.clone().add(new THREE.Vector3(0, 0.5, 0));
@@ -2217,14 +2197,14 @@ function animate() {
     ([...cannons, ...opponentCannons]).forEach(can => {
       const forwardDir = new THREE.Vector3(0, 0, 1).applyQuaternion(can.quaternion).normalize();
       
-      const muzzlePos = new THREE.Vector3(0, 3.0, 0);
+      const muzzlePos = new THREE.Vector3(0, 2.5, 0);
       can.userData.barrelPivot.localToWorld(muzzlePos);
 
       let pushTries = 0;
       while ((checkSphereWallCollision(muzzlePos, 0.4) || checkSphereWallCollision(can.position, 1.2)) && pushTries < 15) {
         can.position.addScaledVector(forwardDir, -0.2);
         can.userData.targetPos.copy(can.position);
-        muzzlePos.set(0, 3.0, 0);
+        muzzlePos.set(0, 2.5, 0);
         can.userData.barrelPivot.localToWorld(muzzlePos);
         pushTries++;
       }
@@ -2250,7 +2230,7 @@ function animate() {
         );
         
         const prospectiveMuzzle = prospectivePos.clone().add(
-          new THREE.Vector3(0, 0.5, 3.0).applyQuaternion(prospectiveQuat)
+          new THREE.Vector3(0, 0.5, 2.6).applyQuaternion(prospectiveQuat)
         );
 
         const hitsWallAhead = checkSphereWallCollision(prospectiveMuzzle, 0.45) || 
@@ -2279,6 +2259,7 @@ function animate() {
             if (nextX < rampBox.min.x - 0.5 || nextX > rampBox.max.x + 0.5 || nextZ < rampBox.min.z - 0.5 || nextZ > rampBox.max.z + 0.5) {
               continue;
             }
+            // Block walking into the high/back underside of the ramp from ground level
             if (hit.point.y > can.position.y + 1.5) {
               break;
             }
