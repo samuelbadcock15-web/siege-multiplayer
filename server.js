@@ -179,7 +179,6 @@ io.on('connection', (socket) => {
             return;
         }
 
-        // Store panel in room state so existing or syncing data is maintained
         room.panels[data.id] = data;
         socket.to(data.roomId).emit('opponent_build', data);
     });
@@ -191,9 +190,20 @@ io.on('connection', (socket) => {
 
         const panel = room.panels[data.id];
         if (panel) {
-            // Keep track of ramp extension length if needed
             panel.rampSegments = data.rampSegments;
             socket.to(data.roomId).emit('opponent_extend_ramp', data);
+        }
+    });
+
+    socket.on('shorten_ramp', (data) => {
+        const room = rooms[data.roomId];
+        const player = room?.players[socket.id];
+        if (!room || !player) return;
+
+        const panel = room.panels[data.id];
+        if (panel) {
+            panel.rampSegments = data.rampSegments;
+            socket.to(data.roomId).emit('opponent_shorten_ramp', data);
         }
     });
 
