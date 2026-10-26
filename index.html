@@ -738,9 +738,9 @@ function clearShotgunHandles() {
   panelLookpad.style.display = 'none';
 }
 
-function createShotgunHandle(dirVector, modeColor, id, isExtender = false, isLevelOut = false, isDownslope = false) {
+function createShotgunHandle(dirVector, modeColor, id, isExtender = false, isLevelOut = false, isDownSlope = false) {
   const gunGroup = new THREE.Group();
-  const steelColor = isExtender ? 0x332211 : (isLevelOut ? 0x113322 : (isDownslope ? 0x4a1111 : 0x222225));
+  const steelColor = isDownSlope ? 0x221133 : (isExtender ? 0x332211 : (isLevelOut ? 0x113322 : 0x222225));
   const steelMat = new THREE.MeshStandardMaterial({
     color: steelColor,
     metalness: 0.85,
@@ -760,17 +760,17 @@ function createShotgunHandle(dirVector, modeColor, id, isExtender = false, isLev
   const port = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.5, 0.2), new THREE.MeshBasicMaterial({ color: 0x111111 }));
   port.position.set(0.01, 0.4, 0.05);
 
-  const woodColor = isLevelOut ? 0x225522 : (isExtender ? 0x8a4513 : (isDownslope ? 0x882222 : 0x5a2d0c));
+  const woodColor = isDownSlope ? 0x882288 : (isLevelOut ? 0x225522 : (isExtender ? 0x8a4513 : 0x5a2d0c));
   const stock = new THREE.Mesh(new THREE.BoxGeometry(0.28, 1.4, 0.4), new THREE.MeshStandardMaterial({ color: woodColor, roughness: 0.7 }));
   stock.position.set(0, -0.8, -0.2);
   stock.rotation.x = 0.2;
 
-  const pumpSlide = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 1.0, 12), new THREE.MeshStandardMaterial({ color: isLevelOut ? 0x338833 : (isExtender ? 0xb8621b : (isDownslope ? 0xff3333 : 0x6e3810)), roughness: 0.6 }));
+  const pumpSlide = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 1.0, 12), new THREE.MeshStandardMaterial({ color: isDownSlope ? 0x993399 : (isLevelOut ? 0x338833 : (isExtender ? 0xb8621b : 0x6e3810)), roughness: 0.6 }));
   pumpSlide.position.set(0, 1.4, -0.1);
 
   const shellGroup = new THREE.Group();
-  const hull = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.35, 12), new THREE.MeshStandardMaterial({ color: isLevelOut ? 0x00ff88 : (isExtender ? 0xff8800 : (isDownslope ? 0xff0055 : 0xcc1111)), roughness: 0.4 }));
-  const brass = new THREE.Mesh(new THREE.CylinderGeometry(0.092, 0.092, 0.12, 12), new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.9, roughness: 0.2 }));
+  const hull = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.35, 12), new THREE.MeshStandardMaterial({ color: isDownSlope ? 0xcc00cc : (isLevelOut ? 0x00ff88 : (isExtender ? 0xff8800 : 0xcc1111)), roughness: 0.4 }));
+  const brass = new THREE.Mesh(new THREE.CylinderGeometry(0.092, 0.092, 0.12, 12), new THREE.MeshStandardMaterial({ color: { color: 0xd4af37 }, metalness: 0.9, roughness: 0.2 }));
   brass.position.y = -0.15;
   shellGroup.add(hull, brass);
   shellGroup.scale.set(0.001, 0.001, 0.001);
@@ -790,7 +790,7 @@ function createShotgunHandle(dirVector, modeColor, id, isExtender = false, isLev
     arrowId: id,
     isRampExtender: isExtender,
     isRampLevelOut: isLevelOut,
-    isDownslope: isDownslope,
+    isDownSlope: isDownSlope,
     dirVector: dirVector.clone().normalize(),
     steelMat: steelMat,
     pumpSlide: pumpSlide,
@@ -816,7 +816,6 @@ function getRampForwardVector(rampMesh) {
 function renderPanelHandles(panel) {
   clearShotgunHandles();
   if (!panel) return;
-  if (panel.userData.ownerIndex !== myPlayerIndex) return;
 
   const pType = panel.userData.panelType;
   const mode = panel.userData.buildMode || 1;
@@ -854,7 +853,7 @@ function renderPanelHandles(panel) {
       offset: extenderPos.sub(pos),
       isExtender: true,
       isLevelOut: false,
-      isDownslope: false
+      isDownSlope: false
     });
 
     const summitPos = panel.position.clone()
@@ -867,76 +866,67 @@ function renderPanelHandles(panel) {
       offset: summitPos.sub(pos),
       isExtender: false,
       isLevelOut: true,
-      isDownslope: false
+      isDownSlope: false
     });
   }
   else if (pType === 'wall_x') {
     const halfH = WALL_HEIGHT / 2;
     configs = [
-      { id: 'wall_up', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, halfH + 1.4, 0), isExtender: false, isLevelOut: false, isDownslope: false },
-      { id: 'wall_down', dir: new THREE.Vector3(0, -1, 0), offset: new THREE.Vector3(0, -halfH - 1.4, 0), isExtender: false, isLevelOut: false, isDownslope: false },
-      { id: 'wall_left', dir: new THREE.Vector3(-1, 0, 0), offset: new THREE.Vector3(-half - 1.4, 0, 0), isExtender: false, isLevelOut: false, isDownslope: false },
-      { id: 'wall_right', dir: new THREE.Vector3(1, 0, 0), offset: new THREE.Vector3(half + 1.4, 0, 0), isExtender: false, isLevelOut: false, isDownslope: false }
+      { id: 'wall_up', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, halfH + 1.4, 0), isExtender: false, isLevelOut: false, isDownSlope: false },
+      { id: 'wall_down', dir: new THREE.Vector3(0, -1, 0), offset: new THREE.Vector3(0, -halfH - 1.4, 0), isExtender: false, isLevelOut: false, isDownSlope: false },
+      { id: 'wall_left', dir: new THREE.Vector3(-1, 0, 0), offset: new THREE.Vector3(-half - 1.4, 0, 0), isExtender: false, isLevelOut: false, isDownSlope: false },
+      { id: 'wall_right', dir: new THREE.Vector3(1, 0, 0), offset: new THREE.Vector3(half + 1.4, 0, 0), isExtender: false, isLevelOut: false, isDownSlope: false }
     ];
   }
   else if (pType === 'wall_z') {
     const halfH = WALL_HEIGHT / 2;
     configs = [
-      { id: 'wall_up', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, halfH + 1.4, 0), isExtender: false, isLevelOut: false, isDownslope: false },
-      { id: 'wall_down', dir: new THREE.Vector3(0, -1, 0), offset: new THREE.Vector3(0, -halfH - 1.4, 0), isExtender: false, isLevelOut: false, isDownslope: false },
-      { id: 'wall_left', dir: new THREE.Vector3(0, 0, -1), offset: new THREE.Vector3(0, 0, -half - 1.4), isExtender: false, isLevelOut: false, isDownslope: false },
-      { id: 'wall_right', dir: new THREE.Vector3(0, 0, 1), offset: new THREE.Vector3(0, 0, half + 1.4), isExtender: false, isLevelOut: false, isDownslope: false }
+      { id: 'wall_up', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, halfH + 1.4, 0), isExtender: false, isLevelOut: false, isDownSlope: false },
+      { id: 'wall_down', dir: new THREE.Vector3(0, -1, 0), offset: new THREE.Vector3(0, -halfH - 1.4, 0), isExtender: false, isLevelOut: false, isDownSlope: false },
+      { id: 'wall_left', dir: new THREE.Vector3(0, 0, -1), offset: new THREE.Vector3(0, 0, -half - 1.4), isExtender: false, isLevelOut: false, isDownSlope: false },
+      { id: 'wall_right', dir: new THREE.Vector3(0, 0, 1), offset: new THREE.Vector3(0, 0, half + 1.4), isExtender: false, isLevelOut: false, isDownSlope: false }
     ];
   }
   else if (mode === 1) {
     configs = [
-      { id: 'north', dir: new THREE.Vector3(0, 0, -1), offset: new THREE.Vector3(0, 1.2, -half), isExtender: false, isLevelOut: false, isDownslope: false },
-      { id: 'south', dir: new THREE.Vector3(0, 0, 1),  offset: new THREE.Vector3(0, 1.2, half), isExtender: false, isLevelOut: false, isDownslope: false },
-      { id: 'east',  dir: new THREE.Vector3(1, 0, 0),  offset: new THREE.Vector3(half, 1.2, 0), isExtender: false, isLevelOut: false, isDownslope: false },
-      { id: 'west',  dir: new THREE.Vector3(-1, 0, 0), offset: new THREE.Vector3(-half, 1.2, 0), isExtender: false, isLevelOut: false, isDownslope: false },
-      { id: 'up',    dir: new THREE.Vector3(0, 1, 0),  offset: new THREE.Vector3(0, 2.4, 0), isExtender: false, isLevelOut: false, isDownslope: false }
+      { id: 'north', dir: new THREE.Vector3(0, 0, -1), offset: new THREE.Vector3(0, 1.2, -half), isExtender: false, isLevelOut: false, isDownSlope: false },
+      { id: 'south', dir: new THREE.Vector3(0, 0, 1),  offset: new THREE.Vector3(0, 1.2, half), isExtender: false, isLevelOut: false, isDownSlope: false },
+      { id: 'east',  dir: new THREE.Vector3(1, 0, 0),  offset: new THREE.Vector3(half, 1.2, 0), isExtender: false, isLevelOut: false, isDownSlope: false },
+      { id: 'west',  dir: new THREE.Vector3(-1, 0, 0), offset: new THREE.Vector3(-half, 1.2, 0), isExtender: false, isLevelOut: false, isDownSlope: false },
+      { id: 'up',    dir: new THREE.Vector3(0, 1, 0),  offset: new THREE.Vector3(0, 2.4, 0), isExtender: false, isLevelOut: false, isDownSlope: false }
     ];
   }
   else if (mode === 2) {
     configs = [
-      { id: 'spawn_wall_north', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 1.4, -half), isExtender: false, isLevelOut: false, isDownslope: false },
-      { id: 'spawn_wall_south', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 1.4, half), isExtender: false, isLevelOut: false, isDownslope: false },
-      { id: 'spawn_wall_east',  dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(half, 1.4, 0), isExtender: false, isLevelOut: false, isDownslope: false },
-      { id: 'spawn_wall_west',  dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(-half, 1.4, 0), isExtender: false, isLevelOut: false, isDownslope: false }
+      { id: 'spawn_wall_north', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 1.4, -half), isExtender: false, isLevelOut: false, isDownSlope: false },
+      { id: 'spawn_wall_south', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 1.4, half), isExtender: false, isLevelOut: false, isDownSlope: false },
+      { id: 'spawn_wall_east',  dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(half, 1.4, 0), isExtender: false, isLevelOut: false, isDownSlope: false },
+      { id: 'spawn_wall_west',  dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(-half, 1.4, 0), isExtender: false, isLevelOut: false, isDownSlope: false }
     ];
   }
   else if (mode === 3) {
     configs = [
-      { id: 'north', dir: new THREE.Vector3(0, Math.sin(RAMP_ANGLE), -Math.cos(RAMP_ANGLE)), offset: new THREE.Vector3(0, 1.2, -half), isExtender: false, isLevelOut: false, isDownslope: false },
-      { id: 'south', dir: new THREE.Vector3(0, Math.sin(RAMP_ANGLE), Math.cos(RAMP_ANGLE)),  offset: new THREE.Vector3(0, 1.2, half), isExtender: false, isLevelOut: false, isDownslope: false },
-      { id: 'east',  dir: new THREE.Vector3(Math.cos(RAMP_ANGLE), Math.sin(RAMP_ANGLE), 0),  offset: new THREE.Vector3(half, 1.2, 0), isExtender: false, isLevelOut: false, isDownslope: false },
-      { id: 'west',  dir: new THREE.Vector3(-Math.cos(RAMP_ANGLE), Math.sin(RAMP_ANGLE), 0), offset: new THREE.Vector3(-half, 1.2, 0), isExtender: false, isLevelOut: false, isDownslope: false },
-      { id: 'up',    dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 2.4, 0), isExtender: false, isLevelOut: false, isDownslope: false }
+      { id: 'north', dir: new THREE.Vector3(0, Math.sin(RAMP_ANGLE), -Math.cos(RAMP_ANGLE)), offset: new THREE.Vector3(0, 1.2, -half), isExtender: false, isLevelOut: false, isDownSlope: false },
+      { id: 'south', dir: new THREE.Vector3(0, Math.sin(RAMP_ANGLE), Math.cos(RAMP_ANGLE)),  offset: new THREE.Vector3(0, 1.2, half), isExtender: false, isLevelOut: false, isDownSlope: false },
+      { id: 'east',  dir: new THREE.Vector3(Math.cos(RAMP_ANGLE), Math.sin(RAMP_ANGLE), 0),  offset: new THREE.Vector3(half, 1.2, 0), isExtender: false, isLevelOut: false, isDownSlope: false },
+      { id: 'west',  dir: new THREE.Vector3(-Math.cos(RAMP_ANGLE), Math.sin(RAMP_ANGLE), 0), offset: new THREE.Vector3(-half, 1.2, 0), isExtender: false, isLevelOut: false, isDownSlope: false },
+      { id: 'up',    dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 2.4, 0), isExtender: false, isLevelOut: false, isDownSlope: false }
     ];
   }
 
-  // Add downward-sloping shotguns for panels not on ground level
-  if (panel.position.y > 1.0) {
+  // Add 4 additional downward-sloped shotgun handles if panel is elevated above ground level (y > 1.0)
+  if (panel.position.y > 1.0 && (pType === 'floor' || mode === 1)) {
     const downConfigs = [
-      { id: 'down_north', dir: new THREE.Vector3(0, -Math.sin(RAMP_ANGLE), -Math.cos(RAMP_ANGLE)), offset: new THREE.Vector3(0, -0.6, -half) },
-      { id: 'down_south', dir: new THREE.Vector3(0, -Math.sin(RAMP_ANGLE), Math.cos(RAMP_ANGLE)),  offset: new THREE.Vector3(0, -0.6, half) },
-      { id: 'down_east',  dir: new THREE.Vector3(Math.cos(RAMP_ANGLE), -Math.sin(RAMP_ANGLE), 0),  offset: new THREE.Vector3(half, -0.6, 0) },
-      { id: 'down_west',  dir: new THREE.Vector3(-Math.cos(RAMP_ANGLE), -Math.sin(RAMP_ANGLE), 0), offset: new THREE.Vector3(-half, -0.6, 0) }
+      { id: 'down_north', dir: new THREE.Vector3(0, -Math.sin(RAMP_ANGLE), -Math.cos(RAMP_ANGLE)), offset: new THREE.Vector3(0, -1.2, -half), isExtender: false, isLevelOut: false, isDownSlope: true },
+      { id: 'down_south', dir: new THREE.Vector3(0, -Math.sin(RAMP_ANGLE), Math.cos(RAMP_ANGLE)),  offset: new THREE.Vector3(0, -1.2, half), isExtender: false, isLevelOut: false, isDownSlope: true },
+      { id: 'down_east',  dir: new THREE.Vector3(Math.cos(RAMP_ANGLE), -Math.sin(RAMP_ANGLE), 0),  offset: new THREE.Vector3(half, -1.2, 0), isExtender: false, isLevelOut: false, isDownSlope: true },
+      { id: 'down_west',  dir: new THREE.Vector3(-Math.cos(RAMP_ANGLE), -Math.sin(RAMP_ANGLE), 0), offset: new THREE.Vector3(-half, -1.2, 0), isExtender: false, isLevelOut: false, isDownSlope: true }
     ];
-    downConfigs.forEach(dc => {
-      configs.push({
-        id: dc.id,
-        dir: dc.dir,
-        offset: dc.offset,
-        isExtender: false,
-        isLevelOut: false,
-        isDownslope: true
-      });
-    });
+    configs.push(...downConfigs);
   }
 
   configs.forEach(cfg => {
-    const gun = createShotgunHandle(cfg.dir, color, cfg.id, cfg.isExtender, cfg.isLevelOut, cfg.isDownslope);
+    const gun = createShotgunHandle(cfg.dir, color, cfg.id, cfg.isExtender, cfg.isLevelOut, cfg.isDownSlope);
     gun.position.copy(pos).add(cfg.offset);
     gun.userData.originalLocalPos.copy(gun.position);
     scene.add(gun);
@@ -960,7 +950,6 @@ function updatePanelVisualMode(panel) {
 }
 
 function selectPanel(panel) {
-  if (panel.userData.ownerIndex !== myPlayerIndex) return;
   activeBasePanel = panel;
   if (!panel.userData.buildMode) panel.userData.buildMode = 1;
   updatePanelVisualMode(panel);
@@ -977,12 +966,10 @@ function cyclePanelMode(delta) {
   updatePanelVisualMode(activeBasePanel);
 }
 
-function placePanel(type, position, rotation, isRemote = false, customId = null, forwardDir = null, isRoot = false, owner = null) {
+function placePanel(type, position, rotation, isRemote = false, customId = null, forwardDir = null, isRoot = false) {
   let matKey = type.startsWith('wall') ? 'wall' : type;
   const mat = panelMaterials[matKey].clone();
   let mesh;
-
-  const assignedOwner = owner !== null && owner !== undefined ? owner : (isRemote ? (myPlayerIndex === 1 ? 2 : 1) : myPlayerIndex);
 
   if (type === 'ramp') {
     const geo = createAlignedRampGeometry(RAMP_DIAG);
@@ -994,8 +981,7 @@ function placePanel(type, position, rotation, isRemote = false, customId = null,
       rampLength: RAMP_DIAG,
       id: customId || Math.random().toString(),
       permanent: true,
-      forwardDir: forwardDir ? forwardDir.clone() : new THREE.Vector3(0, 0, -1),
-      ownerIndex: assignedOwner
+      forwardDir: forwardDir ? forwardDir.clone() : new THREE.Vector3(0, 0, -1)
     };
   } else {
     const geo = (panelGeometries[type] || panelGeometries.floor).clone();
@@ -1008,8 +994,7 @@ function placePanel(type, position, rotation, isRemote = false, customId = null,
       buildMode: 1,
       id: customId || Math.random().toString(),
       permanent: true,
-      isRootBase: isRoot,
-      ownerIndex: assignedOwner
+      isRootBase: isRoot
     };
   }
 
@@ -1025,8 +1010,7 @@ function placePanel(type, position, rotation, isRemote = false, customId = null,
       type: type,
       id: mesh.userData.id,
       pos: { x: mesh.position.x, y: mesh.position.y, z: mesh.position.z },
-      rot: { x: mesh.rotation.x, y: mesh.rotation.y, z: mesh.rotation.z },
-      ownerIndex: assignedOwner
+      rot: { x: mesh.rotation.x, y: mesh.rotation.y, z: mesh.rotation.z }
     });
   }
   return mesh;
@@ -1067,7 +1051,6 @@ function extendRampDirectly(rampMesh, isRemote = false) {
 
 function undoDemolishPanel(panel, isRemote = false) {
   if (!panel) return;
-  if (panel.userData.ownerIndex !== myPlayerIndex) return;
 
   if (panel.userData.isRootBase) {
     statusText.innerText = "ROOT BASE SQUARE CANNOT BE DEMOLISHED!";
@@ -1161,16 +1144,11 @@ socket.on('opponent_build', (data) => {
     new THREE.Vector3(data.pos.x, data.pos.y, data.pos.z),
     new THREE.Euler(data.rot.x, data.rot.y, data.rot.z),
     true,
-    data.id,
-    null,
-    false,
-    data.ownerIndex
+    data.id
   );
 });
 
 function triggerBranchBuild(parentPanel, gunId) {
-  if (parentPanel.userData.ownerIndex !== myPlayerIndex) return;
-
   if (gunId === 'ramp_extend' && parentPanel.userData.panelType === 'ramp') {
     extendRampDirectly(parentPanel);
     return;
@@ -1207,104 +1185,107 @@ function triggerBranchBuild(parentPanel, gunId) {
   let checkDepth = PANEL_SIZE;
   let rampDir = null;
 
-  // Corrected edge-snapping offset (-) AND correct downward slope rotation (180 degrees flipped from previous mistake)
-  if (gunId && gunId.startsWith('down_')) {
-    buildType = 'ramp';
-    newPos.y = basePos.y - WALL_HEIGHT;
-    const dDir = gunId.replace('down_', '');
-    if (dDir === 'north') {
-      newPos.z -= (PANEL_SIZE / 2);
-      newRot.set(0, Math.PI, 0);
-      rampDir = new THREE.Vector3(0, 0, -1);
-    } else if (dDir === 'south') {
-      newPos.z += (PANEL_SIZE / 2);
-      newRot.set(0, 0, 0);
-      rampDir = new THREE.Vector3(0, 0, 1);
-    } else if (dDir === 'east') {
-      newPos.x += (PANEL_SIZE / 2);
-      newRot.set(0, Math.PI / 2, 0);
-      rampDir = new THREE.Vector3(1, 0, 0);
-    } else if (dDir === 'west') {
-      newPos.x -= (PANEL_SIZE / 2);
-      newRot.set(0, -Math.PI / 2, 0);
-      rampDir = new THREE.Vector3(-1, 0, 0);
-    }
-  } else if (pType === 'wall_x') {
+  const isDownHandle = gunId.startsWith('down_');
+  const actualGunId = isDownHandle ? gunId.replace('down_', '') : gunId;
+
+  if (pType === 'wall_x') {
     buildType = 'wall_x';
     checkDepth = PANEL_THICKNESS;
-    if (gunId === 'wall_up')   newPos.y += WALL_HEIGHT;
-    if (gunId === 'wall_down')  newPos.y -= WALL_HEIGHT;
-    if (gunId === 'wall_left')  newPos.x -= PANEL_SIZE;
-    if (gunId === 'wall_right') newPos.x += PANEL_SIZE;
+    if (actualGunId === 'wall_up')   newPos.y += WALL_HEIGHT;
+    if (actualGunId === 'wall_down') newPos.y -= WALL_HEIGHT;
+    if (actualGunId === 'wall_left') newPos.x -= PANEL_SIZE;
+    if (actualGunId === 'wall_right') newPos.x += PANEL_SIZE;
   } 
   else if (pType === 'wall_z') {
     buildType = 'wall_z';
     checkDepth = PANEL_SIZE;
-    if (gunId === 'wall_up')   newPos.y += WALL_HEIGHT;
-    if (gunId === 'wall_down')  newPos.y -= WALL_HEIGHT;
-    if (gunId === 'wall_left')  newPos.z -= PANEL_SIZE;
-    if (gunId === 'wall_right') newPos.z += PANEL_SIZE;
+    if (actualGunId === 'wall_up')   newPos.y += WALL_HEIGHT;
+    if (actualGunId === 'wall_down') newPos.y -= WALL_HEIGHT;
+    if (actualGunId === 'wall_left') newPos.z -= PANEL_SIZE;
+    if (actualGunId === 'wall_right') newPos.z += PANEL_SIZE;
   }
-  else if (gunId === 'spawn_wall_north') {
+  else if (actualGunId === 'spawn_wall_north') {
     buildType = 'wall_x';
     newPos.y += (WALL_HEIGHT / 2);
     newPos.z -= (PANEL_SIZE / 2);
     checkDepth = PANEL_THICKNESS;
   } 
-  else if (gunId === 'spawn_wall_south') {
+  else if (actualGunId === 'spawn_wall_south') {
     buildType = 'wall_x';
     newPos.y += (WALL_HEIGHT / 2);
     newPos.z -= (PANEL_SIZE / 2);
     checkDepth = PANEL_THICKNESS;
   } 
-  else if (gunId === 'spawn_wall_east') {
+  else if (actualGunId === 'spawn_wall_east') {
     buildType = 'wall_z';
     newPos.y += (WALL_HEIGHT / 2);
     newPos.x += (PANEL_SIZE / 2);
     checkDepth = PANEL_SIZE;
   } 
-  else if (gunId === 'spawn_wall_west') {
+  else if (actualGunId === 'spawn_wall_west') {
     buildType = 'wall_z';
     newPos.y += (WALL_HEIGHT / 2);
     newPos.x -= (PANEL_SIZE / 2);
     checkDepth = PANEL_SIZE;
   }
-  else if (parentPanel.userData.buildMode === 1) {
-    buildType = 'floor';
-    if (gunId === 'north') newPos.z -= PANEL_SIZE;
-    if (gunId === 'south') newPos.z += PANEL_SIZE;
-    if (gunId === 'east')  newPos.x += PANEL_SIZE;
-    if (gunId === 'west')  newPos.x -= PANEL_SIZE;
-    if (gunId === 'up')    newPos.y += WALL_HEIGHT;
+  else if (parentPanel.userData.buildMode === 1 || isDownHandle) {
+    if (isDownHandle) {
+      buildType = 'ramp';
+      newPos.y = basePos.y - WALL_HEIGHT;
+      if (actualGunId === 'north') {
+        newPos.z -= (PANEL_SIZE / 2);
+        newRot.set(0, 0, 0);
+        rampDir = new THREE.Vector3(0, 0, -1);
+      } else if (actualGunId === 'south') {
+        newPos.z += (PANEL_SIZE / 2);
+        newRot.set(0, Math.PI, 0);
+        rampDir = new THREE.Vector3(0, 0, 1);
+      } else if (actualGunId === 'east') {
+        newPos.x += (PANEL_SIZE / 2);
+        newRot.set(0, -Math.PI / 2, 0);
+        rampDir = new THREE.Vector3(1, 0, 0);
+      } else if (actualGunId === 'west') {
+        newPos.x -= (PANEL_SIZE / 2);
+        newRot.set(0, Math.PI / 2, 0);
+        rampDir = new THREE.Vector3(-1, 0, 0);
+      }
+    } else {
+      buildType = 'floor';
+      if (actualGunId === 'north') newPos.z -= PANEL_SIZE;
+      if (actualGunId === 'south') newPos.z += PANEL_SIZE;
+      if (actualGunId === 'east')  newPos.x += PANEL_SIZE;
+      if (actualGunId === 'west')  newPos.x -= PANEL_SIZE;
+      if (actualGunId === 'up')    newPos.y += WALL_HEIGHT;
+    }
   } 
   else if (parentPanel.userData.buildMode === 3) {
     buildType = 'ramp';
     newPos.y = basePos.y;
 
-    if (gunId === 'north') {
+    if (actualGunId === 'north') {
       newPos.z -= (PANEL_SIZE / 2);
       newRot.set(0, 0, 0);
       rampDir = new THREE.Vector3(0, 0, -1);
-    } else if (gunId === 'south') {
+    } else if (actualGunId === 'south') {
       newPos.z += (PANEL_SIZE / 2);
       newRot.set(0, Math.PI, 0);
       rampDir = new THREE.Vector3(0, 0, 1);
-    } else if (gunId === 'east') {
+    } else if (actualGunId === 'east') {
       newPos.x += (PANEL_SIZE / 2);
       newRot.set(0, -Math.PI / 2, 0);
       rampDir = new THREE.Vector3(1, 0, 0);
-    } else if (gunId === 'west') {
+    } else if (actualGunId === 'west') {
       newPos.x -= (PANEL_SIZE / 2);
       newRot.set(0, Math.PI / 2, 0);
       rampDir = new THREE.Vector3(-1, 0, 0);
-    } else if (gunId === 'up') {
+    } else if (actualGunId === 'up') {
       buildType = 'floor';
       newPos.y = basePos.y + WALL_HEIGHT;
     }
   }
 
   if (!isWithinMyBuildingTerritory(newPos.z, checkDepth)) {
-    statusText.innerText = "CANNOT BUILD INTO ENEMY TERRITORY OR ACROSS CENTER LINE!";
+    statusText.innerText = "CANNOT BUILD INTO ENEMY TERRITORY!";
     statusText.style.color = "#ff4444";
     setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2500);
     return;
@@ -1700,7 +1681,7 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
       const snapZ = Math.round(pt.z / PANEL_SIZE) * PANEL_SIZE;
 
       if (isWithinMyBuildingTerritory(snapZ, PANEL_SIZE)) {
-        const rootSquare = placePanel('floor', new THREE.Vector3(snapX, PANEL_THICKNESS / 2, snapZ), new THREE.Euler(0, 0, 0), false, null, null, true, myPlayerIndex);
+        const rootSquare = placePanel('floor', new THREE.Vector3(snapX, PANEL_THICKNESS / 2, snapZ), new THREE.Euler(0, 0, 0), false, null, null, true);
         myBasePanelPlaced = true;
         selectPanel(rootSquare);
         updateStatusUI();
@@ -1730,11 +1711,8 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
 
     const panelHits = raycaster.intersectObjects(worldPanels, false);
     if (panelHits.length > 0) {
-      const hitPanel = panelHits[0].object;
-      if (hitPanel.userData.ownerIndex === myPlayerIndex) {
-        selectPanel(hitPanel);
-        return true;
-      }
+      selectPanel(panelHits[0].object);
+      return true;
     }
     return false;
   }
@@ -1804,10 +1782,8 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
       socket.emit('player_move', { roomId: currentRoomId, id: selectedCannon.userData.id, tx: pt.x, tz: pt.z });
       return true;
     } else if (hitObj.userData && hitObj.userData.isPanel) {
-      if (hitObj.userData.ownerIndex === myPlayerIndex) {
-        selectPanel(hitObj);
-        return true;
-      }
+      selectPanel(hitObj);
+      return true;
     } else {
       if (!activeBasePanel) {
         clearShotgunHandles();
@@ -2257,7 +2233,7 @@ function animate() {
       return false;
     }
 
-    (([...cannons, ...opponentCannons])).forEach(can => {
+    ([...cannons, ...opponentCannons]).forEach(can => {
       const forwardDir = new THREE.Vector3(0, 0, 1).applyQuaternion(can.quaternion).normalize();
       
       const muzzlePos = new THREE.Vector3(0, 2.5, 0);
