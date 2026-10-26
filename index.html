@@ -57,28 +57,28 @@
   }
   #pump-bar { width: 0%; height: 100%; background: #ffd700; transition: width 0.04s linear; }
 
-  /* Tactical Vertical Altitude Gauge with 42px Touch Handle */
+  /* Tactical Vertical Altitude Gauge */
   #camera-altitude-control {
-    position: absolute; right: 16px; top: 140px; bottom: 120px; width: 56px;
-    background: rgba(10, 15, 26, 0.92); border: 2px solid #ffd700; border-radius: 28px;
+    position: absolute; right: 14px; top: 140px; bottom: 120px; width: 62px;
+    background: rgba(10, 15, 26, 0.94); border: 2px solid #ffd700; border-radius: 31px;
     display: none; flex-direction: column; align-items: center; justify-content: space-between;
     padding: 14px 6px; z-index: 250; box-shadow: 0 0 25px rgba(0,0,0,0.7);
-    color: #ffd700; touch-action: none;
+    color: #ffd700; touch-action: none; user-select: none; -webkit-user-select: none;
   }
-  .alt-header { font-size: 9px; font-weight: 900; text-align: center; letter-spacing: 1.5px; }
-  .alt-value-display { font-size: 12px; font-weight: bold; color: #00ffcc; margin: 6px 0; text-shadow: 0 0 8px #00ffcc; }
+  .alt-header { font-size: 9px; font-weight: 900; text-align: center; letter-spacing: 1.5px; pointer-events: none; }
+  .alt-value-display { font-size: 12px; font-weight: bold; color: #00ffcc; margin: 6px 0; text-shadow: 0 0 8px #00ffcc; pointer-events: none; }
   
   #alt-track {
-    position: relative; flex: 1; width: 14px; background: #1e293b;
-    border-radius: 7px; border: 1px solid rgba(255,215,0,0.3);
+    position: relative; flex: 1; width: 16px; background: #1e293b;
+    border-radius: 8px; border: 1px solid rgba(255,215,0,0.3);
     margin: 10px 0; cursor: pointer; display: flex; justify-content: center;
   }
   #alt-fill {
     position: absolute; bottom: 0; width: 100%; background: linear-gradient(to top, #00ffcc, #ffd700);
-    border-radius: 7px; height: 0%; pointer-events: none;
+    border-radius: 8px; height: 0%; pointer-events: none;
   }
   #alt-thumb {
-    position: absolute; width: 42px; height: 42px; background: #ffd700;
+    position: absolute; width: 44px; height: 44px; background: #ffd700;
     border-radius: 50%; border: 3.5px solid #ffffff; box-shadow: 0 0 15px #ffd700;
     bottom: 0%; transform: translate(-50%, 50%); left: 50%;
     cursor: grab; pointer-events: none;
@@ -98,7 +98,21 @@
   }
   .dpad-btn:active { background: #ffd700; color: #000; transform: scale(0.92); }
 
-  /* Mobile Persistent Fire/Aim Mode Switcher */
+  /* Mobile Deselect Button (Above Aim Button) */
+  #mobile-deselect-btn {
+    position: absolute; bottom: 140px; right: 90px; width: 85px; height: 50px;
+    border-radius: 25px; background: rgba(15, 23, 42, 0.85); border: 2px solid #555e75;
+    color: #64748b; font-weight: bold; font-size: 11px; display: none;
+    align-items: center; justify-content: center; z-index: 260;
+    touch-action: none; cursor: pointer; user-select: none; -webkit-user-select: none;
+    letter-spacing: 1px; transition: all 0.2s ease;
+  }
+  #mobile-deselect-btn.active {
+    background: #00ff00; color: #000; border-color: #ffffff;
+    box-shadow: 0 0 20px #00ff00; font-weight: 900;
+  }
+
+  /* Mobile Persistent Fire / Aim Mode Switcher */
   #mobile-aim-toggle {
     position: absolute; bottom: 45px; right: 90px; width: 85px; height: 85px;
     border-radius: 50%; background: rgba(15, 23, 42, 0.9); border: 3px solid #ff4400;
@@ -185,7 +199,7 @@
 
 <div id="minimap-container"><canvas id="minimap"></canvas></div>
 
-<!-- Sleek Tactical Vertical Altitude Gauge with 42px Thumb -->
+<!-- Sleek Tactical Vertical Altitude Gauge with 44px Thumb -->
 <div id="camera-altitude-control">
   <div class="alt-header">ALT<br>SKY</div>
   <div class="alt-value-display" id="alt-val-text">5m</div>
@@ -209,6 +223,9 @@
   <div></div>
 </div>
 
+<!-- Mobile Deselect Button -->
+<div id="mobile-deselect-btn">DESELECT</div>
+
 <!-- Mobile Persistent Fire / Aim Mode Switcher -->
 <div id="mobile-aim-toggle">
   <span>AIM</span>
@@ -231,8 +248,8 @@
     </div>
   </div>
   <div style="font-size: 9.5px; margin-top: 10px; color: #aaa; border-top: 1px solid #333; padding-top: 6px; line-height: 1.3;">
-    [PC] W/S = Forward/Back | A/D = Turn Left/Right | Q/Z = Altitude<br>
-    [Mobile] D-Pad = Move & Turn | Drag = Look | Toggle AIM Button to Fire Stationarily!<br>
+    [PC] W/S = Move | A/D = Turn | Q/Z = Altitude<br>
+    [Mobile] D-Pad = Move | Drag Screen = Look (Up/Down/Left/Right) | Toggle AIM to Fire!<br>
     [Building] First Grass Click = 1 Base Square (Branch Out with Shotgun Pumps)
   </div>
   <span id="status" class="sys">STATUS: STANDBY</span>
@@ -308,7 +325,7 @@ minimapCanvas.width = 120;
 minimapCanvas.height = 120;
 
 // -------------------------------------------------------------
-// TACTICAL VERTICAL ALTITUDE BAR WITH 42PX HANDLE
+// RESPONSIVE TOUCH & POINTER ALTITUDE SLIDER GAUGE
 // -------------------------------------------------------------
 const altTrack = document.getElementById('alt-track');
 const altFill = document.getElementById('alt-fill');
@@ -327,7 +344,7 @@ function setAltitude(newAlt) {
   altValText.innerText = `${Math.round(targetCameraAltitude)}m`;
 }
 
-function updateAltitudeFromClientY(clientY) {
+function updateAltitudeFromY(clientY) {
   const rect = altTrack.getBoundingClientRect();
   const trackHeight = rect.height;
   const clampedY = Math.max(rect.top, Math.min(rect.bottom, clientY));
@@ -335,23 +352,30 @@ function updateAltitudeFromClientY(clientY) {
   setAltitude(MIN_ALT + pct * (MAX_ALT - MIN_ALT));
 }
 
-let isDraggingAlt = false;
+// Mobile direct touch event handler on altitude box
+altitudeControlBox.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  updateAltitudeFromY(e.touches[0].clientY);
+}, { passive: false });
 
-altTrack.addEventListener('pointerdown', (e) => {
-  isDraggingAlt = true;
-  altTrack.setPointerCapture(e.pointerId);
-  updateAltitudeFromClientY(e.clientY);
+altitudeControlBox.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  updateAltitudeFromY(e.touches[0].clientY);
+}, { passive: false });
+
+// PC pointer click/drag on altitude box
+let isPointerDraggingAlt = false;
+altitudeControlBox.addEventListener('mousedown', (e) => {
+  isPointerDraggingAlt = true;
+  updateAltitudeFromY(e.clientY);
 });
-
-altTrack.addEventListener('pointermove', (e) => {
-  if (isDraggingAlt) {
-    updateAltitudeFromClientY(e.clientY);
-  }
+window.addEventListener('mousemove', (e) => {
+  if (isPointerDraggingAlt) updateAltitudeFromY(e.clientY);
 });
-
-altTrack.addEventListener('pointerup', (e) => {
-  isDraggingAlt = false;
-  try { altTrack.releasePointerCapture(e.pointerId); } catch(err) {}
+window.addEventListener('mouseup', () => {
+  isPointerDraggingAlt = false;
 });
 
 // Lighting
@@ -1028,6 +1052,7 @@ let currentAimTarget = new THREE.Vector3();
 // Dedicated Mobile Aim & Fire Mode State
 let mobileAimModeActive = false;
 const mobileAimToggle = document.getElementById('mobile-aim-toggle');
+const mobileDeselectBtn = document.getElementById('mobile-deselect-btn');
 
 mobileAimToggle.onclick = (e) => {
   e.preventDefault();
@@ -1043,6 +1068,12 @@ mobileAimToggle.onclick = (e) => {
     isAimingCannon = false;
     updateStatusUI();
   }
+};
+
+mobileDeselectBtn.onclick = (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  deselectAllCannons();
 };
 
 function createCannon(x, z, mainColor, isOpp = false, customId = null, unitNumber = 1) {
@@ -1105,6 +1136,13 @@ function updateStatusUI() {
     can.userData.barrel.material.emissive.set(can.userData.selected ? 0x00ff00 : 0x000000);
     if (can.userData.selected) selectedNum = can.userData.unitNum;
   });
+
+  // Update Deselect Button Visual Status
+  if (selectedNum !== null) {
+    mobileDeselectBtn.classList.add('active');
+  } else {
+    mobileDeselectBtn.classList.remove('active');
+  }
 
   if (matchStarted && statusText.innerText !== "STATUS: MATCH STARTED!") {
     if (selectedNum !== null) {
@@ -1329,7 +1367,7 @@ function updateMinimap() {
 }
 
 // -------------------------------------------------------------
-// CORE INTERACTION ENGINE: BULLETPROOF TOUCH & MOUSE DISPATCH
+// CORE INTERACTION ENGINE
 // -------------------------------------------------------------
 function handlePointerDown(clientX, clientY, isSecondary = false) {
   if (!matchStarted || matchOver) return false;
@@ -1340,7 +1378,6 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
 
   const selectedCannon = cannons.find(c => c.userData.selected);
 
-  // If Aim Mode is explicitly on (Mobile) OR Secondary Click (PC RMB)
   if (isSecondary || (mobileAimModeActive && selectedCannon)) {
     if (selectedCannon) {
       const combatHits = raycaster.intersectObjects([ground, river, ...bridges, ...worldPanels, ...gameWalls, ...opponentCannons], true);
@@ -1420,7 +1457,6 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
     const hitObj = walkableHits[0].object;
 
     if (selectedCannon) {
-      // Order stationary move only when NOT aiming
       selectedCannon.userData.targetPos.set(pt.x, selectedCannon.position.y, pt.z);
       socket.emit('player_move', { roomId: currentRoomId, id: selectedCannon.userData.id, tx: pt.x, tz: pt.z });
       return true;
@@ -1428,7 +1464,6 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
       selectPanel(hitObj);
       return true;
     } else if (worldPanels.length === 0) {
-      // Only 1 root panel ever allowed!
       const snapX = Math.round(pt.x / PANEL_SIZE) * PANEL_SIZE;
       const snapZ = Math.round(pt.z / PANEL_SIZE) * PANEL_SIZE;
       if (isWithinMyBuildingTerritory(snapZ, PANEL_SIZE)) {
@@ -1588,13 +1623,13 @@ function handlePointerUp() {
 }
 
 // -------------------------------------------------------------
-// SEPARATED POINTER LISTENERS: NO MORE TOUCH/MOUSE CLASHES!
+// SEPARATED POINTER LISTENERS: NO TOUCH/MOUSE CLASHES
 // -------------------------------------------------------------
 let isTouchDeviceActive = false;
 
 window.onmousedown = (e) => {
-  if (isTouchDeviceActive) return; // Prevent emulated duplicate click on mobile!
-  if (e.target.closest('#ui') || e.target.closest('#lobby-screen') || e.target.closest('#mode-legend') || e.target.closest('#camera-altitude-control') || e.target.closest('#mobile-dpad') || e.target.closest('#mobile-aim-toggle')) return;
+  if (isTouchDeviceActive) return;
+  if (e.target.closest('#ui') || e.target.closest('#lobby-screen') || e.target.closest('#mode-legend') || e.target.closest('#camera-altitude-control') || e.target.closest('#mobile-dpad') || e.target.closest('#mobile-aim-toggle') || e.target.closest('#mobile-deselect-btn')) return;
 
   if (e.target === minimapCanvas && e.button === 0) {
     const rect = minimapCanvas.getBoundingClientRect();
@@ -1623,7 +1658,7 @@ window.onmouseup = (e) => {
 };
 
 // -------------------------------------------------------------
-// TOUCH EVENT SYSTEM (100% RELIABLE SELECTION & AIMING)
+// TOUCH EVENT SYSTEM (FULL 3D LOOK: YAW + PITCH)
 // -------------------------------------------------------------
 let touchStartPos = { x: 0, y: 0 };
 let touchLastPos = { x: 0, y: 0 };
@@ -1632,7 +1667,7 @@ let activeTouchId = null;
 
 window.addEventListener('touchstart', (e) => {
   isTouchDeviceActive = true;
-  if (e.target.closest('#ui') || e.target.closest('#lobby-screen') || e.target.closest('#mode-legend') || e.target.closest('#camera-altitude-control') || e.target.closest('#mobile-dpad') || e.target.closest('#mobile-aim-toggle')) return;
+  if (e.target.closest('#ui') || e.target.closest('#lobby-screen') || e.target.closest('#mode-legend') || e.target.closest('#camera-altitude-control') || e.target.closest('#mobile-dpad') || e.target.closest('#mobile-aim-toggle') || e.target.closest('#mobile-deselect-btn')) return;
 
   const t = e.touches[0];
   activeTouchId = t.identifier;
@@ -1653,9 +1688,14 @@ window.addEventListener('touchmove', (e) => {
     const t = e.touches[i];
     if (t.identifier === activeTouchId) {
       const dx = t.clientX - touchLastPos.x;
+      const dy = t.clientY - touchLastPos.y;
 
       if (isTouchLooking && !pumpingShotgun && !isAimingCannon) {
+        // Look Left & Right (Yaw)
         camera.rotation.y -= dx * 0.005;
+
+        // Look Up & Down (Pitch), clamped safely between -60° and +45°
+        camera.rotation.x = Math.max(-Math.PI / 3, Math.min(Math.PI / 4, camera.rotation.x - dy * 0.004));
       } else {
         handlePointerMove(t.clientX, t.clientY);
       }
@@ -2065,6 +2105,7 @@ socket.on('start_match_countdown', (data) => {
       if (isTouch) {
         document.getElementById('mobile-dpad').style.display = 'grid';
         document.getElementById('mobile-aim-toggle').style.display = 'flex';
+        document.getElementById('mobile-deselect-btn').style.display = 'flex';
       }
 
       if (myPlayerIndex === 2) {
