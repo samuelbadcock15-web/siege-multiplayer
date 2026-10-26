@@ -26,7 +26,7 @@ for (let i = 1; i <= 6; i++) {
         id: roomId,
         name: `Arena 0${i}`,
         players: {},
-        panels: {},
+        panels: {}, // Keyed by playerIndex or separated per player to ensure team isolation
         units: {},
         status: 'open'
     };
@@ -179,6 +179,7 @@ io.on('connection', (socket) => {
             return;
         }
 
+        data.playerIndex = player.playerIndex;
         room.panels[data.id] = data;
         socket.to(data.roomId).emit('opponent_build', data);
     });
