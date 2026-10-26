@@ -816,7 +816,7 @@ function getRampForwardVector(rampMesh) {
 function renderPanelHandles(panel) {
   clearShotgunHandles();
   if (!panel) return;
-  if (panel.userData.ownerIndex !== myPlayerIndex) return; // Strict team isolation: cannot select/see opponent handles
+  if (panel.userData.ownerIndex !== myPlayerIndex) return;
 
   const pType = panel.userData.panelType;
   const mode = panel.userData.buildMode || 1;
@@ -915,7 +915,7 @@ function renderPanelHandles(panel) {
     ];
   }
 
-  // ADD DOWNWARD-SLOPING SHOTGUNS FOR ALL RAMPS / PANELS NOT ON GROUND LEVEL (y > 1.0)
+  // Add downward-sloping shotguns for panels not on ground level
   if (panel.position.y > 1.0) {
     const downConfigs = [
       { id: 'down_north', dir: new THREE.Vector3(0, -Math.sin(RAMP_ANGLE), -Math.cos(RAMP_ANGLE)), offset: new THREE.Vector3(0, -0.6, -half) },
@@ -960,7 +960,7 @@ function updatePanelVisualMode(panel) {
 }
 
 function selectPanel(panel) {
-  if (panel.userData.ownerIndex !== myPlayerIndex) return; // Strict team isolation
+  if (panel.userData.ownerIndex !== myPlayerIndex) return;
   activeBasePanel = panel;
   if (!panel.userData.buildMode) panel.userData.buildMode = 1;
   updatePanelVisualMode(panel);
@@ -1067,7 +1067,7 @@ function extendRampDirectly(rampMesh, isRemote = false) {
 
 function undoDemolishPanel(panel, isRemote = false) {
   if (!panel) return;
-  if (panel.userData.ownerIndex !== myPlayerIndex) return; // Cannot demolish opponent panels
+  if (panel.userData.ownerIndex !== myPlayerIndex) return;
 
   if (panel.userData.isRootBase) {
     statusText.innerText = "ROOT BASE SQUARE CANNOT BE DEMOLISHED!";
@@ -1207,25 +1207,25 @@ function triggerBranchBuild(parentPanel, gunId) {
   let checkDepth = PANEL_SIZE;
   let rampDir = null;
 
-  // Handle downsloping build triggers
+  // Corrected edge-snapping math for down-ramps
   if (gunId && gunId.startsWith('down_')) {
     buildType = 'ramp';
     newPos.y = basePos.y - WALL_HEIGHT;
     const dDir = gunId.replace('down_', '');
     if (dDir === 'north') {
-      newPos.z -= PANEL_SIZE;
+      newPos.z -= (PANEL_SIZE / 2);
       newRot.set(0, Math.PI, 0);
       rampDir = new THREE.Vector3(0, 0, -1);
     } else if (dDir === 'south') {
-      newPos.z += PANEL_SIZE;
+      newPos.z += (PANEL_SIZE / 2);
       newRot.set(0, 0, 0);
       rampDir = new THREE.Vector3(0, 0, 1);
     } else if (dDir === 'east') {
-      newPos.x += PANEL_SIZE;
+      newPos.x += (PANEL_SIZE / 2);
       newRot.set(0, Math.PI / 2, 0);
       rampDir = new THREE.Vector3(1, 0, 0);
     } else if (dDir === 'west') {
-      newPos.x -= PANEL_SIZE;
+      newPos.x -= (PANEL_SIZE / 2);
       newRot.set(0, -Math.PI / 2, 0);
       rampDir = new THREE.Vector3(-1, 0, 0);
     }
@@ -1303,7 +1303,6 @@ function triggerBranchBuild(parentPanel, gunId) {
     }
   }
 
-  // Strict cross-river and territorial boundary checks
   if (!isWithinMyBuildingTerritory(newPos.z, checkDepth)) {
     statusText.innerText = "CANNOT BUILD INTO ENEMY TERRITORY OR ACROSS CENTER LINE!";
     statusText.style.color = "#ff4444";
