@@ -206,9 +206,9 @@
     </div>
   </div>
   <div style="font-size: 9.5px; margin-top: 10px; color: #aaa; border-top: 1px solid #333; padding-top: 6px; line-height: 1.3;">
-    [PC] LMB Grass = Build Panel | Q/Z = Altitude | WASD = Move | Arrows = Turn<br>
-    [Mobile] Tap Grass = Build | Big Arrows = Move | Drag Screen = Look | Dbl-Tap = Aim/Fire<br>
-    [Shotgun Racking] Pull Back to Cock -> Push Forward to Fire/Build!
+    [PC] W/S = Forward/Back | A/D = Turn Left/Right | Q/Z = Altitude<br>
+    [Mobile] D-Pad = Move & Turn | Drag Screen = Look | Dbl-Tap = Aim/Fire<br>
+    [Building] LMB Grass = Build Panel | Pull Back to Cock -> Push Forward to Fire/Build!
   </div>
   <span id="status" class="sys">STATUS: STANDBY</span>
 </div>
@@ -1555,13 +1555,10 @@ window.addEventListener('touchstart', (e) => {
   lastTapTime = now;
 
   if (isDoubleTap) {
-    // Cannon artillery preview arc
     handlePointerDown(t.clientX, t.clientY, true);
   } else {
-    // Check if it grabbed a shotgun handle right away
     const hitSpecial = handlePointerDown(t.clientX, t.clientY, false);
     if (!hitSpecial) {
-      // If nothing interactive was hit, prime for whole-screen swipe look
       isTouchLooking = true;
     }
   }
@@ -1576,7 +1573,6 @@ window.addEventListener('touchmove', (e) => {
       touchTotalDist += Math.hypot(dx, dy);
 
       if (isTouchLooking && !pumpingShotgun && !isAimingCannon) {
-        // Dragging anywhere on screen to look around!
         camera.rotation.y -= dx * 0.005;
       } else {
         handlePointerMove(t.clientX, t.clientY);
@@ -1615,7 +1611,7 @@ bindDpad(dpadLeft, 'a');
 bindDpad(dpadRight, 'd');
 
 // -------------------------------------------------------------
-// KEYBOARD CONTROLS (Q / Z ALTITUDE + WASD MOVE + ARROWS ROTATE)
+// KEYBOARD CONTROLS (WASD TANK DRIVE + Q/Z ALTITUDE)
 // -------------------------------------------------------------
 window.onwheel = (e) => {
   if (activeBasePanel) {
@@ -1677,17 +1673,20 @@ function animate() {
 
     camera.position.y += (targetCameraAltitude - camera.position.y) * 0.15 * dt60;
 
-    // Movement & Turning
+    // -------------------------------------------------------------
+    // RESTORED TANK TURNING ON A & D
+    // A turns camera left, D turns camera right
+    // W moves forward in facing direction, S moves backward
+    // -------------------------------------------------------------
+    const turnSpeed = 0.03 * dt60;
+    if (keys['a'] || keys['arrowleft']) camera.rotation.y += turnSpeed;
+    if (keys['d'] || keys['arrowright']) camera.rotation.y -= turnSpeed;
+
     const camSpeed = 1.2 * dt60;
     const moveVector = new THREE.Vector3(0, 0, 0);
 
     if (keys['w']) moveVector.z -= camSpeed;
     if (keys['s']) moveVector.z += camSpeed;
-    if (keys['a']) moveVector.x -= camSpeed;
-    if (keys['d']) moveVector.x += camSpeed;
-
-    if (keys['arrowleft']) camera.rotation.y += 0.03 * dt60;
-    if (keys['arrowright']) camera.rotation.y -= 0.03 * dt60;
 
     if (moveVector.length() > 0) {
       const nextPos = camera.position.clone().add(moveVector.applyQuaternion(camera.quaternion));
