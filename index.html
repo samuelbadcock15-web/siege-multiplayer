@@ -1207,27 +1207,27 @@ function triggerBranchBuild(parentPanel, gunId) {
   let checkDepth = PANEL_SIZE;
   let rampDir = null;
 
-  // Inverted offset sign (+) so down-ramp attaches flush to the correct outer edge
+  // Flipped rotation by 180 degrees so down-ramps slope correctly away from edge
   if (gunId && gunId.startsWith('down_')) {
     buildType = 'ramp';
     newPos.y = basePos.y - WALL_HEIGHT;
     const dDir = gunId.replace('down_', '');
     if (dDir === 'north') {
       newPos.z += (PANEL_SIZE / 2);
-      newRot.set(0, 0, 0);
-      rampDir = new THREE.Vector3(0, 0, 1);
-    } else if (dDir === 'south') {
-      newPos.z -= (PANEL_SIZE / 2);
       newRot.set(0, Math.PI, 0);
       rampDir = new THREE.Vector3(0, 0, -1);
+    } else if (dDir === 'south') {
+      newPos.z -= (PANEL_SIZE / 2);
+      newRot.set(0, 0, 0);
+      rampDir = new THREE.Vector3(0, 0, 1);
     } else if (dDir === 'east') {
       newPos.x -= (PANEL_SIZE / 2);
-      newRot.set(0, -Math.PI / 2, 0);
-      rampDir = new THREE.Vector3(-1, 0, 0);
-    } else if (dDir === 'west') {
-      newPos.x += (PANEL_SIZE / 2);
       newRot.set(0, Math.PI / 2, 0);
       rampDir = new THREE.Vector3(1, 0, 0);
+    } else if (dDir === 'west') {
+      newPos.x += (PANEL_SIZE / 2);
+      newRot.set(0, -Math.PI / 2, 0);
+      rampDir = new THREE.Vector3(-1, 0, 0);
     }
   } else if (pType === 'wall_x') {
     buildType = 'wall_x';
