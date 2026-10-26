@@ -1236,7 +1236,14 @@ function createCannon(x, z, mainColor, isOpp = false, customId = null, unitNumbe
   wheels.rotation.z = Math.PI / 2;
   wheels.position.y = -0.2;
 
-  cGroup.add(barrelPivot, wheels);
+  // Invisible, enlarged touch hitbox for ultra-reliable phone selection
+  const touchBox = new THREE.Mesh(
+    new THREE.BoxGeometry(4.5, 4.5, 4.5),
+    new THREE.MeshBasicMaterial({ visible: false })
+  );
+  touchBox.userData.isCannonHitbox = true;
+
+  cGroup.add(barrelPivot, wheels, touchBox);
   cGroup.position.set(x, 0.8, z);
   cGroup.rotation.y = (z < 0) ? 0 : Math.PI;
 
@@ -1517,7 +1524,7 @@ function updateMinimap() {
 }
 
 // -------------------------------------------------------------
-// UNIFIED ENGINE: 100% RELIABLE FIRST PANEL PLACEMENT
+// UNIFIED ENGINE: BULLETPROOF SELECTION AND PLACEMENT
 // -------------------------------------------------------------
 function handlePointerDown(clientX, clientY, isSecondary = false) {
   if (!matchStarted || matchOver) return false;
@@ -1583,16 +1590,19 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
     }
   }
 
-  // 2. Check Cannon Click
+  // 2. Check Cannon Click: Search all children & root groups
   let clickedCannon = null;
-  cannons.forEach(can => {
-    if (raycaster.intersectObject(can, true).length > 0) clickedCannon = can;
-  });
+  for (let can of cannons) {
+    if (raycaster.intersectObject(can, true).length > 0) {
+      clickedCannon = can;
+      break;
+    }
+  }
 
   if (clickedCannon) {
-    const wasSelected = clickedCannon.userData.selected;
+    const isAlreadySelected = clickedCannon.userData.selected;
     cannons.forEach(c => c.userData.selected = false);
-    clickedCannon.userData.selected = !wasSelected;
+    clickedCannon.userData.selected = !isAlreadySelected;
     
     setMobileAimMode(false);
     clearShotgunHandles();
@@ -1601,7 +1611,7 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
     return true;
   }
 
-  // 3. Ground / Panels / Bridges (First base panel placed reliably)
+  // 3. Ground / Panels / Bridges (1st Base Panel Placement)
   const walkableHits = raycaster.intersectObjects([ground, ...worldPanels, ...bridges], true);
   if (walkableHits.length > 0) {
     const pt = walkableHits[0].point;
@@ -1615,7 +1625,6 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
       selectPanel(hitObj);
       return true;
     } else if (worldPanels.length === 0) {
-      // First Base Panel placement
       const snapX = Math.round(pt.x / PANEL_SIZE) * PANEL_SIZE;
       const snapZ = Math.round(pt.z / PANEL_SIZE) * PANEL_SIZE;
       if (isWithinMyBuildingTerritory(snapZ, PANEL_SIZE)) {
@@ -1677,7 +1686,6 @@ function handlePointerMove(clientX, clientY) {
       if (pullBackAmt >= 1.0) {
         pumpStage = 'pull_back_primed';
         pumpScreenStart.set(clientX, clientY);
-        // Dual trigger prompt
         pumpText.innerText = "★ READY! RELEASE TO FIRE - OR - SLAM FORWARD! ★";
         pumpText.style.color = "#00ffcc";
         pumpBar.style.background = '#00ffcc';
@@ -1753,9 +1761,6 @@ function handlePointerMove(clientX, clientY) {
   }
 }
 
-// -------------------------------------------------------------
-// DUAL TRIGGER POINTER UP
-// -------------------------------------------------------------
 function handlePointerUp() {
   if (isAimingCannon) {
     const selectedCannon = cannons.find(c => c.userData.selected);
@@ -1788,11 +1793,14 @@ function handlePointerUp() {
   }
 }
 
-let isTouchDeviceActive = false;
-let lastTouchTimestamp = 0;
+// -------------------------------------------------------------
+// STRICT POINTER DISPATCH: PREVENT DOUBLE-CLICK DESELECTION
+// -------------------------------------------------------------
+let lastTouchTime = 0;
 
 window.onmousedown = (e) => {
-  if (isTouchDeviceActive || (Date.now() - lastTouchTimestamp < 400)) return;
+  // If touch was detected recently, ignore simulated mouse events completely
+  if (Date.now() - lastTouchTime < 500) return;
   if (e.target.closest('#ui') || e.target.closest('#lobby-screen') || e.target.closest('#camera-altitude-control') || e.target.closest('#mobile-dpad') || e.target.closest('#mobile-aim-toggle') || e.target.closest('#mobile-deselect-btn') || e.target.closest('#mobile-build-slider') || e.target.closest('#panel-lookpad')) return;
 
   if (e.target === minimapCanvas && e.button === 0) {
@@ -1812,27 +1820,27 @@ window.onmousedown = (e) => {
 };
 
 window.onmousemove = (e) => {
-  if (isTouchDeviceActive) return;
+  if (Date.now() - lastTouchTime < 500) return;
   handlePointerMove(e.clientX, e.clientY);
 };
 
 window.onmouseup = (e) => {
-  if (isTouchDeviceActive) return;
+  if (Date.now() - lastTouchTime < 500) return;
   handlePointerUp();
 };
 
 // -------------------------------------------------------------
-// MOBILE TOUCH SYSTEM: NO DUPLICATE CLICKS, CLEAN CANNON TOGGLE
+// TOUCH EVENT SYSTEM: ONLY TRIGGER ONCE PER TAP
 // -------------------------------------------------------------
 let touchStartPos = { x: 0, y: 0 };
 let touchLastPos = { x: 0, y: 0 };
 let touchTotalDist = 0;
 let isTouchLooking = false;
 let activeTouchId = null;
+let touchHandledOnDown = false;
 
 window.addEventListener('touchstart', (e) => {
-  isTouchDeviceActive = true;
-  lastTouchTimestamp = Date.now();
+  lastTouchTime = Date.now();
   if (e.target.closest('#ui') || e.target.closest('#lobby-screen') || e.target.closest('#camera-altitude-control') || e.target.closest('#mobile-dpad') || e.target.closest('#mobile-aim-toggle') || e.target.closest('#mobile-deselect-btn') || e.target.closest('#mobile-build-slider') || e.target.closest('#panel-lookpad')) return;
 
   const t = e.touches[0];
@@ -1843,10 +1851,19 @@ window.addEventListener('touchstart', (e) => {
   touchLastPos.y = t.clientY;
   touchTotalDist = 0;
   isTouchLooking = false;
+  touchHandledOnDown = false;
 
-  // Intercept shotgun handles or aim preview on touchstart
-  const hitSpecial = handlePointerDown(t.clientX, t.clientY, false);
-  if (!hitSpecial && !mobileAimModeActive) {
+  // Check if finger grabbed a shotgun handle or is aiming artillery
+  mouse.x = (t.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(t.clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+
+  const gunHits = raycaster.intersectObjects(shotgunHandles, true);
+  if (gunHits.length > 0 || mobileAimModeActive) {
+    handlePointerDown(t.clientX, t.clientY, false);
+    touchHandledOnDown = true;
+  } else {
+    // If not on an interactive object, mark as potential camera look drag
     if (!activeBasePanel) {
       isTouchLooking = true;
     }
@@ -1854,6 +1871,7 @@ window.addEventListener('touchstart', (e) => {
 }, { passive: false });
 
 window.addEventListener('touchmove', (e) => {
+  lastTouchTime = Date.now();
   for (let i = 0; i < e.touches.length; i++) {
     const t = e.touches[i];
     if (t.identifier === activeTouchId) {
@@ -1877,10 +1895,10 @@ window.addEventListener('touchmove', (e) => {
 }, { passive: false });
 
 window.addEventListener('touchend', (e) => {
-  lastTouchTimestamp = Date.now();
+  lastTouchTime = Date.now();
 
-  // ONLY execute tap if we didn't already handle a shotgun handle on touchstart!
-  if (touchTotalDist < 12 && !pumpingShotgun && !isAimingCannon) {
+  // If tap was clean (< 15px drift) and wasn't a shotgun grab, trigger selection/build ONCE
+  if (!touchHandledOnDown && touchTotalDist < 15 && !pumpingShotgun && !isAimingCannon) {
     handlePointerDown(touchStartPos.x, touchStartPos.y, false);
   }
 
@@ -1889,6 +1907,7 @@ window.addEventListener('touchend', (e) => {
   }
   isTouchLooking = false;
   activeTouchId = null;
+  touchHandledOnDown = false;
 });
 
 const dpadUp = document.getElementById('dpad-up');
