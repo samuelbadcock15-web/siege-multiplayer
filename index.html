@@ -116,7 +116,7 @@
     box-shadow: 0 0 20px #00ff00; font-weight: 900;
   }
 
-  /* Mobile Aim Mode Switcher */
+  /* Mobile Aim Mode Switcher with Disabled Initial State */
   #mobile-aim-toggle {
     position: absolute; bottom: 45px; right: 90px; width: 85px; height: 85px;
     border-radius: 50%; background: rgba(15, 23, 42, 0.9); border: 3px solid #ff4400;
@@ -628,13 +628,17 @@ const panelGeometries = {
   wall_z: new THREE.BoxGeometry(PANEL_THICKNESS, WALL_HEIGHT, PANEL_SIZE)
 };
 
-// Creates a ramp geometry where (0,0,0) is bottom edge, sloping upward along -Z
+// -------------------------------------------------------------
+// ANCHOR RAMP GEOMETRY: (0,0,0) is connecting bottom edge, sloping up along -Z
+// -------------------------------------------------------------
 function createAlignedRampGeometry(length) {
   const geo = new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, length);
-  // Tilt around local X pitch
+  // Slopes upward in forward (-Z) direction
   geo.rotateX(-RAMP_ANGLE);
   // Shift so bottom origin sits flush with panel connection edge
-  geo.translate(0, (WALL_HEIGHT * (length / RAMP_DIAG)) / 2, -(PANEL_SIZE * (length / RAMP_DIAG)) / 2);
+  const run = PANEL_SIZE * (length / RAMP_DIAG);
+  const rise = WALL_HEIGHT * (length / RAMP_DIAG);
+  geo.translate(0, rise / 2, -run / 2);
   geo.computeBoundingBox();
   geo.computeBoundingSphere();
   return geo;
@@ -836,7 +840,7 @@ function renderPanelHandles(panel) {
     ];
   }
   else if (mode === 3) {
-    // 4 cardinal ramp handles pointing upward
+    // 4 cardinal ramp handles sloping up away from the square
     configs = [
       { id: 'north', dir: new THREE.Vector3(0, Math.sin(RAMP_ANGLE), -Math.cos(RAMP_ANGLE)), offset: new THREE.Vector3(0, 1.2, -half), isExtender: false, isLevelOut: false },
       { id: 'south', dir: new THREE.Vector3(0, Math.sin(RAMP_ANGLE), Math.cos(RAMP_ANGLE)),  offset: new THREE.Vector3(0, 1.2, half), isExtender: false, isLevelOut: false },
@@ -887,9 +891,6 @@ function cyclePanelMode(delta) {
   updatePanelVisualMode(activeBasePanel);
 }
 
-// -------------------------------------------------------------
-// SOLID FOUNDATION & CARDINAL RAMP PLACEMENT
-// -------------------------------------------------------------
 function placePanel(type, position, rotation, isRemote = false, customId = null, forwardDir = null) {
   let matKey = type.startsWith('wall') ? 'wall' : type;
   const mat = panelMaterials[matKey].clone();
@@ -1098,7 +1099,7 @@ function triggerBranchBuild(parentPanel, gunId) {
   else if (gunId === 'spawn_wall_south') {
     buildType = 'wall_x';
     newPos.y += (WALL_HEIGHT / 2);
-    newPos.z += (PANEL_SIZE / 2);
+    newPos.z -= (PANEL_SIZE / 2);
     checkDepth = PANEL_THICKNESS;
   } 
   else if (gunId === 'spawn_wall_east') {
@@ -1122,25 +1123,25 @@ function triggerBranchBuild(parentPanel, gunId) {
     if (gunId === 'up')    newPos.y += WALL_HEIGHT;
   } 
   else if (parentPanel.userData.buildMode === 3) {
-    // RAMP MODE: Position at boundary edge, set yaw rotation to point in travel direction
     buildType = 'ramp';
-    newPos.y = basePos.y; // Bottom edge sits flush on current elevation
+    newPos.y = basePos.y; // Bottom edge sits flush on current floor elevation
 
+    // RAMP ORIENTATION: Anchor at the panel edge, yaw toward travel direction, slope up & away!
     if (gunId === 'north') {
       newPos.z -= (PANEL_SIZE / 2);
-      newRot.set(0, 0, 0); // Yaw 0 (Travel North)
+      newRot.set(0, 0, 0); // Yaw 0 (Slopes North)
       rampDir = new THREE.Vector3(0, 0, -1);
     } else if (gunId === 'south') {
       newPos.z += (PANEL_SIZE / 2);
-      newRot.set(0, Math.PI, 0); // Yaw 180 (Travel South)
+      newRot.set(0, Math.PI, 0); // Yaw 180 (Slopes South)
       rampDir = new THREE.Vector3(0, 0, 1);
     } else if (gunId === 'east') {
       newPos.x += (PANEL_SIZE / 2);
-      newRot.set(0, -Math.PI / 2, 0); // Yaw -90 (Travel East)
+      newRot.set(0, -Math.PI / 2, 0); // Yaw -90 (Slopes East)
       rampDir = new THREE.Vector3(1, 0, 0);
     } else if (gunId === 'west') {
       newPos.x -= (PANEL_SIZE / 2);
-      newRot.set(0, Math.PI / 2, 0); // Yaw 90 (Travel West)
+      newRot.set(0, Math.PI / 2, 0); // Yaw 90 (Slopes West)
       rampDir = new THREE.Vector3(-1, 0, 0);
     } else if (gunId === 'up') {
       buildType = 'floor';
@@ -1527,7 +1528,7 @@ function updateMinimap() {
 }
 
 // -------------------------------------------------------------
-// CORE INTERACTION ENGINE: UNIFIED PC & MOBILE FIRST PANEL
+// CORE INTERACTION ENGINE
 // -------------------------------------------------------------
 function handlePointerDown(clientX, clientY, isSecondary = false) {
   if (!matchStarted || matchOver) return false;
@@ -1611,7 +1612,7 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
     return true;
   }
 
-  // 3. Ground / Panels / Bridges: Guaranteed 1st Base Panel Placement
+  // 3. Ground / Panels / Bridges
   const walkableHits = raycaster.intersectObjects([ground, ...worldPanels, ...bridges], true);
   if (walkableHits.length > 0) {
     const pt = walkableHits[0].point;
@@ -1625,7 +1626,7 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
       selectPanel(hitObj);
       return true;
     } else if (worldPanels.length === 0) {
-      // 100% RELIABLE: First panel places on both mobile touch and PC mouse!
+      // First Base Panel Placement guaranteed on both PC and mobile!
       const snapX = Math.round(pt.x / PANEL_SIZE) * PANEL_SIZE;
       const snapZ = Math.round(pt.z / PANEL_SIZE) * PANEL_SIZE;
       if (isWithinMyBuildingTerritory(snapZ, PANEL_SIZE)) {
@@ -1833,7 +1834,6 @@ window.addEventListener('touchstart', (e) => {
   isTouchLooking = false;
 
   const hitSpecial = handlePointerDown(t.clientX, t.clientY, false);
-  // Only start drag look if it didn't interact with an object or place the first panel
   if (!hitSpecial && !mobileAimModeActive) {
     if (!activeBasePanel) {
       isTouchLooking = true;
