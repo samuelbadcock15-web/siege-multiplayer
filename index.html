@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<!-- Disable native pinch-to-zoom and double-tap zoom on mobile -->
+<!-- Disable mobile pinch-to-zoom and double-tap zoom -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Siege - Clear Horizons Tactical Edition</title>
 <style>
@@ -46,13 +46,13 @@
   .legend-dot { width: 10px; height: 10px; border-radius: 3px; }
 
   #pump-hud {
-    display: none; position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
+    display: none; position: absolute; top: 38%; left: 50%; transform: translate(-50%, -50%);
     pointer-events: none; z-index: 300; text-align: center; font-weight: bold;
     text-shadow: 0 0 12px rgba(0,0,0,0.9);
   }
   #pump-text { font-size: 15px; letter-spacing: 1px; }
   #pump-bar-container {
-    width: 240px; height: 12px; background: rgba(0,0,0,0.8); border: 2px solid #ffd700;
+    width: 250px; height: 12px; background: rgba(0,0,0,0.8); border: 2px solid #ffd700;
     border-radius: 6px; margin: 6px auto 0; overflow: hidden;
   }
   #pump-bar { width: 0%; height: 100%; background: #ffd700; transition: width 0.04s linear; }
@@ -82,26 +82,19 @@
     box-shadow: 0 0 10px #ffd700; border: 2px solid #ffffff;
   }
 
-  /* Mobile Virtual Controls */
+  /* Big Mobile Movement D-Pad */
   #mobile-dpad {
-    position: absolute; bottom: 25px; left: 20px; width: 130px; height: 130px;
+    position: absolute; bottom: 25px; left: 20px; width: 180px; height: 180px;
     z-index: 260; display: none; grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: repeat(3, 1fr); gap: 4px; touch-action: none;
+    grid-template-rows: repeat(3, 1fr); gap: 8px; touch-action: none;
   }
   .dpad-btn {
-    background: rgba(15, 23, 42, 0.75); border: 2px solid #ffd700; border-radius: 8px;
-    color: #ffd700; font-weight: bold; font-size: 18px; display: flex; align-items: center;
+    background: rgba(15, 23, 42, 0.85); border: 2.5px solid #ffd700; border-radius: 12px;
+    color: #ffd700; font-weight: bold; font-size: 26px; display: flex; align-items: center;
     justify-content: center; user-select: none; -webkit-user-select: none;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
   }
-  .dpad-btn:active { background: #ffd700; color: #000; }
-
-  #mobile-lookpad {
-    position: absolute; bottom: 25px; right: 75px; width: 110px; height: 110px;
-    border-radius: 12px; background: rgba(15, 23, 42, 0.6); border: 2px dashed #00ffcc;
-    z-index: 260; display: none; align-items: center; justify-content: center;
-    color: #00ffcc; font-size: 10px; font-weight: bold; text-align: center;
-    touch-action: none;
-  }
+  .dpad-btn:active { background: #ffd700; color: #000; transform: scale(0.95); }
 
   #lobby-screen { 
     position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; 
@@ -184,7 +177,7 @@
   <div class="alt-header" style="color: #aaa;">GND</div>
 </div>
 
-<!-- Mobile Touch Controls -->
+<!-- Mobile Large D-Pad -->
 <div id="mobile-dpad">
   <div></div>
   <div class="dpad-btn" id="dpad-up">▲</div>
@@ -196,8 +189,6 @@
   <div class="dpad-btn" id="dpad-down">▼</div>
   <div></div>
 </div>
-
-<div id="mobile-lookpad">DRAG TO<br>LOOK</div>
 
 <div id="ui">
   <span class="ca">MISSION INTELLIGENCE</span>
@@ -215,8 +206,8 @@
     </div>
   </div>
   <div style="font-size: 9.5px; margin-top: 10px; color: #aaa; border-top: 1px solid #333; padding-top: 6px; line-height: 1.3;">
-    [PC] Q/Z Alt | WASD Move | Arrows Turn | LMB Pick | Hold RMB Fire<br>
-    [Mobile] D-Pad Move | Look Pad Turn | Dbl-Tap Cannon Hold & Fire | Slider Alt<br>
+    [PC] LMB Grass = Build Panel | Q/Z = Altitude | WASD = Move | Arrows = Turn<br>
+    [Mobile] Tap Grass = Build | Big Arrows = Move | Drag Screen = Look | Dbl-Tap = Aim/Fire<br>
     [Shotgun Racking] Pull Back to Cock -> Push Forward to Fire/Build!
   </div>
   <span id="status" class="sys">STATUS: STANDBY</span>
@@ -249,9 +240,7 @@
 <script type="module">
 import * as THREE from 'three';
 
-// -------------------------------------------------------------
-// MOBILE PREVENT DOUBLE TAP ZOOM
-// -------------------------------------------------------------
+// Mobile anti-zoom event overrides
 let lastTouchEnd = 0;
 document.addEventListener('touchend', (e) => {
   const now = Date.now();
@@ -260,7 +249,6 @@ document.addEventListener('touchend', (e) => {
   }
   lastTouchEnd = now;
 }, { passive: false });
-
 document.addEventListener('gesturestart', (e) => e.preventDefault());
 document.addEventListener('dblclick', (e) => e.preventDefault());
 
@@ -907,7 +895,7 @@ function triggerBranchBuild(parentPanel, gunId) {
   else if (gunId === 'spawn_wall_south') {
     buildType = 'wall_x';
     newPos.y += (WALL_HEIGHT / 2);
-    newPos.z += (PANEL_SIZE / 2);
+    newPos.z -= (PANEL_SIZE / 2);
     checkDepth = PANEL_THICKNESS;
   } 
   else if (gunId === 'spawn_wall_east') {
@@ -1043,7 +1031,7 @@ function updateStatusUI() {
     if (selectedNum !== null) {
       statusText.innerText = `ACTIVE COMMAND: CANNON #${selectedNum} [HOLD RMB OR TAP TARGET TO FIRE]`;
     } else {
-      statusText.innerText = "STATUS: STANDBY (CLICK CANNON TO SELECT | RMB/TAP PANEL TO BUILD)";
+      statusText.innerText = "STATUS: STANDBY (CLICK GRASS TO BUILD PANEL | CLICK CANNON TO SELECT)";
     }
   }
 }
@@ -1258,10 +1246,10 @@ function updateMinimap() {
 }
 
 // -------------------------------------------------------------
-// CORE INTERACTION ENGINE: MOUSE & TOUCH COORDINATION
+// CORE INTERACTION ENGINE: BASE PANEL SPAWN, MOUSE & TOUCH
 // -------------------------------------------------------------
 function handlePointerDown(clientX, clientY, isSecondary = false) {
-  if (!matchStarted || matchOver) return;
+  if (!matchStarted || matchOver) return false;
 
   mouse.x = (clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(clientY / window.innerHeight) * 2 + 1;
@@ -1275,18 +1263,19 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
         isAimingCannon = true;
         currentAimTarget.copy(combatHits[0].point);
         updateTrajectoryArc(selectedCannon, currentAimTarget);
+        return true;
       }
-      return;
     }
 
     const panelHits = raycaster.intersectObjects(worldPanels, false);
     if (panelHits.length > 0) {
       selectPanel(panelHits[0].object);
+      return true;
     }
-    return;
+    return false;
   }
 
-  // Check shotgun handles first
+  // 1. Check shotgun handles
   const gunIntersects = raycaster.intersectObjects(shotgunHandles, true);
   if (gunIntersects.length > 0) {
     let hitObj = gunIntersects[0].object;
@@ -1318,11 +1307,11 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
       pumpText.style.color = "#ffd700";
       pumpBar.style.width = '0%';
       pumpBar.style.background = '#ffd700';
-      return;
+      return true;
     }
   }
 
-  // Check Cannon Click
+  // 2. Check Cannon Click
   let clickedCannon = null;
   cannons.forEach(can => {
     if (raycaster.intersectObject(can, true).length > 0) clickedCannon = can;
@@ -1338,29 +1327,34 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
     clearShotgunHandles();
     activeBasePanel = null;
     updateStatusUI();
-    return;
+    return true;
   }
 
-  // Check walkable ground/panel
+  // 3. Ground / Panels / Bridges
   const walkableHits = raycaster.intersectObjects([ground, ...worldPanels, ...bridges], true);
   if (walkableHits.length > 0) {
     const pt = walkableHits[0].point;
     const selected = cannons.find(c => c.userData.selected);
     if (selected) {
+      // Move active cannon
       selected.userData.targetPos.set(pt.x, selected.position.y, pt.z);
       socket.emit('player_move', { roomId: currentRoomId, id: selected.userData.id, tx: pt.x, tz: pt.z });
-    } else if (worldPanels.length === 0) {
+      return true;
+    } else {
+      // No Cannon Selected: First LMB on grass builds snapped starter panel!
       const snapX = Math.round(pt.x / PANEL_SIZE) * PANEL_SIZE;
       const snapZ = Math.round(pt.z / PANEL_SIZE) * PANEL_SIZE;
       if (isWithinMyBuildingTerritory(snapZ, PANEL_SIZE)) {
         const rootPanel = placePanel('floor', new THREE.Vector3(snapX, PANEL_THICKNESS / 2, snapZ), new THREE.Euler(0, 0, 0));
         selectPanel(rootPanel);
+        return true;
+      } else {
+        clearShotgunHandles();
+        activeBasePanel = null;
       }
-    } else {
-      clearShotgunHandles();
-      activeBasePanel = null;
     }
   }
+  return false;
 }
 
 function handlePointerMove(clientX, clientY) {
@@ -1504,9 +1498,11 @@ function handlePointerUp() {
   }
 }
 
-// Mouse Listeners
+// -------------------------------------------------------------
+// PC MOUSE CONTROLS
+// -------------------------------------------------------------
 window.onmousedown = (e) => {
-  if (e.target.closest('#ui') || e.target.closest('#lobby-screen') || e.target.closest('#mode-legend') || e.target.closest('#camera-altitude-control') || e.target.closest('#mobile-dpad') || e.target.closest('#mobile-lookpad')) return;
+  if (e.target.closest('#ui') || e.target.closest('#lobby-screen') || e.target.closest('#mode-legend') || e.target.closest('#camera-altitude-control') || e.target.closest('#mobile-dpad')) return;
 
   if (e.target === minimapCanvas && e.button === 0) {
     const rect = minimapCanvas.getBoundingClientRect();
@@ -1533,26 +1529,41 @@ window.onmouseup = (e) => {
 };
 
 // -------------------------------------------------------------
-// MOBILE TOUCH SUPPORT: DOUBLE-TAP CANNON AIMING & TOUCH DRAG
+// MOBILE TOUCH CONTROLS (SCREEN DRAG LOOK + TAP / AIM)
 // -------------------------------------------------------------
-let lastTapTime = 0;
+let touchStartPos = { x: 0, y: 0 };
+let touchLastPos = { x: 0, y: 0 };
+let touchTotalDist = 0;
+let isTouchLooking = false;
 let activeTouchId = null;
+let lastTapTime = 0;
 
 window.addEventListener('touchstart', (e) => {
-  if (e.target.closest('#ui') || e.target.closest('#lobby-screen') || e.target.closest('#mode-legend') || e.target.closest('#camera-altitude-control') || e.target.closest('#mobile-dpad') || e.target.closest('#mobile-lookpad')) return;
+  if (e.target.closest('#ui') || e.target.closest('#lobby-screen') || e.target.closest('#mode-legend') || e.target.closest('#camera-altitude-control') || e.target.closest('#mobile-dpad')) return;
 
   const t = e.touches[0];
+  activeTouchId = t.identifier;
+  touchStartPos.x = t.clientX;
+  touchStartPos.y = t.clientY;
+  touchLastPos.x = t.clientX;
+  touchLastPos.y = t.clientY;
+  touchTotalDist = 0;
+  isTouchLooking = false;
+
   const now = Date.now();
   const isDoubleTap = (now - lastTapTime < 350);
   lastTapTime = now;
 
-  activeTouchId = t.identifier;
-
   if (isDoubleTap) {
-    // Mobile Double-Tap Acts as Cannon Artillery Arc Aim (Right-Click equivalent)
+    // Cannon artillery preview arc
     handlePointerDown(t.clientX, t.clientY, true);
   } else {
-    handlePointerDown(t.clientX, t.clientY, false);
+    // Check if it grabbed a shotgun handle right away
+    const hitSpecial = handlePointerDown(t.clientX, t.clientY, false);
+    if (!hitSpecial) {
+      // If nothing interactive was hit, prime for whole-screen swipe look
+      isTouchLooking = true;
+    }
   }
 }, { passive: false });
 
@@ -1560,19 +1571,34 @@ window.addEventListener('touchmove', (e) => {
   for (let i = 0; i < e.touches.length; i++) {
     const t = e.touches[i];
     if (t.identifier === activeTouchId) {
-      handlePointerMove(t.clientX, t.clientY);
+      const dx = t.clientX - touchLastPos.x;
+      const dy = t.clientY - touchLastPos.y;
+      touchTotalDist += Math.hypot(dx, dy);
+
+      if (isTouchLooking && !pumpingShotgun && !isAimingCannon) {
+        // Dragging anywhere on screen to look around!
+        camera.rotation.y -= dx * 0.005;
+      } else {
+        handlePointerMove(t.clientX, t.clientY);
+      }
+
+      touchLastPos.x = t.clientX;
+      touchLastPos.y = t.clientY;
       break;
     }
   }
 }, { passive: false });
 
 window.addEventListener('touchend', (e) => {
-  handlePointerUp();
+  if (pumpingShotgun || isAimingCannon) {
+    handlePointerUp();
+  }
+  isTouchLooking = false;
   activeTouchId = null;
 });
 
 // -------------------------------------------------------------
-// MOBILE CONTROLS: D-PAD & LOOK-PAD WIDGETS
+// MOBILE BIG MOVEMENT ARROWS (D-PAD)
 // -------------------------------------------------------------
 const dpadUp = document.getElementById('dpad-up');
 const dpadDown = document.getElementById('dpad-down');
@@ -1580,38 +1606,13 @@ const dpadLeft = document.getElementById('dpad-left');
 const dpadRight = document.getElementById('dpad-right');
 
 function bindDpad(elem, keyName) {
-  elem.addEventListener('touchstart', (e) => { e.preventDefault(); keys[keyName] = true; });
-  elem.addEventListener('touchend', (e) => { e.preventDefault(); keys[keyName] = false; });
+  elem.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); keys[keyName] = true; });
+  elem.addEventListener('touchend', (e) => { e.preventDefault(); e.stopPropagation(); keys[keyName] = false; });
 }
 bindDpad(dpadUp, 'w');
 bindDpad(dpadDown, 's');
 bindDpad(dpadLeft, 'a');
 bindDpad(dpadRight, 'd');
-
-const lookpad = document.getElementById('mobile-lookpad');
-let lookTouchStart = { x: 0, y: 0 };
-let isLooking = false;
-
-lookpad.addEventListener('touchstart', (e) => {
-  e.preventDefault();
-  isLooking = true;
-  lookTouchStart.x = e.touches[0].clientX;
-  lookTouchStart.y = e.touches[0].clientY;
-}, { passive: false });
-
-lookpad.addEventListener('touchmove', (e) => {
-  e.preventDefault();
-  if (!isLooking) return;
-  const currentX = e.touches[0].clientX;
-  const deltaX = currentX - lookTouchStart.x;
-  camera.rotation.y -= deltaX * 0.005;
-  lookTouchStart.x = currentX;
-}, { passive: false });
-
-lookpad.addEventListener('touchend', (e) => {
-  e.preventDefault();
-  isLooking = false;
-});
 
 // -------------------------------------------------------------
 // KEYBOARD CONTROLS (Q / Z ALTITUDE + WASD MOVE + ARROWS ROTATE)
@@ -1670,15 +1671,9 @@ function animate() {
   });
 
   if (matchStarted && !matchOver) {
-    // -------------------------------------------------------------
-    // KEYBOARD ALTITUDE VIA Q & Z
-    // -------------------------------------------------------------
-    if (keys['q']) {
-      setAltitude(targetCameraAltitude + 1.2 * dt60);
-    }
-    if (keys['z']) {
-      setAltitude(targetCameraAltitude - 1.2 * dt60);
-    }
+    // Keyboard altitude via Q and Z
+    if (keys['q']) setAltitude(targetCameraAltitude + 1.2 * dt60);
+    if (keys['z']) setAltitude(targetCameraAltitude - 1.2 * dt60);
 
     camera.position.y += (targetCameraAltitude - camera.position.y) * 0.15 * dt60;
 
@@ -1989,11 +1984,9 @@ socket.on('start_match_countdown', (data) => {
       altitudeControlBox.style.display = 'flex';
       document.getElementById('role-display').innerText = roleString;
 
-      // Enable mobile HUD controls
       const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
       if (isTouch) {
         document.getElementById('mobile-dpad').style.display = 'grid';
-        document.getElementById('mobile-lookpad').style.display = 'flex';
       }
 
       if (myPlayerIndex === 2) {
