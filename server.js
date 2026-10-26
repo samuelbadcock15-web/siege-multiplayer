@@ -170,7 +170,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Validated Building
     socket.on('place_panel', (data) => {
         const room = rooms[data.roomId];
         const player = room?.players[socket.id];
@@ -204,7 +203,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Authoritative Combat Movement & Unit Damage
     socket.on('player_move', (data) => {
         socket.to(data.roomId).emit('opponent_move', data);
     });
