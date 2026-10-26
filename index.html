@@ -37,6 +37,31 @@
   }
   #pump-bar { width: 0%; height: 100%; background: #00ff00; transition: width 0.04s linear; }
 
+  #camera-altitude-control {
+    position: absolute; right: 25px; top: 240px; bottom: 80px; width: 60px;
+    background: rgba(10, 14, 25, 0.92); border: 2px solid #ffd700; border-radius: 10px;
+    display: none; flex-direction: column; align-items: center; justify-content: space-between;
+    padding: 15px 5px; box-sizing: border-box; z-index: 250; box-shadow: 0 0 25px rgba(0,0,0,0.7);
+    color: #ffd700;
+  }
+  .alt-header { font-size: 10px; font-weight: bold; text-align: center; letter-spacing: 1px; line-height: 1.2; }
+  .alt-value-display { font-size: 11px; font-weight: bold; color: #00ffcc; margin: 5px 0; }
+  .alt-slider-wrapper { flex: 1; display: flex; align-items: center; justify-content: center; width: 100%; margin: 10px 0; }
+  #altitude-slider {
+    -webkit-appearance: none; appearance: none; width: 260px; height: 8px;
+    background: #1e293b; border-radius: 4px; outline: none; transform: rotate(-90deg);
+    cursor: pointer; border: 1px solid #444;
+  }
+  #altitude-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 22px; height: 22px;
+    border-radius: 50%; background: #ffd700; cursor: pointer; box-shadow: 0 0 10px #ffd700;
+    border: 2px solid #ffffff;
+  }
+  #altitude-slider::-moz-range-thumb {
+    width: 22px; height: 22px; border-radius: 50%; background: #ffd700; cursor: pointer;
+    box-shadow: 0 0 10px #ffd700; border: 2px solid #ffffff;
+  }
+
   #lobby-screen { 
     position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; 
     background: radial-gradient(circle at center, #1b2033 0%, #0a0c13 100%); 
@@ -102,7 +127,7 @@
 <div id="lobby-screen">
     <div class="lobby-header">
         <h1>SIEGE: CLEAR HORIZONS</h1>
-        <p>Continuous Pump-Action Fortifications | Ready up to deploy!</p>
+        <p>Tactical Ballistics & Modular Fortifications | Ready up to deploy!</p>
     </div>
     <div id="lobbies-grid"></div>
 </div>
@@ -114,6 +139,15 @@
 </div>
 
 <div id="minimap-container"><canvas id="minimap"></canvas></div>
+
+<div id="camera-altitude-control">
+  <div class="alt-header">ALT<br>SKY</div>
+  <div class="alt-slider-wrapper">
+    <input type="range" id="altitude-slider" min="5" max="220" value="5" step="1">
+  </div>
+  <div class="alt-value-display" id="alt-val-text">Y: 5</div>
+  <div class="alt-header" style="color: #aaa;">GND</div>
+</div>
 
 <div id="ui">
   <span class="ca">MISSION INTELLIGENCE</span>
@@ -131,10 +165,10 @@
     </div>
   </div>
   <div style="font-size: 10px; margin-top: 15px; color: #aaa; border-top: 1px solid #333; padding-top: 8px; line-height: 1.4;">
-    [Scroll Wheel] Camera Height (Back = Skyward | Forward = Ground)<br>
-    [R Key] Cycle Build Mode (Floor / Wall / Ramp)<br>
-    [HOLD LMB on Shotgun] Pull back to Cock -> Push forward to Fire! (Repeat without letting go!)<br>
-    [Hold RMB Cannon] Preview Arc Trajectory -> Release to Fire!
+    [LMB Cannon] Select / Deselect | [LMB Ground/Panel] March<br>
+    [Hold RMB Cannon] Preview Arc Trajectory -> Release to Fire!<br>
+    [RMB on Panel with NO Cannon] Select Panel to Build / Extend<br>
+    Anti-Clipping Bounding Active: Cannons cannot penetrate structures!
   </div>
   <span id="status" class="sys">STATUS: STANDBY</span>
 </div>
@@ -194,6 +228,16 @@ const minimapCanvas = document.getElementById('minimap');
 const ctx = minimapCanvas.getContext('2d');
 minimapCanvas.width = 200;
 minimapCanvas.height = 200;
+
+// Altitude Slider
+const altitudeSlider = document.getElementById('altitude-slider');
+const altValText = document.getElementById('alt-val-text');
+const altitudeControlBox = document.getElementById('camera-altitude-control');
+
+altitudeSlider.oninput = (e) => {
+    targetCameraAltitude = parseFloat(e.target.value);
+    altValText.innerText = `Y: ${Math.round(targetCameraAltitude)}`;
+};
 
 // Lighting
 const light = new THREE.DirectionalLight(0xffffff, 1.5);
@@ -320,16 +364,12 @@ const panelMaterials = {
 
 const worldPanels = [];
 const shotgunHandles = [];
-
-// Chain-Building Anchor References
-let activeBasePanel = null;     // The root panel where handles originate
-let frontierPanel = null;       // The leading edge panel where new pieces branch off
-let fixedHandleAnchor = null;   // The stationary world coordinate of the handles
-
-// Reciprocating Pump Engine
+let activeBasePanel = null;
 let pumpingShotgun = null;
 let pumpStartMouse = { x: 0, y: 0 };
-let isCocked = false;
+let currentAction = 'none';
+let currentProgress = 0.0;
+let isActionFullyCharged = false;
 
 const pumpHud = document.getElementById('pump-hud');
 const pumpBar = document.getElementById('pump-bar');
@@ -339,8 +379,6 @@ function clearShotgunHandles() {
     shotgunHandles.forEach(h => scene.remove(h));
     shotgunHandles.length = 0;
     pumpingShotgun = null;
-    fixedHandleAnchor = null;
-    isCocked = false;
     pumpHud.style.display = 'none';
 }
 
@@ -409,24 +447,13 @@ function createShotgunHandle(dirVector, modeColor, id, isExtender = false, isLev
     return gunGroup;
 }
 
-// Render Shotguns: NEVER MOVES FROM THE FIXED ORIGIN UNLESS USER CLICKS A NEW PANEL
-function renderPanelHandles(panel, retainAnchor = false) {
-    if (!panel) {
-        clearShotgunHandles();
-        return;
-    }
-
-    if (!retainAnchor || !fixedHandleAnchor) {
-        fixedHandleAnchor = panel.position.clone();
-    }
-
-    // Remove old handles
-    shotgunHandles.forEach(h => scene.remove(h));
-    shotgunHandles.length = 0;
+function renderPanelHandles(panel) {
+    clearShotgunHandles();
+    if (!panel) return;
 
     const pType = panel.userData.panelType;
     const mode = panel.userData.buildMode || 1;
-    const pos = fixedHandleAnchor.clone(); // Stays strictly stationary
+    const pos = panel.position.clone();
     const half = PANEL_SIZE / 2;
     const color = mode === 1 ? 0x22c55e : (mode === 2 ? 0x0ea5e9 : 0xf97316);
 
@@ -448,35 +475,37 @@ function renderPanelHandles(panel, retainAnchor = false) {
         const inclineSlope = new THREE.Vector3(dirX * Math.cos(RAMP_ANGLE), Math.sin(RAMP_ANGLE), dirZ * Math.cos(RAMP_ANGLE)).normalize();
         const rampNormal = new THREE.Vector3(0, 1, 0).applyEuler(panel.rotation);
 
-        // Fixed Foot of the Ramp (Never jumps)
         const footPos = new THREE.Vector3(
-            pos.x - dirX * (totalRun / 2),
-            pos.y - (totalRise / 2),
-            pos.z - dirZ * (totalRun / 2)
+            panel.position.x - dirX * (totalRun / 2),
+            panel.position.y - (totalRise / 2),
+            panel.position.z - dirZ * (totalRun / 2)
         );
 
         const extenderPos = footPos.clone()
             .addScaledVector(inclineSlope, 2.2)
             .addScaledVector(rampNormal, 1.4);
         
+        const extenderOffset = extenderPos.clone().sub(pos);
+
         configs.push({
             id: 'ramp_extend',
             dir: inclineSlope,
-            offset: extenderPos.clone().sub(pos),
+            offset: extenderOffset,
             isExtender: true,
             isLevelOut: false
         });
 
-        // The only shotgun that moves is the summit level-out!
         const summitPos = new THREE.Vector3(
             footPos.x + dirX * totalRun,
             footPos.y + totalRise,
             footPos.z + dirZ * totalRun
         );
+        const summitOffset = summitPos.clone().add(new THREE.Vector3(0, 0.6, 0)).sub(pos);
+
         configs.push({
             id: 'ramp_level_flat',
             dir: horizontalDir,
-            offset: summitPos.clone().add(new THREE.Vector3(0, 0.6, 0)).sub(pos),
+            offset: summitOffset,
             isExtender: false,
             isLevelOut: true
         });
@@ -547,15 +576,11 @@ function updatePanelVisualMode(panel) {
         else if (mode === 2) panel.material.color.setHex(0x1e2e4a);
         else if (mode === 3) panel.material.color.setHex(0x4a2a12);
     }
-    renderPanelHandles(panel, true);
+    renderPanelHandles(panel);
 }
 
-function selectPanel(panel, resetOrigin = true) {
+function selectPanel(panel) {
     activeBasePanel = panel;
-    frontierPanel = panel;
-    if (resetOrigin) {
-        fixedHandleAnchor = panel.position.clone();
-    }
     if (!panel.userData.buildMode) panel.userData.buildMode = 1;
     updatePanelVisualMode(panel);
 }
@@ -665,7 +690,7 @@ function extendRampDirectly(rampMesh, isRemote = false) {
         });
     }
 
-    renderPanelHandles(rampMesh, true);
+    renderPanelHandles(rampMesh);
 }
 
 function undoDemolishPanel(panel, isRemote = false) {
@@ -698,16 +723,17 @@ function undoDemolishPanel(panel, isRemote = false) {
                 id: panel.userData.id
             });
         }
-        renderPanelHandles(panel, true);
+        renderPanelHandles(panel);
     } else {
         const idToRemove = panel.userData.id;
         scene.remove(panel);
         const idx = worldPanels.indexOf(panel);
         if (idx !== -1) worldPanels.splice(idx, 1);
 
-        clearShotgunHandles();
-        activeBasePanel = null;
-        frontierPanel = null;
+        if (activeBasePanel === panel) {
+            clearShotgunHandles();
+            activeBasePanel = null;
+        }
 
         if (!isRemote) {
             socket.emit('remove_panel', {
@@ -743,7 +769,6 @@ socket.on('opponent_build', (data) => {
     );
 });
 
-// CONTINUOUS EXTENSION: Places piece at the FRONTIER, but keeps the handles fixed at the ANCHOR!
 function triggerBranchBuild(parentPanel, gunId) {
     if (gunId === 'ramp_extend' && parentPanel.userData.panelType === 'ramp') {
         extendRampDirectly(parentPanel);
@@ -775,14 +800,13 @@ function triggerBranchBuild(parentPanel, gunId) {
         }
 
         const levelFloor = placePanel('floor', flatPos, new THREE.Euler(0, 0, 0));
-        frontierPanel = levelFloor;
+        activeBasePanel = levelFloor;
+        selectPanel(levelFloor);
         return;
     }
 
-    // Branch from the leading frontier panel
-    const source = frontierPanel || parentPanel;
-    const pType = source.userData.panelType;
-    const basePos = source.position.clone();
+    const pType = parentPanel.userData.panelType;
+    const basePos = parentPanel.position.clone();
     let newPos = basePos.clone();
     let newRot = new THREE.Euler(0, 0, 0);
     let buildType = 'floor';
@@ -853,8 +877,9 @@ function triggerBranchBuild(parentPanel, gunId) {
         return;
     }
 
-    // Spawn panel, update frontier tip, and KEEP HANDLES ANCHORED AT FIXED SPOT!
-    frontierPanel = placePanel(buildType, newPos, newRot);
+    const spawned = placePanel(buildType, newPos, newRot);
+    activeBasePanel = spawned;
+    selectPanel(spawned);
 }
 
 // Units & Cannon System
@@ -865,6 +890,7 @@ const keys = {};
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
+// Trajectory Preview Arc System
 const TRAJECTORY_POINTS = 40;
 const trajPositions = new Float32Array(TRAJECTORY_POINTS * 3);
 const trajGeo = new THREE.BufferGeometry();
@@ -887,6 +913,7 @@ function createCannon(x, z, mainColor, isOpp = false, customId = null, unitNumbe
     const barrelPivot = new THREE.Group();
     barrelPivot.position.y = 0.5;
 
+    // Cannon Barrel
     const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.5, 2.5), new THREE.MeshStandardMaterial({ color: 0x1a1a1a }));
     barrel.geometry.translate(0, 1.25, 0);
     barrel.rotation.x = Math.PI / 2;
@@ -1164,7 +1191,7 @@ function updateMinimap() {
 // Mouse Controls
 window.onmousedown = (e) => {
     if (!matchStarted || matchOver) return;
-    if (e.target.closest('#ui') || e.target.closest('#lobby-screen') || e.target.closest('#mode-legend')) return;
+    if (e.target.closest('#ui') || e.target.closest('#lobby-screen') || e.target.closest('#mode-legend') || e.target.closest('#camera-altitude-control')) return;
 
     if (e.target === minimapCanvas && e.button === 0) {
         const rect = minimapCanvas.getBoundingClientRect();
@@ -1182,7 +1209,6 @@ window.onmousedown = (e) => {
     if (e.button === 0) {
         raycaster.setFromCamera(mouse, camera);
 
-        // 1. Grab Shotgun Handle -> Begin Continuous Pump Session
         const gunIntersects = raycaster.intersectObjects(shotgunHandles, true);
         if (gunIntersects.length > 0) {
             let hitObj = gunIntersects[0].object;
@@ -1190,10 +1216,12 @@ window.onmousedown = (e) => {
             if (hitObj.userData.isShotgunHandle && activeBasePanel) {
                 pumpingShotgun = hitObj;
                 pumpStartMouse = { x: e.clientX, y: e.clientY };
-                isCocked = false;
+                currentAction = 'none';
+                currentProgress = 0.0;
+                isActionFullyCharged = false;
 
                 pumpHud.style.display = 'block';
-                pumpText.innerText = "PULL BACK TO COCK...";
+                pumpText.innerText = "PULL BACK TO CHARGE SPRING...";
                 pumpText.style.color = "#ffd700";
                 pumpBar.style.width = '0%';
                 pumpBar.style.background = '#ffd700';
@@ -1201,7 +1229,6 @@ window.onmousedown = (e) => {
             }
         }
 
-        // 2. Cannon Select / Deselect
         let clickedCannon = null;
         cannons.forEach(can => {
             if (raycaster.intersectObject(can, true).length > 0) clickedCannon = can;
@@ -1216,12 +1243,10 @@ window.onmousedown = (e) => {
             }
             clearShotgunHandles();
             activeBasePanel = null;
-            frontierPanel = null;
             updateStatusUI();
             return;
         }
 
-        // 3. March Units across Ground, Ramps & Walkways
         const walkableHits = raycaster.intersectObjects([ground, ...worldPanels, ...bridges], true);
         if (walkableHits.length > 0) {
             const pt = walkableHits[0].point;
@@ -1234,12 +1259,11 @@ window.onmousedown = (e) => {
                 const snapZ = Math.round(pt.z / PANEL_SIZE) * PANEL_SIZE;
                 if (isWithinMyBuildingTerritory(snapZ, PANEL_SIZE)) {
                     const rootPanel = placePanel('floor', new THREE.Vector3(snapX, PANEL_THICKNESS / 2, snapZ), new THREE.Euler(0, 0, 0));
-                    selectPanel(rootPanel, true);
+                    selectPanel(rootPanel);
                 }
             } else {
                 clearShotgunHandles();
                 activeBasePanel = null;
-                frontierPanel = null;
             }
         }
     }
@@ -1262,12 +1286,11 @@ window.onmousedown = (e) => {
 
         const panelHits = raycaster.intersectObjects(worldPanels, false);
         if (panelHits.length > 0) {
-            selectPanel(panelHits[0].object, true);
+            selectPanel(panelHits[0].object);
         }
     }
 };
 
-// Continuous Reciprocating Pump Engine: NEVER RELEASING LMB!
 window.onmousemove = (e) => {
     mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
@@ -1304,58 +1327,53 @@ window.onmousemove = (e) => {
             const shellGroup = pumpingShotgun.userData.shellGroup;
             const initialY = pumpingShotgun.userData.initialPumpY;
 
-            // 1. PULL BACK: COCK THE SPRING & LOAD SHELL
-            if (dragAlongAxis < -35 && !isCocked) {
-                isCocked = true;
-                pumpSlide.position.y = initialY - 1.1;
-                shellGroup.scale.set(1.0, 1.0, 1.0);
-                shellGroup.position.set(0, 0.6, 0.1);
-                pumpBar.style.width = '100%';
-                pumpBar.style.background = '#00ff00';
-                pumpText.innerText = "★ COCKED! PUSH FORWARD TO FIRE! ★";
-                pumpText.style.color = "#00ff00";
-            }
-            // 2. WHILE STILL HOLDING LMB, PUSH FORWARD -> FIRE!
-            else if (isCocked && dragAlongAxis > 10) {
-                pumpingShotgun.userData.recoilTimer = 1.0;
-                pumpingShotgun.userData.flash.material.opacity = 1.0;
-                const firedGunId = pumpingShotgun.userData.arrowId;
+            if (dragAlongAxis < 0) {
+                currentAction = 'fire';
+                const pullBackDistance = -dragAlongAxis;
+                currentProgress = Math.min(1.0, pullBackDistance / 60);
 
-                // Fire panel out at the frontier tip!
-                triggerBranchBuild(activeBasePanel, firedGunId);
+                pumpSlide.position.y = initialY - (currentProgress * 1.1);
 
-                // Instantly reset the cycle without releasing mouse so player can pump again!
-                isCocked = false;
-                pumpSlide.position.y = initialY;
+                const shellScale = Math.min(1.0, currentProgress * 1.5);
+                shellGroup.scale.set(shellScale, shellScale, shellScale);
+                shellGroup.position.set(0, 0.4 + (currentProgress * 0.2), -0.1 + (currentProgress * 0.2));
+
+                pumpBar.style.width = `${currentProgress * 100}%`;
+
+                if (currentProgress >= 1.0) {
+                    isActionFullyCharged = true;
+                    pumpText.innerText = pumpingShotgun.userData.isRampExtender 
+                        ? "★ FULLY COCKED! RELEASE TO EXTEND RAMP! ★"
+                        : "★ SPRING CHARGED! RELEASE TO FIRE! ★";
+                    pumpText.style.color = "#00ff00";
+                    pumpBar.style.background = '#00ff00';
+                } else {
+                    isActionFullyCharged = false;
+                    pumpText.innerText = "PULL BACK FURTHER TO LOCK SPRING...";
+                    pumpText.style.color = "#ffd700";
+                    pumpBar.style.background = '#ffd700';
+                }
+            } 
+            else if (dragAlongAxis > 0) {
+                currentAction = 'undo';
+                const pushForwardDistance = dragAlongAxis;
+                currentProgress = Math.min(1.0, pushForwardDistance / 60);
+
+                pumpSlide.position.y = initialY + (currentProgress * 0.8);
                 shellGroup.scale.set(0.001, 0.001, 0.001);
-                pumpStartMouse = { x: e.clientX, y: e.clientY }; // Anchor mouse position for next stroke
-                pumpBar.style.width = '0%';
-                pumpBar.style.background = '#ffd700';
-                pumpText.innerText = "BAM! PULL BACK TO PUMP AGAIN...";
-                pumpText.style.color = "#ffd700";
-            }
-            // 3. UNDO / DEMOLISH: DIRECT FORWARD PUSH FROM NEUTRAL WITHOUT COCKING
-            else if (!isCocked && dragAlongAxis > 50) {
-                pumpingShotgun.userData.recoilTimer = 1.0;
-                pumpingShotgun.userData.flash.material.opacity = 1.0;
-                undoDemolishPanel(activeBasePanel);
+                pumpBar.style.width = `${currentProgress * 100}%`;
 
-                pumpSlide.position.y = initialY;
-                shellGroup.scale.set(0.001, 0.001, 0.001);
-                pumpingShotgun.position.copy(pumpingShotgun.userData.originalLocalPos);
-                pumpingShotgun = null;
-                isCocked = false;
-                pumpHud.style.display = 'none';
-            }
-            // Visual drag feedback
-            else if (!isCocked) {
-                const pullBackDist = Math.max(0, -dragAlongAxis);
-                const prog = Math.min(1.0, pullBackDist / 35);
-                pumpSlide.position.y = initialY - (prog * 1.1);
-                const s = Math.min(1.0, prog * 1.5);
-                shellGroup.scale.set(s, s, s);
-                pumpBar.style.width = `${prog * 100}%`;
-                pumpBar.style.background = '#ffd700';
+                if (currentProgress >= 1.0) {
+                    isActionFullyCharged = true;
+                    pumpText.innerText = "⚠ UNDO CHARGED! RELEASE TO DEMOLISH! ⚠";
+                    pumpText.style.color = "#ff3300";
+                    pumpBar.style.background = '#ff0033';
+                } else {
+                    isActionFullyCharged = false;
+                    pumpText.innerText = "PUSH FORWARD TO CHARGE UNDO / DEMOLISH...";
+                    pumpText.style.color = "#ff8800";
+                    pumpBar.style.background = '#ff8800';
+                }
             }
         }
     }
@@ -1372,36 +1390,45 @@ window.onmouseup = (e) => {
         return;
     }
 
-    // Letting go of LMB concludes the pumping stream
-    if (e.button === 0 && pumpingShotgun) {
+    if (e.button === 0 && pumpingShotgun && activeBasePanel) {
+        const firedGunId = pumpingShotgun.userData.arrowId;
+
+        if (currentAction === 'fire' && isActionFullyCharged) {
+            pumpingShotgun.userData.recoilTimer = 1.0;
+            pumpingShotgun.userData.flash.material.opacity = 1.0;
+            triggerBranchBuild(activeBasePanel, firedGunId);
+        } else if (currentAction === 'undo' && isActionFullyCharged) {
+            pumpingShotgun.userData.recoilTimer = 1.0;
+            pumpingShotgun.userData.flash.material.opacity = 1.0;
+            undoDemolishPanel(activeBasePanel);
+        }
+
         pumpingShotgun.userData.pumpSlide.position.y = pumpingShotgun.userData.initialPumpY;
         pumpingShotgun.userData.shellGroup.scale.set(0.001, 0.001, 0.001);
         pumpingShotgun.position.copy(pumpingShotgun.userData.originalLocalPos);
         pumpingShotgun = null;
-        isCocked = false;
+        currentAction = 'none';
+        currentProgress = 0.0;
+        isActionFullyCharged = false;
         pumpHud.style.display = 'none';
     }
 };
 
-// SCROLL WHEEL ALTITUDE: PULL BACK FOR SKYWARD, PUSH FORWARD FOR GROUND
 window.onwheel = (e) => {
-    e.preventDefault();
-    targetCameraAltitude = Math.min(Math.max(targetCameraAltitude + (e.deltaY * 0.12), 5), 220);
+    if (activeBasePanel) {
+        cyclePanelMode(e.deltaY);
+        return;
+    }
+    camera.fov = Math.min(Math.max(camera.fov + e.deltaY * 0.05, 15), 100);
+    camera.updateProjectionMatrix();
 };
 
 window.onkeydown = (e) => { 
     keys[e.key.toLowerCase()] = true;
-    
-    // Cycle Modular Mode using R key
-    if (e.key.toLowerCase() === 'r') {
-        cyclePanelMode(1);
-    }
-    
     if (e.key === 'Escape') {
         deselectAllCannons();
         clearShotgunHandles();
         activeBasePanel = null;
-        frontierPanel = null;
     }
 };
 window.onkeyup = (e) => { keys[e.key.toLowerCase()] = false; };
@@ -1461,7 +1488,9 @@ function animate() {
             }
         });
 
-        // Anti-Wall Penetration Constraints
+        // -------------------------------------------------------------
+        // CANNON PATHING & ANTI-WALL NOSE PENETRATION (NO CHEATING)
+        // -------------------------------------------------------------
         const allWallObstacles = [...worldPanels.filter(p => p.userData.panelType.startsWith('wall')), ...gameWalls];
 
         function checkSphereWallCollision(sphereCenter, radius) {
@@ -1566,7 +1595,7 @@ function animate() {
             }
         });
 
-        // Projectile Ballistics & Bounce
+        // Projectile Combat
         for (let i = activeProjectiles.length - 1; i >= 0; i--) {
             const p = activeProjectiles[i];
             const prevPos = p.mesh.position.clone();
@@ -1735,14 +1764,19 @@ socket.on('start_match_countdown', (data) => {
             document.getElementById('ui').style.display = 'block';
             document.getElementById('minimap-container').style.display = 'block';
             document.getElementById('mode-legend').style.display = 'flex';
+            altitudeControlBox.style.display = 'flex';
             document.getElementById('role-display').innerText = roleString;
 
             if (myPlayerIndex === 2) {
                 targetCameraAltitude = 5.0;
+                altitudeSlider.value = 5;
+                altValText.innerText = "Y: 5";
                 camera.position.set(0, 5, -135);
                 camera.rotation.y = Math.PI;
             } else {
                 targetCameraAltitude = 5.0;
+                altitudeSlider.value = 5;
+                altValText.innerText = "Y: 5";
                 camera.position.set(0, 5, 135);
                 camera.rotation.y = 0;
             }
