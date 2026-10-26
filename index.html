@@ -2254,12 +2254,14 @@ function animate() {
           const surfaceY = hit.point.y + 0.8;
           const deltaY = surfaceY - can.position.y;
 
-          // Check if trying to drive up a ramp from the wrong side (steep drop/cliff/backside)
           if (hitObj.userData && hitObj.userData.panelType === 'ramp') {
             const rampBox = new THREE.Box3().setFromObject(hitObj);
-            // If the cannon is trying to enter outside the horizontal boundaries of the ramp or climbing a steep edge too high at once:
             if (nextX < rampBox.min.x - 0.5 || nextX > rampBox.max.x + 0.5 || nextZ < rampBox.min.z - 0.5 || nextZ > rampBox.max.z + 0.5) {
-              continue; // Prevent driving off the sides or ghosting through the back/wrong side!
+              continue;
+            }
+            // Block walking into the high/back underside of the ramp from ground level
+            if (hit.point.y > can.position.y + 1.5) {
+              break;
             }
           }
 
@@ -2507,7 +2509,7 @@ socket.on('start_match_countdown', (data) => {
 
 socket.on('update_counts', (data) => {
   const statsEl = document.getElementById('server-stats');
-  if (statsEl) statsEl.innerText = `Online: ${data.totalOnline} |Arena Match`;
+  if (statsEl) statsEl.innerText = `Online: ${data.totalOnline} | Arena Match`;
 });
 
 socket.on('opponent_disconnected', () => {
