@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<!-- Disable mobile pinch-to-zoom and double-tap browser zoom -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Siege - Clear Horizons Tactical Edition</title>
 <style>
@@ -47,6 +48,7 @@
   }
   #pump-bar { width: 0%; height: 100%; background: #ffd700; transition: width 0.04s linear; }
 
+  /* Tactical Vertical Altitude Gauge */
   #camera-altitude-control {
     position: absolute; right: 14px; top: 140px; bottom: 120px; width: 62px;
     background: rgba(10, 15, 26, 0.94); border: 2px solid #ffd700; border-radius: 31px;
@@ -73,6 +75,7 @@
     cursor: grab; pointer-events: none;
   }
 
+  /* Ergonomic Centered Mobile D-Pad (Bigger & Shifted Right-Inward) */
   #mobile-dpad {
     position: absolute; bottom: 35px; left: 90px; width: 230px; height: 230px;
     z-index: 260; display: none; grid-template-columns: repeat(3, 1fr);
@@ -86,6 +89,7 @@
   }
   .dpad-btn:active { background: #ffd700; color: #000; transform: scale(0.92); }
 
+  /* Dedicated Big Look Pad: Bottom-Right Center Position */
   #panel-lookpad {
     position: absolute; bottom: 35px; right: 175px; width: 135px; height: 135px;
     border-radius: 24px; background: rgba(15, 23, 42, 0.9); border: 2.5px dashed #00ffcc;
@@ -98,6 +102,7 @@
     background: rgba(0, 255, 204, 0.2); border-style: solid;
   }
 
+  /* Mobile Cannon Deselect Button (Scaled Up) */
   #mobile-deselect-btn {
     position: absolute; bottom: 155px; right: 55px; width: 95px; height: 58px;
     border-radius: 29px; background: rgba(15, 23, 42, 0.88); border: 2.5px solid #555e75;
@@ -111,6 +116,7 @@
     box-shadow: 0 0 22px #00ff00; font-weight: 900;
   }
 
+  /* Mobile Fire / Aim Button (Scaled Up) */
   #mobile-aim-toggle {
     position: absolute; bottom: 45px; right: 55px; width: 95px; height: 95px;
     border-radius: 50%; background: rgba(15, 23, 42, 0.92); border: 3.5px solid #ff4400;
@@ -128,6 +134,7 @@
     box-shadow: 0 0 30px #ff4400; opacity: 1.0;
   }
 
+  /* Mobile Vertical Build Mode Cluster (Scaled Up & Enlarged) */
   #mobile-build-slider {
     position: absolute; bottom: 225px; right: 55px; width: 105px; height: 240px;
     background: rgba(10, 15, 26, 0.95); border: 2.5px solid #ffd700; border-radius: 22px;
@@ -298,6 +305,7 @@
   </div>
   <div style="font-size: 9.5px; margin-top: 10px; color: #aaa; border-top: 1px solid #333; padding-top: 6px; line-height: 1.3;">
     [PC & Mobile] Step 1: Click/Tap Grass to Lay Permanent Base Square!<br>
+    [Altitude] Press **E** to rise up, **C** to go down.<br>
     [Shotgun Racking] Pull Back & Release - OR - Pull Back & Slam Forward to Fire/Build!<br>
     [Movement] Cannons drive under ceilings and bridges without teleporting!
   </div>
@@ -679,7 +687,7 @@ function spawnShotgunBlast(muzzlePos, forwardDir, isDemolish = false) {
   }
 }
 
-// Falling Ejected Shotgun Shells (Real-time Unloading Physics & Fadeout)
+// Falling Ejected Shotgun Shells (Unloading / Demolishing)
 const ejectedShells = [];
 
 function spawnEjectedShell(ejectPos, gunDir) {
@@ -1020,7 +1028,8 @@ function extendRampDirectly(rampMesh, isRemote = false) {
   if (!isRemote) {
     socket.emit('extend_ramp', {
       roomId: currentRoomId,
-      id: rampMesh.userData.id
+      id: rampMesh.userData.id,
+      rampSegments: segs
     });
   }
 
@@ -1047,9 +1056,10 @@ function undoDemolishPanel(panel, isRemote = false) {
     panel.geometry = createAlignedRampGeometry(newLength);
 
     if (!isRemote) {
-      socket.emit('extend_ramp', {
+      socket.emit('shorten_ramp', {
         roomId: currentRoomId,
-        id: panel.userData.id
+        id: panel.userData.id,
+        rampSegments: segs
       });
     }
     renderPanelHandles(panel);
@@ -1079,12 +1089,39 @@ function undoDemolishPanel(panel, isRemote = false) {
 
 socket.on('opponent_remove_panel', (data) => {
   const p = worldPanels.find(x => x.userData.id === data.id);
-  if (p) undoDemolishPanel(p, true);
+  if (p) {
+    scene.remove(p);
+    const idx = worldPanels.indexOf(p);
+    if (idx !== -1) worldPanels.splice(idx, 1);
+    if (activeBasePanel === p) {
+      clearShotgunHandles();
+      activeBasePanel = null;
+    }
+  }
 });
 
 socket.on('opponent_extend_ramp', (data) => {
   const r = worldPanels.find(p => p.userData.id === data.id);
-  if (r) extendRampDirectly(r, true);
+  if (r) {
+    r.userData.rampSegments = data.rampSegments;
+    const newLength = RAMP_DIAG * data.rampSegments;
+    r.userData.rampLength = newLength;
+    r.geometry.dispose();
+    r.geometry = createAlignedRampGeometry(newLength);
+    renderPanelHandles(r);
+  }
+});
+
+socket.on('opponent_shorten_ramp', (data) => {
+  const r = worldPanels.find(p => p.userData.id === data.id);
+  if (r) {
+    r.userData.rampSegments = data.rampSegments;
+    const newLength = RAMP_DIAG * data.rampSegments;
+    r.userData.rampLength = newLength;
+    r.geometry.dispose();
+    r.geometry = createAlignedRampGeometry(newLength);
+    renderPanelHandles(r);
+  }
 });
 
 socket.on('opponent_build', (data) => {
@@ -1871,7 +1908,6 @@ function handlePointerUp() {
       const muzzlePos = pumpingShotgun.position.clone().add(pumpingShotgun.userData.dirVector.clone().multiplyScalar(3.2));
       spawnShotgunBlast(muzzlePos, pumpingShotgun.userData.dirVector, true);
 
-      // Spawn falling ejected shell on release/demolish trigger
       const ejectPos = pumpingShotgun.position.clone().add(new THREE.Vector3(0, 0.5, 0));
       spawnEjectedShell(ejectPos, pumpingShotgun.userData.dirVector);
 
