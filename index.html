@@ -606,12 +606,13 @@ const PANEL_THICKNESS = 1.0;
 const RAMP_DIAG = Math.hypot(PANEL_SIZE, WALL_HEIGHT);
 const RAMP_ANGLE = Math.atan2(WALL_HEIGHT, PANEL_SIZE);
 
+// TERRITORY RULES: Strict base protection, but allow flush meeting at Z=0 (centerline)
 function isWithinMyBuildingTerritory(targetZ, panelDepth = PANEL_SIZE) {
   const halfDepth = panelDepth / 2;
   if (myPlayerIndex === 1) {
-    return (targetZ - halfDepth) >= 5.0;
+    return (targetZ - halfDepth) >= 0.0; // South player builds up to centerline Z = 0
   } else {
-    return (targetZ + halfDepth) <= -5.0;
+    return (targetZ + halfDepth) <= 0.0; // North player builds down to centerline Z = 0
   }
 }
 
@@ -1009,7 +1010,7 @@ function extendRampDirectly(rampMesh, isRemote = false) {
     const segs = rampMesh.userData.rampSegments || 1;
     const testZ = rampMesh.position.z + forward.z * (PANEL_SIZE * segs);
     if (!isWithinMyBuildingTerritory(testZ, PANEL_SIZE)) {
-      statusText.innerText = "CANNOT EXTEND RAMP INTO ENEMY TERRITORY!";
+      statusText.innerText = "CANNOT EXTEND RAMP ACROSS THE CENTERLINE!";
       statusText.style.color = "#ff4444";
       setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2500);
       return;
@@ -1151,7 +1152,7 @@ function triggerBranchBuild(parentPanel, gunId) {
     flatPos.y = parentPanel.position.y + totalRise;
 
     if (!isWithinMyBuildingTerritory(flatPos.z, PANEL_SIZE)) {
-      statusText.innerText = "CANNOT BUILD INTO ENEMY TERRITORY!";
+      statusText.innerText = "CANNOT BUILD ACROSS THE CENTERLINE!";
       statusText.style.color = "#ff4444";
       setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2500);
       return;
@@ -1246,7 +1247,7 @@ function triggerBranchBuild(parentPanel, gunId) {
   }
 
   if (!isWithinMyBuildingTerritory(newPos.z, checkDepth)) {
-    statusText.innerText = "CANNOT BUILD INTO ENEMY TERRITORY!";
+    statusText.innerText = "CANNOT BUILD ACROSS THE CENTERLINE!";
     statusText.style.color = "#ff4444";
     setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2500);
     return;
@@ -1751,7 +1752,7 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
     return true;
   }
 
-  // 3. Ground / Panels / Bridges
+  // 3. Ground / Panels / Bridges (Cannons can now freely cross over to enemy side if air bridges connect)
   const walkableHits = raycaster.intersectObjects([ground, ...worldPanels, ...bridges], true);
   if (walkableHits.length > 0) {
     const pt = walkableHits[0].point;
