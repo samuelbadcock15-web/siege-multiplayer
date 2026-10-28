@@ -519,7 +519,6 @@ const ground = new THREE.Mesh(new THREE.PlaneGeometry(boardSize, boardSize), new
 ground.rotation.x = -Math.PI / 2;
 scene.add(ground);
 
-// River width set to 24: perfectly spans 2 panels (12 each side of the center line)
 const riverWidth = 24;
 const river = new THREE.Mesh(new THREE.PlaneGeometry(boardSize, riverWidth), new THREE.MeshStandardMaterial({ color: 0x0077be, transparent: true, opacity: 0.8 }));
 river.rotation.x = -Math.PI / 2;
@@ -607,7 +606,6 @@ const PANEL_THICKNESS = 1.0;
 const RAMP_DIAG = Math.hypot(PANEL_SIZE, WALL_HEIGHT);
 const RAMP_ANGLE = Math.atan2(WALL_HEIGHT, PANEL_SIZE);
 
-// Allows builds all the way up to Z = 0 so flat panels connect flush
 function isWithinMyBuildingTerritory(targetZ, panelDepth = PANEL_SIZE) {
   const halfDepth = panelDepth / 2;
   if (myPlayerIndex === 1) {
@@ -904,13 +902,26 @@ function renderPanelHandles(panel) {
     ];
   }
   else if (mode === 3) {
+    const isElevated = panel.position.y > (PANEL_THICKNESS + 0.5);
+
+    // Upward ramp shotguns (Angle Upwards away from tile)
     configs = [
-      { id: 'north', dir: new THREE.Vector3(0, Math.sin(RAMP_ANGLE), -Math.cos(RAMP_ANGLE)), offset: new THREE.Vector3(0, 1.2, -half), isExtender: false, isLevelOut: false },
-      { id: 'south', dir: new THREE.Vector3(0, Math.sin(RAMP_ANGLE), Math.cos(RAMP_ANGLE)),  offset: new THREE.Vector3(0, 1.2, half), isExtender: false, isLevelOut: false },
-      { id: 'east',  dir: new THREE.Vector3(Math.cos(RAMP_ANGLE), Math.sin(RAMP_ANGLE), 0),  offset: new THREE.Vector3(half, 1.2, 0), isExtender: false, isLevelOut: false },
-      { id: 'west',  dir: new THREE.Vector3(-Math.cos(RAMP_ANGLE), Math.sin(RAMP_ANGLE), 0), offset: new THREE.Vector3(-half, 1.2, 0), isExtender: false, isLevelOut: false },
-      { id: 'up',    dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 2.4, 0), isExtender: false, isLevelOut: false }
+      { id: 'ramp_up_north', dir: new THREE.Vector3(0, Math.sin(RAMP_ANGLE), -Math.cos(RAMP_ANGLE)), offset: new THREE.Vector3(0, 1.2, -half), isExtender: false, isLevelOut: false },
+      { id: 'ramp_up_south', dir: new THREE.Vector3(0, Math.sin(RAMP_ANGLE), Math.cos(RAMP_ANGLE)),  offset: new THREE.Vector3(0, 1.2, half), isExtender: false, isLevelOut: false },
+      { id: 'ramp_up_east',  dir: new THREE.Vector3(Math.cos(RAMP_ANGLE), Math.sin(RAMP_ANGLE), 0),  offset: new THREE.Vector3(half, 1.2, 0), isExtender: false, isLevelOut: false },
+      { id: 'ramp_up_west',  dir: new THREE.Vector3(-Math.cos(RAMP_ANGLE), Math.sin(RAMP_ANGLE), 0), offset: new THREE.Vector3(-half, 1.2, 0), isExtender: false, isLevelOut: false },
+      { id: 'up',            dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 2.4, 0), isExtender: false, isLevelOut: false }
     ];
+
+    // Downward ramp shotguns (Angle Downwards away from tile) - crossing into an "X" with the up guns!
+    if (isElevated) {
+      configs.push(
+        { id: 'ramp_down_north', dir: new THREE.Vector3(0, -Math.sin(RAMP_ANGLE), -Math.cos(RAMP_ANGLE)), offset: new THREE.Vector3(0, 0.2, -half), isExtender: false, isLevelOut: false },
+        { id: 'ramp_down_south', dir: new THREE.Vector3(0, -Math.sin(RAMP_ANGLE), Math.cos(RAMP_ANGLE)),  offset: new THREE.Vector3(0, 0.2, half), isExtender: false, isLevelOut: false },
+        { id: 'ramp_down_east',  dir: new THREE.Vector3(Math.cos(RAMP_ANGLE), -Math.sin(RAMP_ANGLE), 0),  offset: new THREE.Vector3(half, 0.2, 0), isExtender: false, isLevelOut: false },
+        { id: 'ramp_down_west',  dir: new THREE.Vector3(-Math.cos(RAMP_ANGLE), -Math.sin(RAMP_ANGLE), 0), offset: new THREE.Vector3(-half, 0.2, 0), isExtender: false, isLevelOut: false }
+      );
+    }
   }
 
   configs.forEach(cfg => {
@@ -1015,7 +1026,6 @@ function extendRampDirectly(rampMesh, isRemote = false) {
 
   if (!isRemote) {
     const nextSegs = (rampMesh.userData.rampSegments || 1) + 1;
-    // Check where the summit tip will land against the center line
     const tipZ = rampMesh.position.z + forward.z * (PANEL_SIZE * nextSegs);
     if (myPlayerIndex === 1 && tipZ < -0.001) {
       statusText.innerText = "RAMP REACHED THE CENTER BORDER LINE!";
@@ -1251,35 +1261,78 @@ function triggerBranchBuild(parentPanel, gunId) {
   } 
   else if (parentPanel.userData.buildMode === 3) {
     buildType = 'ramp';
-    newPos.y = basePos.y;
 
-    if (gunId === 'north') {
+    // RAMP UP BUILD LOGIC
+    if (gunId === 'ramp_up_north') {
+      newPos.y = basePos.y;
       newPos.z -= (PANEL_SIZE / 2);
       newRot.set(0, 0, 0);
       rampDir = new THREE.Vector3(0, 0, -1);
-    } else if (gunId === 'south') {
+    } else if (gunId === 'ramp_up_south') {
+      newPos.y = basePos.y;
       newPos.z += (PANEL_SIZE / 2);
       newRot.set(0, Math.PI, 0);
       rampDir = new THREE.Vector3(0, 0, 1);
-    } else if (gunId === 'east') {
+    } else if (gunId === 'ramp_up_east') {
+      newPos.y = basePos.y;
       newPos.x += (PANEL_SIZE / 2);
       newRot.set(0, -Math.PI / 2, 0);
       rampDir = new THREE.Vector3(1, 0, 0);
-    } else if (gunId === 'west') {
+    } else if (gunId === 'ramp_up_west') {
+      newPos.y = basePos.y;
       newPos.x -= (PANEL_SIZE / 2);
       newRot.set(0, Math.PI / 2, 0);
       rampDir = new THREE.Vector3(-1, 0, 0);
+    } 
+    // RAMP DOWN BUILD LOGIC (Places lower anchor 1 level down, facing backwards up to this edge)
+    else if (gunId === 'ramp_down_north') {
+      newPos.y = basePos.y - WALL_HEIGHT;
+      newPos.z -= (PANEL_SIZE * 1.5);
+      newRot.set(0, Math.PI, 0);
+      rampDir = new THREE.Vector3(0, 0, 1);
+    } else if (gunId === 'ramp_down_south') {
+      newPos.y = basePos.y - WALL_HEIGHT;
+      newPos.z += (PANEL_SIZE * 1.5);
+      newRot.set(0, 0, 0);
+      rampDir = new THREE.Vector3(0, 0, -1);
+    } else if (gunId === 'ramp_down_east') {
+      newPos.y = basePos.y - WALL_HEIGHT;
+      newPos.x += (PANEL_SIZE * 1.5);
+      newRot.set(0, Math.PI / 2, 0);
+      rampDir = new THREE.Vector3(-1, 0, 0);
+    } else if (gunId === 'ramp_down_west') {
+      newPos.y = basePos.y - WALL_HEIGHT;
+      newPos.x -= (PANEL_SIZE * 1.5);
+      newRot.set(0, -Math.PI / 2, 0);
+      rampDir = new THREE.Vector3(1, 0, 0);
     } else if (gunId === 'up') {
       buildType = 'floor';
       newPos.y = basePos.y + WALL_HEIGHT;
     }
   }
 
+  // Verify both the origin position and the ramp tip don't cross into enemy territory
   if (!isWithinMyBuildingTerritory(newPos.z, checkDepth)) {
     statusText.innerText = "CANNOT BUILD INTO ENEMY TERRITORY!";
     statusText.style.color = "#ff4444";
     setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2500);
     return;
+  }
+
+  if (buildType === 'ramp' && rampDir) {
+    const tipZ = newPos.z + rampDir.z * PANEL_SIZE;
+    if (myPlayerIndex === 1 && tipZ < -0.001) {
+      statusText.innerText = "RAMP TIP CROSSES ENEMY TERRITORY!";
+      statusText.style.color = "#ff4444";
+      setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2500);
+      return;
+    }
+    if (myPlayerIndex === 2 && tipZ > 0.001) {
+      statusText.innerText = "RAMP TIP CROSSES ENEMY TERRITORY!";
+      statusText.style.color = "#ff4444";
+      setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2500);
+      return;
+    }
   }
 
   const spawned = placePanel(buildType, newPos, newRot, false, null, rampDir);
