@@ -872,7 +872,10 @@ function renderPanelHandles(panel) {
       { id: 'wall_up', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, halfH + 1.4, 0), isExtender: false, isLevelOut: false },
       { id: 'wall_down', dir: new THREE.Vector3(0, -1, 0), offset: new THREE.Vector3(0, -halfH - 1.4, 0), isExtender: false, isLevelOut: false },
       { id: 'wall_left', dir: new THREE.Vector3(-1, 0, 0), offset: new THREE.Vector3(-half - 1.4, 0, 0), isExtender: false, isLevelOut: false },
-      { id: 'wall_right', dir: new THREE.Vector3(1, 0, 0), offset: new THREE.Vector3(half + 1.4, 0, 0), isExtender: false, isLevelOut: false }
+      { id: 'wall_right', dir: new THREE.Vector3(1, 0, 0), offset: new THREE.Vector3(half + 1.4, 0, 0), isExtender: false, isLevelOut: false },
+      // 2 horizontal shotguns at top rim to spawn flat ceiling/walkway panels North & South
+      { id: 'wall_top_floor_north', dir: new THREE.Vector3(0, 0, -1), offset: new THREE.Vector3(0, halfH + 0.6, -1.2), isExtender: false, isLevelOut: true },
+      { id: 'wall_top_floor_south', dir: new THREE.Vector3(0, 0, 1),  offset: new THREE.Vector3(0, halfH + 0.6, 1.2),  isExtender: false, isLevelOut: true }
     ];
   }
   else if (pType === 'wall_z') {
@@ -881,7 +884,10 @@ function renderPanelHandles(panel) {
       { id: 'wall_up', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, halfH + 1.4, 0), isExtender: false, isLevelOut: false },
       { id: 'wall_down', dir: new THREE.Vector3(0, -1, 0), offset: new THREE.Vector3(0, -halfH - 1.4, 0), isExtender: false, isLevelOut: false },
       { id: 'wall_left', dir: new THREE.Vector3(0, 0, -1), offset: new THREE.Vector3(0, 0, -half - 1.4), isExtender: false, isLevelOut: false },
-      { id: 'wall_right', dir: new THREE.Vector3(0, 0, 1), offset: new THREE.Vector3(0, 0, half + 1.4), isExtender: false, isLevelOut: false }
+      { id: 'wall_right', dir: new THREE.Vector3(0, 0, 1), offset: new THREE.Vector3(0, 0, half + 1.4), isExtender: false, isLevelOut: false },
+      // 2 horizontal shotguns at top rim to spawn flat ceiling/walkway panels East & West
+      { id: 'wall_top_floor_east', dir: new THREE.Vector3(1, 0, 0),  offset: new THREE.Vector3(1.2, halfH + 0.6, 0),  isExtender: false, isLevelOut: true },
+      { id: 'wall_top_floor_west', dir: new THREE.Vector3(-1, 0, 0), offset: new THREE.Vector3(-1.2, halfH + 0.6, 0), isExtender: false, isLevelOut: true }
     ];
   }
   else if (mode === 1) {
@@ -904,7 +910,7 @@ function renderPanelHandles(panel) {
   else if (mode === 3) {
     const isElevated = panel.position.y > (PANEL_THICKNESS + 0.5);
 
-    // Upward ramp shotguns (Angle Upwards away from tile)
+    // Upward ramp shotguns
     configs = [
       { id: 'ramp_up_north', dir: new THREE.Vector3(0, Math.sin(RAMP_ANGLE), -Math.cos(RAMP_ANGLE)), offset: new THREE.Vector3(0, 1.2, -half), isExtender: false, isLevelOut: false },
       { id: 'ramp_up_south', dir: new THREE.Vector3(0, Math.sin(RAMP_ANGLE), Math.cos(RAMP_ANGLE)),  offset: new THREE.Vector3(0, 1.2, half), isExtender: false, isLevelOut: false },
@@ -913,7 +919,7 @@ function renderPanelHandles(panel) {
       { id: 'up',            dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 2.4, 0), isExtender: false, isLevelOut: false }
     ];
 
-    // Downward ramp shotguns (Angle Downwards away from tile) - crossing into an "X" with the up guns!
+    // Downward ramp shotguns (cross in an X with the up guns)
     if (isElevated) {
       configs.push(
         { id: 'ramp_down_north', dir: new THREE.Vector3(0, -Math.sin(RAMP_ANGLE), -Math.cos(RAMP_ANGLE)), offset: new THREE.Vector3(0, 0.2, -half), isExtender: false, isLevelOut: false },
@@ -1212,20 +1218,34 @@ function triggerBranchBuild(parentPanel, gunId) {
   let rampDir = null;
 
   if (pType === 'wall_x') {
-    buildType = 'wall_x';
-    checkDepth = PANEL_THICKNESS;
-    if (gunId === 'wall_up')    newPos.y += WALL_HEIGHT;
-    if (gunId === 'wall_down')  newPos.y -= WALL_HEIGHT;
-    if (gunId === 'wall_left')  newPos.x -= PANEL_SIZE;
-    if (gunId === 'wall_right') newPos.x += PANEL_SIZE;
+    if (gunId === 'wall_top_floor_north' || gunId === 'wall_top_floor_south') {
+      buildType = 'floor';
+      checkDepth = PANEL_SIZE;
+      newPos.y = basePos.y + (WALL_HEIGHT / 2);
+      newPos.z = gunId === 'wall_top_floor_north' ? basePos.z - (PANEL_SIZE / 2) : basePos.z + (PANEL_SIZE / 2);
+    } else {
+      buildType = 'wall_x';
+      checkDepth = PANEL_THICKNESS;
+      if (gunId === 'wall_up')    newPos.y += WALL_HEIGHT;
+      if (gunId === 'wall_down')  newPos.y -= WALL_HEIGHT;
+      if (gunId === 'wall_left')  newPos.x -= PANEL_SIZE;
+      if (gunId === 'wall_right') newPos.x += PANEL_SIZE;
+    }
   } 
   else if (pType === 'wall_z') {
-    buildType = 'wall_z';
-    checkDepth = PANEL_SIZE;
-    if (gunId === 'wall_up')    newPos.y += WALL_HEIGHT;
-    if (gunId === 'wall_down')  newPos.y -= WALL_HEIGHT;
-    if (gunId === 'wall_left')  newPos.z -= PANEL_SIZE;
-    if (gunId === 'wall_right') newPos.z += PANEL_SIZE;
+    if (gunId === 'wall_top_floor_east' || gunId === 'wall_top_floor_west') {
+      buildType = 'floor';
+      checkDepth = PANEL_SIZE;
+      newPos.y = basePos.y + (WALL_HEIGHT / 2);
+      newPos.x = gunId === 'wall_top_floor_east' ? basePos.x + (PANEL_SIZE / 2) : basePos.x - (PANEL_SIZE / 2);
+    } else {
+      buildType = 'wall_z';
+      checkDepth = PANEL_SIZE;
+      if (gunId === 'wall_up')    newPos.y += WALL_HEIGHT;
+      if (gunId === 'wall_down')  newPos.y -= WALL_HEIGHT;
+      if (gunId === 'wall_left')  newPos.z -= PANEL_SIZE;
+      if (gunId === 'wall_right') newPos.z += PANEL_SIZE;
+    }
   }
   else if (gunId === 'spawn_wall_north') {
     buildType = 'wall_x';
@@ -1262,7 +1282,6 @@ function triggerBranchBuild(parentPanel, gunId) {
   else if (parentPanel.userData.buildMode === 3) {
     buildType = 'ramp';
 
-    // RAMP UP BUILD LOGIC
     if (gunId === 'ramp_up_north') {
       newPos.y = basePos.y;
       newPos.z -= (PANEL_SIZE / 2);
@@ -1284,7 +1303,6 @@ function triggerBranchBuild(parentPanel, gunId) {
       newRot.set(0, Math.PI / 2, 0);
       rampDir = new THREE.Vector3(-1, 0, 0);
     } 
-    // RAMP DOWN BUILD LOGIC (Places lower anchor 1 level down, facing backwards up to this edge)
     else if (gunId === 'ramp_down_north') {
       newPos.y = basePos.y - WALL_HEIGHT;
       newPos.z -= (PANEL_SIZE * 1.5);
@@ -1311,7 +1329,6 @@ function triggerBranchBuild(parentPanel, gunId) {
     }
   }
 
-  // Verify both the origin position and the ramp tip don't cross into enemy territory
   if (!isWithinMyBuildingTerritory(newPos.z, checkDepth)) {
     statusText.innerText = "CANNOT BUILD INTO ENEMY TERRITORY!";
     statusText.style.color = "#ff4444";
@@ -1722,7 +1739,6 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
     if (groundHits.length > 0) {
       const pt = groundHits[0].point;
 
-      // Half-grid offset snapping so panel edges line up precisely with Z = 0
       const snapX = Math.round(pt.x / PANEL_SIZE) * PANEL_SIZE;
       const snapZ = myPlayerIndex === 1
         ? (Math.floor(pt.z / PANEL_SIZE) * PANEL_SIZE + (PANEL_SIZE / 2))
