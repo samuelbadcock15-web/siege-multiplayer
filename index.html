@@ -1,5083 +1,2565 @@
 <!DOCTYPE html>
-
 <html lang="en">
-
 <head>
-
 <meta charset="UTF-8">
-
 <!-- Disable mobile pinch-to-zoom and double-tap browser zoom -->
-
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-
 <title>Siege - Clear Horizons Tactical Edition</title>
-
 <style>
-
   * { touch-action: manipulation; box-sizing: border-box; }
-
   body { 
-
     margin: 0; 
-
     overflow: hidden; 
-
     background: #87CEEB; 
-
     font-family: 'Courier New', Courier, monospace; 
-
     cursor: crosshair; 
-
     user-select: none; 
-
     -webkit-user-select: none; 
-
     -webkit-touch-callout: none;
-
     touch-action: none; 
-
   }
-
   #ui { 
-
     position: absolute; top: 15px; left: 15px; color: white; background: rgba(15, 15, 20, 0.95); 
-
     padding: 14px; border-radius: 8px; border: 2px solid #ffd700; width: min(440px, 90vw); 
-
     z-index: 101; box-shadow: 0 0 30px rgba(0,0,0,0.7); display: none; pointer-events: auto;
-
   }
-
   #minimap-container { 
-
     position: absolute; top: 15px; right: 90px; width: 120px; height: 120px; 
-
     background: rgba(0, 0, 0, 0.7); border: 2px solid #ffcc00; border-radius: 4px; 
-
     z-index: 100; overflow: hidden; display: none; 
-
   }
-
   #minimap { width: 100%; height: 100%; cursor: crosshair; }
-
   .ca { color: #ffd700; font-weight: bold; letter-spacing: 2px; }
-
   .sys { color: #00ff00; font-size: 11px; margin-top: 8px; display: block; text-align: center; border-top: 1px dashed #444; padding-top: 6px; }
-
   hr { border: 0; border-top: 1px solid #ffd700; margin: 8px 0; }
-
   .info-grid { display: flex; gap: 10px; text-align: left; margin-top: 4px; }
-
   .info-column { flex: 1; font-size: 11px; }
-
   .info-column h3 { margin: 0 0 3px 0; color: #ffd700; font-size: 12px; }
 
-
-
   #pump-hud {
-
     display: none; position: absolute; top: 35%; left: 50%; transform: translate(-50%, -50%);
-
     pointer-events: none; z-index: 300; text-align: center; font-weight: bold;
-
     text-shadow: 0 0 12px rgba(0,0,0,0.9);
-
   }
-
   #pump-text { font-size: 15px; letter-spacing: 1px; }
-
   #pump-bar-container {
-
     width: 250px; height: 12px; background: rgba(0,0,0,0.8); border: 2px solid #ffd700;
-
     border-radius: 6px; margin: 6px auto 0; overflow: hidden;
-
   }
-
   #pump-bar { width: 0%; height: 100%; background: #ffd700; transition: width 0.04s linear; }
 
-
-
   /* Tactical Vertical Altitude Gauge */
-
   #camera-altitude-control {
-
     position: absolute; right: 14px; top: 140px; bottom: 120px; width: 62px;
-
     background: rgba(10, 15, 26, 0.94); border: 2px solid #ffd700; border-radius: 31px;
-
     display: none; flex-direction: column; align-items: center; justify-content: space-between;
-
     padding: 14px 6px; z-index: 250; box-shadow: 0 0 25px rgba(0,0,0,0.7);
-
     color: #ffd700; touch-action: none; user-select: none; -webkit-user-select: none;
-
   }
-
   .alt-header { font-size: 9px; font-weight: 900; text-align: center; letter-spacing: 1.5px; pointer-events: none; }
-
   .alt-value-display { font-size: 12px; font-weight: bold; color: #00ffcc; margin: 6px 0; text-shadow: 0 0 8px #00ffcc; pointer-events: none; }
-
   
-
   #alt-track {
-
     position: relative; flex: 1; width: 16px; background: #1e293b;
-
     border-radius: 8px; border: 1px solid rgba(255,215,0,0.3);
-
     margin: 10px 0; cursor: pointer; display: flex; justify-content: center;
-
   }
-
   #alt-fill {
-
     position: absolute; bottom: 0; width: 100%; background: linear-gradient(to top, #00ffcc, #ffd700);
-
     border-radius: 8px; height: 0%; pointer-events: none;
-
   }
-
   #alt-thumb {
-
     position: absolute; width: 44px; height: 44px; background: #ffd700;
-
     border-radius: 50%; border: 3.5px solid #ffffff; box-shadow: 0 0 15px #ffd700;
-
     bottom: 0%; transform: translate(-50%, 50%); left: 50%;
-
     cursor: grab; pointer-events: none;
-
   }
 
-
-
-  /* Ergonomic Centered Mobile D-Pad (Bigger & Shifted Right-Inward) */
-
+  /* Ergonomic Centered Mobile D-Pad */
   #mobile-dpad {
-
     position: absolute; bottom: 35px; left: 90px; width: 230px; height: 230px;
-
     z-index: 260; display: none; grid-template-columns: repeat(3, 1fr);
-
     grid-template-rows: repeat(3, 1fr); gap: 12px; touch-action: none;
-
   }
-
   .dpad-btn {
-
     background: rgba(15, 23, 42, 0.9); border: 2.8px solid #ffd700; border-radius: 20px;
-
     color: #ffd700; font-weight: 900; font-size: 40px; display: flex; align-items: center;
-
     justify-content: center; user-select: none; -webkit-user-select: none;
-
     box-shadow: 0 6px 20px rgba(0,0,0,0.65);
-
   }
-
   .dpad-btn:active { background: #ffd700; color: #000; transform: scale(0.92); }
 
-
-
-  /* Dedicated Big Look Pad: Bottom-Right Center Position */
-
+  /* Dedicated Big Look Pad */
   #panel-lookpad {
-
     position: absolute; bottom: 35px; right: 175px; width: 135px; height: 135px;
-
     border-radius: 24px; background: rgba(15, 23, 42, 0.9); border: 2.5px dashed #00ffcc;
-
     z-index: 270; display: none; flex-direction: column; align-items: center; justify-content: center;
-
     color: #00ffcc; font-size: 13px; font-weight: 900; letter-spacing: 1.5px;
-
     touch-action: none; user-select: none; -webkit-user-select: none;
-
     box-shadow: 0 0 25px rgba(0, 255, 204, 0.4); text-align: center;
-
   }
-
   #panel-lookpad:active {
-
     background: rgba(0, 255, 204, 0.2); border-style: solid;
-
   }
 
-
-
-  /* Mobile Cannon Deselect Button (Scaled Up) */
-
+  /* Mobile Cannon Deselect Button */
   #mobile-deselect-btn {
-
     position: absolute; bottom: 155px; right: 55px; width: 95px; height: 58px;
-
     border-radius: 29px; background: rgba(15, 23, 42, 0.88); border: 2.5px solid #555e75;
-
     color: #64748b; font-weight: bold; font-size: 12px; display: none;
-
     align-items: center; justify-content: center; z-index: 260;
-
     touch-action: none; cursor: pointer; user-select: none; -webkit-user-select: none;
-
     letter-spacing: 1px; transition: all 0.2s ease;
-
   }
-
   #mobile-deselect-btn.active {
-
     background: #00ff00; color: #000; border-color: #ffffff;
-
     box-shadow: 0 0 22px #00ff00; font-weight: 900;
-
   }
 
-
-
-  /* Mobile Fire / Aim Button (Scaled Up) */
-
+  /* Mobile Fire / Aim Button */
   #mobile-aim-toggle {
-
     position: absolute; bottom: 45px; right: 55px; width: 95px; height: 95px;
-
     border-radius: 50%; background: rgba(15, 23, 42, 0.92); border: 3.5px solid #ff4400;
-
     color: #ff4400; font-weight: bold; font-size: 14px; display: none;
-
     flex-direction: column; align-items: center; justify-content: center;
-
     z-index: 260; box-shadow: 0 0 25px rgba(255, 68, 0, 0.45); text-align: center;
-
     line-height: 1.1; touch-action: none; cursor: pointer; user-select: none;
-
     -webkit-user-select: none; transition: all 0.2s ease;
-
   }
-
   #mobile-aim-toggle.disabled {
-
     border-color: #475569; color: #475569; opacity: 0.35; box-shadow: none; cursor: not-allowed;
-
   }
-
   #mobile-aim-toggle.active {
-
     background: #ff4400; color: #fff; border-color: #ffd700;
-
     box-shadow: 0 0 30px #ff4400; opacity: 1.0;
-
   }
 
-
-
-  /* Mobile Vertical Build Mode Cluster (Scaled Up & Enlarged) */
-
+  /* Mobile Vertical Build Mode Cluster */
   #mobile-build-slider {
-
     position: absolute; bottom: 225px; right: 55px; width: 105px; height: 240px;
-
     background: rgba(10, 15, 26, 0.95); border: 2.5px solid #ffd700; border-radius: 22px;
-
     display: none; flex-direction: column; align-items: center; justify-content: space-between;
-
     padding: 10px 8px; z-index: 260; box-shadow: 0 0 30px rgba(0,0,0,0.75);
-
     touch-action: none; user-select: none; -webkit-user-select: none;
-
   }
-
   #panel-deselect-btn {
-
     width: 100%; padding: 8px 0; background: #ff3344; color: #ffffff;
-
     border: 1.5px solid #ffffff; border-radius: 10px; font-size: 10px; font-weight: 900;
-
     letter-spacing: 1px; cursor: pointer; text-align: center; margin-bottom: 5px;
-
     box-shadow: 0 0 12px rgba(255, 51, 68, 0.45);
-
   }
-
   #panel-deselect-btn:active {
-
     background: #ffffff; color: #000;
-
   }
-
   .build-slider-title {
-
     font-size: 9px; font-weight: 900; color: #ffd700; letter-spacing: 1px; text-align: center;
-
     pointer-events: none; margin-bottom: 4px;
-
   }
-
   #build-track {
-
     position: relative; flex: 1; width: 100%; display: flex; flex-direction: column;
-
     justify-content: space-between; cursor: pointer; gap: 4px;
-
   }
-
   .build-segment {
-
     flex: 1; display: flex; align-items: center; justify-content: center; font-size: 11px;
-
     font-weight: 900; border-radius: 10px; color: #ffffff;
-
     transition: all 0.15s ease; opacity: 0.45; letter-spacing: 1px;
-
   }
-
   .build-segment.active {
-
     opacity: 1.0; transform: scale(1.04); box-shadow: 0 0 14px currentColor;
-
     border: 2px solid #ffffff;
-
   }
-
   #seg-floor { background: #22c55e; }
-
   #seg-wall { background: #0ea5e9; }
-
   #seg-ramp { background: #f97316; }
 
-
-
   #lobby-screen { 
-
     position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; 
-
     background: radial-gradient(circle at center, #1b2033 0%, #0a0c13 100%); 
-
     z-index: 500; display: flex; flex-direction: column; align-items: center; 
-
     justify-content: flex-start; padding: 15px; box-sizing: border-box; overflow-y: auto; color: #fff; 
-
   }
-
   .lobby-header { text-align: center; margin-top: 5px; margin-bottom: 15px; }
-
   .lobby-header h1 { font-size: clamp(22px, 4vw, 36px); margin: 0; letter-spacing: 2px; color: #ffd700; }
-
   .lobby-header p { margin: 4px 0 0; color: #8892b0; font-size: 13px; }
 
-
-
   #lobbies-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; width: 100%; max-width: 950px; }
-
   
-
   .arena-card { 
-
     background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); 
-
     border-radius: 10px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; 
-
     box-shadow: 0 4px 15px rgba(0,0,0,0.3); 
-
   }
-
   .arena-card.active-room { border: 2px solid #ffd700; background: rgba(255, 215, 0, 0.05); }
 
-
-
   .card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-
   .arena-name { font-weight: bold; font-size: 16px; color: #fff; }
-
   .arena-badge { font-size: 10px; padding: 3px 6px; border-radius: 4px; font-weight: bold; text-transform: uppercase; }
-
   .badge-open { background: rgba(0, 255, 204, 0.15); color: #00ffcc; }
-
   .badge-ready { background: rgba(255, 215, 0, 0.2); color: #ffd700; }
-
   .badge-ingame { background: rgba(255, 51, 102, 0.2); color: #ff3366; }
 
-
-
   .player-slots { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
-
   .player-slot { background: rgba(0, 0, 0, 0.4); padding: 6px 10px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; }
-
   .slot-name { font-weight: bold; }
-
   .slot-team-blue { color: #00aaff; }
-
   .slot-team-dark { color: #ffaa00; }
-
   .slot-empty { color: #555e75; font-style: italic; }
 
-
-
   .ready-pill { font-size: 9px; padding: 2px 5px; border-radius: 3px; font-weight: bold; }
-
   .pill-ready { background: #00ff00; color: #000; }
-
   .pill-waiting { background: #334155; color: #aaa; }
 
-
-
   .card-actions { display: flex; gap: 8px; }
-
   .btn-join, .btn-ready, .btn-leave { flex: 1; padding: 10px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px; font-family: inherit; }
-
   .btn-join { background: #ffd700; color: #051419; }
-
   .btn-ready { background: #1e293b; color: #fff; border: 1px solid #334155; }
-
   .btn-ready.is-ready { background: #00ff00; color: #000; }
-
   .btn-leave { background: #ff3366; color: #fff; flex: 0.5; }
 
-
-
   #match-countdown { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.9); z-index: 600; display: none; flex-direction: column; align-items: center; justify-content: center; color: #fff; text-align: center; }
-
   #countdown-num { font-size: clamp(60px, 15vw, 120px); font-weight: 900; color: #ffd700; margin: 15px 0; }
 
-
-
   #game-over-modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 1000; }
-
   .modal-content { background: #111; border: 3px solid #ffd700; padding: 25px; border-radius: 12px; text-align: center; width: min(400px, 90vw); color: white; }
-
   .stats-box { background: #222; border: 1px solid #444; padding: 12px; margin: 15px 0; text-align: left; font-size: 13px; line-height: 1.6; }
-
   #restart-btn { background: #ffd700; color: black; border: none; padding: 10px 20px; font-size: 14px; font-weight: bold; cursor: pointer; border-radius: 6px; }
-
 </style>
-
 <script src="/socket.io/socket.io.js"></script>
-
 </head>
-
 <body>
 
-
-
 <div id="lobby-screen">
-
   <div class="lobby-header">
-
     <h1>SIEGE: CLEAR HORIZONS</h1>
-
     <p>Tactical Ballistics & Modular Fortifications | Ready up to deploy!</p>
-
   </div>
-
   <div id="lobbies-grid"></div>
-
 </div>
-
-
 
 <div id="match-countdown">
-
   <div style="font-size: 18px; color: #ffd700; font-weight: bold;" id="countdown-role-text">COMMAND ROLE ASSIGNED</div>
-
   <div id="countdown-num">3</div>
-
   <div style="color: #aaa; font-size: 13px;">Locking wheel tracks to ground surface...</div>
-
 </div>
-
-
 
 <div id="minimap-container"><canvas id="minimap"></canvas></div>
 
-
-
 <div id="camera-altitude-control">
-
   <div class="alt-header">ALT<br>SKY</div>
-
   <div class="alt-value-display" id="alt-val-text">5m</div>
-
   <div id="alt-track">
-
     <div id="alt-fill"></div>
-
     <div id="alt-thumb"></div>
-
   </div>
-
   <div class="alt-header" style="color: #8892b0;">GND</div>
-
 </div>
-
-
 
 <div id="mobile-dpad">
-
   <div></div>
-
   <div class="dpad-btn" id="dpad-up">▲</div>
-
   <div></div>
-
   <div class="dpad-btn" id="dpad-left">◀</div>
-
   <div></div>
-
   <div class="dpad-btn" id="dpad-right">▶</div>
-
   <div></div>
-
   <div class="dpad-btn" id="dpad-down">▼</div>
-
   <div></div>
-
 </div>
-
-
 
 <div id="panel-lookpad">
-
   <span>DRAG TO LOOK</span>
-
   <span style="font-size: 9px; opacity: 0.7; margin-top: 3px;">(PANEL ACTIVE)</span>
-
 </div>
-
-
 
 <div id="mobile-build-slider">
-
   <button id="panel-deselect-btn">DESELECT</button>
-
   <div class="build-slider-title">BUILD MODE</div>
-
   <div id="build-track">
-
     <div class="build-segment active" id="seg-floor" data-mode="1">FLOOR</div>
-
     <div class="build-segment" id="seg-wall" data-mode="2">WALL</div>
-
     <div class="build-segment" id="seg-ramp" data-mode="3">RAMP</div>
-
   </div>
-
 </div>
-
-
 
 <div id="mobile-deselect-btn">DESELECT</div>
 
-
-
 <div id="mobile-aim-toggle" class="disabled">
-
   <span>AIM</span>
-
   <span style="font-size: 9px;">& FIRE</span>
-
 </div>
-
-
 
 <div id="ui">
-
   <span class="ca">MISSION INTELLIGENCE</span>
-
   <hr>
-
   <div class="info-grid">
-
     <div class="info-column">
-
       <h3>COMMAND ROLE</h3>
-
       <p style="font-weight: bold; margin: 0 0 4px 0; color: #ffd700;" id="role-display">CONNECTING...</p>
-
       <p style="font-size: 10px; margin: 0; color: #00ff00;" id="my-units-count">Your Cannons: 10</p>
-
     </div>
-
     <div class="info-column">
-
       <h3>SERVER STATUS</h3>
-
       <p style="font-weight: bold; margin: 0 0 4px 0; color: #00ff00;" id="server-stats">Online: 0 | Arena Match</p>
-
       <p style="font-size: 10px; margin: 0; color: #ffaa00;" id="enemy-units-count">Enemy Cannons: 10</p>
-
     </div>
-
   </div>
-
   <div style="font-size: 9.5px; margin-top: 10px; color: #aaa; border-top: 1px solid #333; padding-top: 6px; line-height: 1.3;">
-
     [PC & Mobile] Step 1: Click/Tap Grass to Lay Permanent Base Square!<br>
-
     [Altitude] Press **E** to rise up, **C** to go down.<br>
-
     [Shotgun Racking] Pull Back & Release - OR - Pull Back & Slam Forward to Fire/Build!<br>
-
     [Movement] Cannons drive under ceilings and bridges without teleporting!
-
   </div>
-
   <span id="status" class="sys">STATUS: STANDBY</span>
-
 </div>
-
-
 
 <div id="pump-hud">
-
   <div id="pump-text">PULL BACK TO COCK...</div>
-
   <div id="pump-bar-container"><div id="pump-bar"></div></div>
-
 </div>
-
-
 
 <div id="game-over-modal">
-
   <div class="modal-content">
-
     <h1 id="modal-title" style="color: #ffd700; margin: 0 0 10px 0;">BATTLE CONCLUDED</h1>
-
     <div class="stats-box">
-
       <div><strong>Winner:</strong> <span id="stat-winner" style="color: #00ff00;">-</span></div>
-
       <div><strong>Your Surviving Units:</strong> <span id="stat-my-units">-</span></div>
-
       <div><strong>Enemy Surviving Units:</strong> <span id="stat-enemy-units">-</span></div>
-
     </div>
-
     <button id="restart-btn">RESTART BATTLE</button>
-
   </div>
-
 </div>
 
-
-
 <script type="importmap">{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" }}</script>
-
 <script type="module">
-
 import * as THREE from 'three';
 
-
-
 let lastTouchEnd = 0;
-
 document.addEventListener('touchend', (e) => {
-
   const now = Date.now();
-
   if (now - lastTouchEnd <= 300) {
-
     e.preventDefault();
-
   }
-
   lastTouchEnd = now;
-
 }, { passive: false });
-
 document.addEventListener('gesturestart', (e) => e.preventDefault());
-
 document.addEventListener('dblclick', (e) => e.preventDefault());
 
-
-
 const socket = io();
-
 let myPlayerIndex = null;
-
 let currentRoomId = null;
-
 let myReadyState = false;
-
 let matchOver = false;
-
 let gameInitialized = false;
-
 let matchStarted = false;
-
-
 
 let myBasePanelPlaced = false;
 
-
-
 const clock = new THREE.Clock();
-
 let targetCameraAltitude = 5.0;
 
-
-
 const scene = new THREE.Scene();
-
 scene.background = new THREE.Color(0x87CEEB);
-
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1500);
 
-
-
 camera.rotation.order = 'YXZ';
-
 camera.position.set(0, 5, 135);
 
-
-
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-
 renderer.setSize(window.innerWidth, window.innerHeight);
-
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-
 document.body.appendChild(renderer.domElement);
 
-
-
 const statusText = document.getElementById('status');
-
 const minimapCanvas = document.getElementById('minimap');
-
 const ctx = minimapCanvas.getContext('2d');
-
 minimapCanvas.width = 120;
-
 minimapCanvas.height = 120;
 
-
-
 const altTrack = document.getElementById('alt-track');
-
 const altFill = document.getElementById('alt-fill');
-
 const altThumb = document.getElementById('alt-thumb');
-
 const altValText = document.getElementById('alt-val-text');
-
 const altitudeControlBox = document.getElementById('camera-altitude-control');
 
-
-
 const MIN_ALT = 5.0;
-
 const MAX_ALT = 220.0;
 
-
-
 function setAltitude(newAlt) {
-
   targetCameraAltitude = Math.min(MAX_ALT, Math.max(MIN_ALT, newAlt));
-
   const pct = (targetCameraAltitude - MIN_ALT) / (MAX_ALT - MIN_ALT);
-
   altFill.style.height = `${pct * 100}%`;
-
   altThumb.style.bottom = `${pct * 100}%`;
-
   altValText.innerText = `${Math.round(targetCameraAltitude)}m`;
-
 }
-
-
 
 function updateAltitudeFromY(clientY) {
-
   const rect = altTrack.getBoundingClientRect();
-
   const trackHeight = rect.height;
-
   const clampedY = Math.max(rect.top, Math.min(rect.bottom, clientY));
-
   const pct = 1.0 - ((clampedY - rect.top) / trackHeight);
-
   setAltitude(MIN_ALT + pct * (MAX_ALT - MIN_ALT));
-
 }
-
-
 
 altitudeControlBox.addEventListener('touchstart', (e) => {
-
   e.preventDefault();
-
   e.stopPropagation();
-
   updateAltitudeFromY(e.touches[0].clientY);
-
 }, { passive: false });
-
-
 
 altitudeControlBox.addEventListener('touchmove', (e) => {
-
   e.preventDefault();
-
   e.stopPropagation();
-
   updateAltitudeFromY(e.touches[0].clientY);
-
 }, { passive: false });
-
-
 
 let isPointerDraggingAlt = false;
-
 altitudeControlBox.addEventListener('mousedown', (e) => {
-
   isPointerDraggingAlt = true;
-
   updateAltitudeFromY(e.clientY);
-
 });
-
 window.addEventListener('mousemove', (e) => {
-
   if (isPointerDraggingAlt) updateAltitudeFromY(e.clientY);
-
 });
-
 window.addEventListener('mouseup', () => {
-
   isPointerDraggingAlt = false;
-
 });
-
-
 
 const mobileBuildSlider = document.getElementById('mobile-build-slider');
-
 const panelDeselectBtn = document.getElementById('panel-deselect-btn');
-
 const buildTrack = document.getElementById('build-track');
-
 const segFloor = document.getElementById('seg-floor');
-
 const segWall = document.getElementById('seg-wall');
-
 const segRamp = document.getElementById('seg-ramp');
-
 const panelLookpad = document.getElementById('panel-lookpad');
 
-
-
 function updateBuildSliderUI(mode) {
-
   segFloor.classList.remove('active');
-
   segWall.classList.remove('active');
-
   segRamp.classList.remove('active');
 
-
-
   if (mode === 1) segFloor.classList.add('active');
-
   else if (mode === 2) segWall.classList.add('active');
-
   else if (mode === 3) segRamp.classList.add('active');
-
 }
-
-
 
 function setBuildModeDirect(mode) {
-
   if (!activeBasePanel) return;
-
   const pType = activeBasePanel.userData.panelType;
-
   if (pType === 'ramp' || pType === 'wall_x' || pType === 'wall_z') return;
-
   activeBasePanel.userData.buildMode = mode;
-
   updatePanelVisualMode(activeBasePanel);
-
   updateBuildSliderUI(mode);
-
 }
-
-
 
 function handleBuildSliderTouch(clientY) {
-
   const rect = buildTrack.getBoundingClientRect();
-
   const relY = (clientY - rect.top) / rect.height;
-
   if (relY <= 0.33) {
-
     setBuildModeDirect(1);
-
   } else if (relY <= 0.66) {
-
     setBuildModeDirect(2);
-
   } else {
-
     setBuildModeDirect(3);
-
   }
-
 }
-
-
 
 buildTrack.addEventListener('touchstart', (e) => {
-
   e.preventDefault();
-
   e.stopPropagation();
-
   handleBuildSliderTouch(e.touches[0].clientY);
-
 }, { passive: false });
-
-
 
 buildTrack.addEventListener('touchmove', (e) => {
-
   e.preventDefault();
-
   e.stopPropagation();
-
   handleBuildSliderTouch(e.touches[0].clientY);
-
 }, { passive: false });
-
-
 
 panelDeselectBtn.onclick = (e) => {
-
   e.preventDefault();
-
   e.stopPropagation();
-
   clearShotgunHandles();
-
   activeBasePanel = null;
-
   updateStatusUI();
-
 };
-
-
 
 segFloor.onclick = (e) => { e.stopPropagation(); setBuildModeDirect(1); };
-
 segWall.onclick = (e) => { e.stopPropagation(); setBuildModeDirect(2); };
-
 segRamp.onclick = (e) => { e.stopPropagation(); setBuildModeDirect(3); };
 
-
-
 let lookPadLast = { x: 0, y: 0 };
-
 panelLookpad.addEventListener('touchstart', (e) => {
-
   e.preventDefault();
-
   e.stopPropagation();
-
   lookPadLast.x = e.touches[0].clientX;
-
   lookPadLast.y = e.touches[0].clientY;
-
 }, { passive: false });
-
-
 
 panelLookpad.addEventListener('touchmove', (e) => {
-
   e.preventDefault();
-
   e.stopPropagation();
-
   const t = e.touches[0];
-
   const dx = t.clientX - lookPadLast.x;
-
   const dy = t.clientY - lookPadLast.y;
 
-
-
   camera.rotation.y -= dx * 0.006;
-
   camera.rotation.x = Math.max(-Math.PI / 3, Math.min(Math.PI / 4, camera.rotation.x - dy * 0.005));
-
   camera.rotation.z = 0;
 
-
-
   lookPadLast.x = t.clientX;
-
   lookPadLast.y = t.clientY;
-
 }, { passive: false });
 
-
-
 const light = new THREE.DirectionalLight(0xffffff, 1.5);
-
 light.position.set(100, 100, 50);
-
 scene.add(light, new THREE.AmbientLight(0x606060));
 
-
-
 const boardSize = 600;
-
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(boardSize, boardSize), new THREE.MeshStandardMaterial({ color: 0x3a5a2a }));
-
 ground.rotation.x = -Math.PI / 2;
-
 scene.add(ground);
 
-
-
 const riverWidth = 30;
-
 const river = new THREE.Mesh(new THREE.PlaneGeometry(boardSize, riverWidth), new THREE.MeshStandardMaterial({ color: 0x0077be, transparent: true, opacity: 0.8 }));
-
 river.rotation.x = -Math.PI / 2;
-
 river.position.y = 0.01;
-
 scene.add(river);
 
-
-
 const centerRibbon = new THREE.Mesh(
-
   new THREE.PlaneGeometry(boardSize, 0.4),
-
   new THREE.MeshBasicMaterial({ color: 0xffd700, transparent: true, opacity: 0.4 })
-
 );
-
 centerRibbon.rotation.x = -Math.PI / 2;
-
 centerRibbon.position.set(0, 0.03, 0);
-
 scene.add(centerRibbon);
 
-
-
 const bridgeMat = new THREE.MeshStandardMaterial({ color: 0x5c4033, roughness: 0.8 });
-
 const bridgeWidth = 16;
-
 const bridgeLength = riverWidth + 6;
-
 const bridgeXPositions = [-150, 0, 150];
-
 const bridges = [];
-
 bridgeXPositions.forEach(bx => {
-
   const bridge = new THREE.Mesh(new THREE.BoxGeometry(bridgeWidth, 0.4, bridgeLength), bridgeMat);
-
   bridge.position.set(bx, 0.2, 0);
-
   scene.add(bridge);
-
   bridges.push(bridge);
-
 });
 
-
-
 const wallHeight = 40;
-
 const wallThickness = 10;
-
 const halfBoard = boardSize / 2;
 
-
-
 function createCastleStoneTex() {
-
   const canvas = document.createElement('canvas');
-
   canvas.width = 512; canvas.height = 512;
-
   const cctx = canvas.getContext('2d');
-
   cctx.fillStyle = '#6b7280';
-
   cctx.fillRect(0, 0, 512, 512);
-
   const rows = 16, cols = 8;
-
   const rh = 512 / rows, cw = 512 / cols;
-
   for (let r = 0; r < rows; r++) {
-
     const offset = (r % 2) * (cw / 2);
-
     for (let c = -1; c < cols + 1; c++) {
-
       let x = c * cw + offset, y = r * rh;
-
       let shade = Math.floor(Math.random() * 40) - 20;
-
       cctx.fillStyle = `rgb(${107 + shade}, ${114 + shade}, ${128 + shade})`;
-
       cctx.fillRect(x + 2, y + 2, cw - 4, rh - 4);
-
     }
-
   }
-
   return new THREE.CanvasTexture(canvas);
-
 }
-
 const castleMat = new THREE.MeshStandardMaterial({ map: createCastleStoneTex(), roughness: 0.85 });
-
 const gameWalls = [];
 
-
-
 function createCastleWall(length, isZAxis) {
-
   const wallGroup = new THREE.Group();
-
   const mainBoxGeo = isZAxis ? new THREE.BoxGeometry(wallThickness, wallHeight, length) : new THREE.BoxGeometry(length, wallHeight, wallThickness);
-
   const mainMesh = new THREE.Mesh(mainBoxGeo, castleMat);
-
   mainMesh.position.y = wallHeight / 2;
-
   wallGroup.add(mainMesh);
-
   return wallGroup;
-
 }
-
 const northWall = createCastleWall(boardSize, false); northWall.position.set(0, 0, -halfBoard); scene.add(northWall); gameWalls.push(northWall);
-
 const southWall = createCastleWall(boardSize, false); southWall.position.set(0, 0, halfBoard); scene.add(southWall); gameWalls.push(southWall);
-
 const eastWall = createCastleWall(boardSize, true); eastWall.position.set(halfBoard, 0, 0); scene.add(eastWall); gameWalls.push(eastWall);
-
 const westWall = createCastleWall(boardSize, true); westWall.position.set(-halfBoard, 0, 0); scene.add(westWall); gameWalls.push(westWall);
 
-
-
 const clouds = [];
-
 function createCloudTexture() {
-
   const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 128;
-
   const cctx = canvas.getContext('2d'); cctx.clearRect(0, 0, 256, 128); cctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
-
   cctx.beginPath(); cctx.arc(64, 80, 32, 0, Math.PI * 2); cctx.arc(110, 65, 45, 0, Math.PI * 2);
-
   cctx.arc(160, 75, 38, 0, Math.PI * 2); cctx.arc(195, 85, 28, 0, Math.PI * 2); cctx.fill();
-
   return new THREE.CanvasTexture(canvas);
-
 }
-
 const cloudMat = new THREE.MeshBasicMaterial({ map: createCloudTexture(), transparent: true, opacity: 0.7, depthWrite: false, side: THREE.DoubleSide });
-
 for (let i = 0; i < 60; i++) {
-
   const cloud = new THREE.Mesh(new THREE.PlaneGeometry(120 + Math.random() * 80, 60 + Math.random() * 40), cloudMat);
-
   cloud.position.set(Math.random() * 1200 - 600, 110 + Math.random() * 60, Math.random() * 1200 - 600);
-
   scene.add(cloud);
-
   clouds.push({ mesh: cloud, speed: 0.1 + Math.random() * 0.15 });
-
 }
-
-
 
 const PANEL_SIZE = 12;
-
 const WALL_HEIGHT = 8;
-
 const PANEL_THICKNESS = 1.0;
-
 const RAMP_DIAG = Math.hypot(PANEL_SIZE, WALL_HEIGHT);
-
 const RAMP_ANGLE = Math.atan2(WALL_HEIGHT, PANEL_SIZE);
 
-
-
+// Allows builds all the way up to Z = 0 so flat panels connect flush
 function isWithinMyBuildingTerritory(targetZ, panelDepth = PANEL_SIZE) {
-
   const halfDepth = panelDepth / 2;
-
   if (myPlayerIndex === 1) {
-
-    return (targetZ - halfDepth) >= 5.0;
-
+    return (targetZ - halfDepth) >= -0.001;
   } else {
-
-    return (targetZ + halfDepth) <= -5.0;
-
+    return (targetZ + halfDepth) <= 0.001;
   }
-
 }
-
-
 
 const panelGeometries = {
-
   floor: new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, PANEL_SIZE),
-
   wall_x: new THREE.BoxGeometry(PANEL_SIZE, WALL_HEIGHT, PANEL_THICKNESS),
-
   wall_z: new THREE.BoxGeometry(PANEL_THICKNESS, WALL_HEIGHT, PANEL_SIZE)
-
 };
-
-
 
 function createAlignedRampGeometry(length) {
-
   const geo = new THREE.BoxGeometry(PANEL_SIZE, PANEL_THICKNESS, length);
-
   geo.rotateX(RAMP_ANGLE);
-
   const run = PANEL_SIZE * (length / RAMP_DIAG);
-
   const rise = WALL_HEIGHT * (length / RAMP_DIAG);
-
   geo.translate(0, rise / 2, -run / 2);
-
   geo.computeBoundingBox();
-
   geo.computeBoundingSphere();
-
   return geo;
-
 }
 
-
-
 const panelMaterials = {
-
   floor: new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.8 }),
-
   wall: new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.7 }),
-
   ramp: new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.8 })
-
 };
 
-
-
 const worldPanels = [];
-
 const shotgunHandles = [];
 
-
-
 const shotgunShards = [];
-
 const shardGeometries = [
-
   new THREE.ConeGeometry(0.08, 0.35, 4),
-
   new THREE.BoxGeometry(0.12, 0.12, 0.12),
-
   new THREE.DodecahedronGeometry(0.09)
-
 ];
-
 const shardMaterials = [
-
   new THREE.MeshBasicMaterial({ color: 0xffcc00 }),
-
   new THREE.MeshBasicMaterial({ color: 0xff4400 }),
-
   new THREE.MeshBasicMaterial({ color: 0xffffff }),
-
   new THREE.MeshBasicMaterial({ color: 0x8892b0 })
-
 ];
-
-
 
 function spawnShotgunBlast(muzzlePos, forwardDir, isDemolish = false) {
-
   const shardCount = isDemolish ? 24 : 18;
-
   const spread = 0.45;
 
-
-
   for (let i = 0; i < shardCount; i++) {
-
     const geo = shardGeometries[Math.floor(Math.random() * shardGeometries.length)];
-
     const mat = shardMaterials[Math.floor(Math.random() * shardMaterials.length)].clone();
-
     const mesh = new THREE.Mesh(geo, mat);
-
-
 
     mesh.position.copy(muzzlePos);
 
-
-
     const vel = forwardDir.clone()
-
       .add(new THREE.Vector3(
-
         (Math.random() - 0.5) * spread,
-
         (Math.random() - 0.5) * spread,
-
         (Math.random() - 0.5) * spread
-
       ))
-
       .normalize()
-
       .multiplyScalar(0.7 + Math.random() * 0.9);
 
-
-
     mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
-
     scene.add(mesh);
 
-
-
     shotgunShards.push({
-
       mesh,
-
       velocity: vel,
-
       life: 0,
-
       maxLife: 22 + Math.floor(Math.random() * 12),
-
       rotSpeed: new THREE.Vector3(Math.random() * 0.2, Math.random() * 0.2, Math.random() * 0.2)
-
     });
-
   }
-
 }
-
-
 
 const ejectedShells = [];
 
-
-
 function spawnEjectedShell(ejectPos, gunDir) {
-
   const shellGroup = new THREE.Group();
-
   const hull = new THREE.Mesh(
-
     new THREE.CylinderGeometry(0.09, 0.09, 0.35, 12),
-
     new THREE.MeshStandardMaterial({ color: 0xff3300, roughness: 0.4 })
-
   );
-
   const brass = new THREE.Mesh(
-
     new THREE.CylinderGeometry(0.092, 0.092, 0.12, 12),
-
     new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.9, roughness: 0.2 })
-
   );
-
   brass.position.y = -0.15;
-
   shellGroup.add(hull, brass);
-
   shellGroup.position.copy(ejectPos);
-
   scene.add(shellGroup);
 
-
-
   const rightDir = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion).normalize();
-
   const ejectVel = rightDir.multiplyScalar(0.35 + Math.random() * 0.25)
-
     .add(new THREE.Vector3(0, 0.4 + Math.random() * 0.2, 0))
-
     .add(gunDir.clone().multiplyScalar(0.1));
 
-
-
   ejectedShells.push({
-
     mesh: shellGroup,
-
     velocity: ejectVel,
-
     rotSpeed: new THREE.Vector3(Math.random() * 0.3 - 0.15, Math.random() * 0.3 - 0.15, Math.random() * 0.3 - 0.15),
-
     life: 0,
-
     maxLife: 90
-
   });
-
 }
-
-
 
 let activeBasePanel = null;
-
 let pumpingShotgun = null;
-
 let pumpScreenStart = new THREE.Vector2();
-
 let pumpScreenDir = new THREE.Vector2();
-
 let pumpStage = 'idle';
 
-
-
 const pumpHud = document.getElementById('pump-hud');
-
 const pumpBar = document.getElementById('pump-bar');
-
 const pumpText = document.getElementById('pump-text');
 
-
-
 function clearShotgunHandles() {
-
   shotgunHandles.forEach(h => scene.remove(h));
-
   shotgunHandles.length = 0;
-
   pumpingShotgun = null;
-
   pumpStage = 'idle';
-
   pumpHud.style.display = 'none';
-
   mobileBuildSlider.style.display = 'none';
-
   panelLookpad.style.display = 'none';
-
 }
-
-
 
 function createShotgunHandle(dirVector, modeColor, id, isExtender = false, isLevelOut = false) {
-
   const gunGroup = new THREE.Group();
-
   const steelColor = isExtender ? 0x332211 : (isLevelOut ? 0x113322 : 0x222225);
-
   const steelMat = new THREE.MeshStandardMaterial({
-
     color: steelColor,
-
     metalness: 0.85,
-
     roughness: 0.35,
-
     emissive: 0x000000
-
   });
-
   
-
   const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 3.2, 12), steelMat);
-
   barrel.position.y = 1.6;
-
   
-
   const magTube = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 2.6, 12), steelMat);
-
   magTube.position.set(0, 1.3, -0.2);
 
-
-
   const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.35, 1.2, 0.5), steelMat);
-
   receiver.position.set(0, 0.4, -0.1);
 
-
-
   const port = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.5, 0.2), new THREE.MeshBasicMaterial({ color: 0x111111 }));
-
   port.position.set(0.01, 0.4, 0.05);
 
-
-
   const woodColor = isLevelOut ? 0x225522 : (isExtender ? 0x8a4513 : 0x5a2d0c);
-
   const stock = new THREE.Mesh(new THREE.BoxGeometry(0.28, 1.4, 0.4), new THREE.MeshStandardMaterial({ color: woodColor, roughness: 0.7 }));
-
   stock.position.set(0, -0.8, -0.2);
-
   stock.rotation.x = 0.2;
 
-
-
   const pumpSlide = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 1.0, 12), new THREE.MeshStandardMaterial({ color: isLevelOut ? 0x338833 : (isExtender ? 0xb8621b : 0x6e3810), roughness: 0.6 }));
-
   pumpSlide.position.set(0, 1.4, -0.1);
 
-
-
   const shellGroup = new THREE.Group();
-
   const hull = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.35, 12), new THREE.MeshStandardMaterial({ color: isLevelOut ? 0x00ff88 : (isExtender ? 0xff8800 : 0xcc1111), roughness: 0.4 }));
-
   const brass = new THREE.Mesh(new THREE.CylinderGeometry(0.092, 0.092, 0.12, 12), new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.9, roughness: 0.2 }));
-
   brass.position.y = -0.15;
-
   shellGroup.add(hull, brass);
-
   shellGroup.scale.set(0.001, 0.001, 0.001);
-
   shellGroup.position.set(0, 0.3, -0.2);
 
-
-
   const flash = new THREE.Mesh(new THREE.ConeGeometry(0.6, 1.2, 8), new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0 }));
-
   flash.position.y = 3.6;
 
-
-
   const tipRing = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.2, 12), new THREE.MeshBasicMaterial({ color: modeColor }));
-
   tipRing.position.y = 3.1;
 
-
-
   gunGroup.add(barrel, magTube, receiver, port, stock, pumpSlide, shellGroup, flash, tipRing);
-
   gunGroup.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dirVector.clone().normalize());
 
-
-
   gunGroup.userData = {
-
     isShotgunHandle: true,
-
     arrowId: id,
-
     isRampExtender: isExtender,
-
     isRampLevelOut: isLevelOut,
-
     dirVector: dirVector.clone().normalize(),
-
     steelMat: steelMat,
-
     pumpSlide: pumpSlide,
-
     shellGroup: shellGroup,
-
     flash: flash,
-
     originalLocalPos: new THREE.Vector3(),
-
     initialPumpY: 1.4,
-
     recoilTimer: 0
-
   };
 
-
-
   return gunGroup;
-
 }
-
-
 
 function getRampForwardVector(rampMesh) {
-
   if (rampMesh.userData.forwardDir) {
-
     return rampMesh.userData.forwardDir.clone();
-
   }
-
   const f = new THREE.Vector3(0, 0, -1).applyQuaternion(rampMesh.quaternion);
-
   f.y = 0;
-
   return f.normalize();
-
 }
 
-
-
 function renderPanelHandles(panel) {
-
   clearShotgunHandles();
-
-  if (!panel) return;
-
-
+  if (!panel || panel.userData.ownerIndex !== myPlayerIndex) return;
 
   const pType = panel.userData.panelType;
-
   const mode = panel.userData.buildMode || 1;
-
   const pos = panel.position.clone();
-
   const half = PANEL_SIZE / 2;
-
   const color = mode === 1 ? 0x22c55e : (mode === 2 ? 0x0ea5e9 : 0xf97316);
 
-
-
   const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-
   if (pType === 'floor') {
-
     mobileBuildSlider.style.display = 'flex';
-
     updateBuildSliderUI(mode);
-
     if (isTouch) panelLookpad.style.display = 'flex';
-
   } else {
-
     mobileBuildSlider.style.display = 'none';
-
     if (isTouch) panelLookpad.style.display = 'flex';
-
   }
-
-
 
   let configs = [];
 
-
-
   if (pType === 'ramp') {
-
     const segs = panel.userData.rampSegments || 1;
-
     const totalRun = PANEL_SIZE * segs;
-
     const totalRise = WALL_HEIGHT * segs;
-
     const forward = getRampForwardVector(panel);
-
-
 
     const inclineSlope = forward.clone().multiplyScalar(Math.cos(RAMP_ANGLE)).add(new THREE.Vector3(0, Math.sin(RAMP_ANGLE), 0)).normalize();
 
-
-
     const extenderPos = panel.position.clone()
-
       .addScaledVector(forward, 2.0 * Math.cos(RAMP_ANGLE))
-
       .add(new THREE.Vector3(0, 2.0 * Math.sin(RAMP_ANGLE) + 1.2, 0));
 
-
-
     configs.push({
-
       id: 'ramp_extend',
-
       dir: inclineSlope,
-
       offset: extenderPos.sub(pos),
-
       isExtender: true,
-
       isLevelOut: false
-
     });
-
-
 
     const summitPos = panel.position.clone()
-
       .addScaledVector(forward, totalRun)
-
       .add(new THREE.Vector3(0, totalRise + 0.6, 0));
 
-
-
     configs.push({
-
       id: 'ramp_level_flat',
-
       dir: forward,
-
       offset: summitPos.sub(pos),
-
       isExtender: false,
-
       isLevelOut: true
-
     });
-
   }
-
   else if (pType === 'wall_x') {
-
     const halfH = WALL_HEIGHT / 2;
-
     configs = [
-
       { id: 'wall_up', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, halfH + 1.4, 0), isExtender: false, isLevelOut: false },
-
       { id: 'wall_down', dir: new THREE.Vector3(0, -1, 0), offset: new THREE.Vector3(0, -halfH - 1.4, 0), isExtender: false, isLevelOut: false },
-
       { id: 'wall_left', dir: new THREE.Vector3(-1, 0, 0), offset: new THREE.Vector3(-half - 1.4, 0, 0), isExtender: false, isLevelOut: false },
-
       { id: 'wall_right', dir: new THREE.Vector3(1, 0, 0), offset: new THREE.Vector3(half + 1.4, 0, 0), isExtender: false, isLevelOut: false }
-
     ];
-
   }
-
   else if (pType === 'wall_z') {
-
     const halfH = WALL_HEIGHT / 2;
-
     configs = [
-
       { id: 'wall_up', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, halfH + 1.4, 0), isExtender: false, isLevelOut: false },
-
       { id: 'wall_down', dir: new THREE.Vector3(0, -1, 0), offset: new THREE.Vector3(0, -halfH - 1.4, 0), isExtender: false, isLevelOut: false },
-
       { id: 'wall_left', dir: new THREE.Vector3(0, 0, -1), offset: new THREE.Vector3(0, 0, -half - 1.4), isExtender: false, isLevelOut: false },
-
       { id: 'wall_right', dir: new THREE.Vector3(0, 0, 1), offset: new THREE.Vector3(0, 0, half + 1.4), isExtender: false, isLevelOut: false }
-
     ];
-
   }
-
   else if (mode === 1) {
-
     configs = [
-
       { id: 'north', dir: new THREE.Vector3(0, 0, -1), offset: new THREE.Vector3(0, 1.2, -half), isExtender: false, isLevelOut: false },
-
       { id: 'south', dir: new THREE.Vector3(0, 0, 1),  offset: new THREE.Vector3(0, 1.2, half), isExtender: false, isLevelOut: false },
-
       { id: 'east',  dir: new THREE.Vector3(1, 0, 0),  offset: new THREE.Vector3(half, 1.2, 0), isExtender: false, isLevelOut: false },
-
       { id: 'west',  dir: new THREE.Vector3(-1, 0, 0), offset: new THREE.Vector3(-half, 1.2, 0), isExtender: false, isLevelOut: false },
-
       { id: 'up',    dir: new THREE.Vector3(0, 1, 0),  offset: new THREE.Vector3(0, 2.4, 0), isExtender: false, isLevelOut: false }
-
     ];
-
   }
-
   else if (mode === 2) {
-
     configs = [
-
       { id: 'spawn_wall_north', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 1.4, -half), isExtender: false, isLevelOut: false },
-
       { id: 'spawn_wall_south', dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 1.4, half), isExtender: false, isLevelOut: false },
-
       { id: 'spawn_wall_east',  dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(half, 1.4, 0), isExtender: false, isLevelOut: false },
-
       { id: 'spawn_wall_west',  dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(-half, 1.4, 0), isExtender: false, isLevelOut: false }
-
     ];
-
   }
-
   else if (mode === 3) {
-
     configs = [
-
       { id: 'north', dir: new THREE.Vector3(0, Math.sin(RAMP_ANGLE), -Math.cos(RAMP_ANGLE)), offset: new THREE.Vector3(0, 1.2, -half), isExtender: false, isLevelOut: false },
-
       { id: 'south', dir: new THREE.Vector3(0, Math.sin(RAMP_ANGLE), Math.cos(RAMP_ANGLE)),  offset: new THREE.Vector3(0, 1.2, half), isExtender: false, isLevelOut: false },
-
       { id: 'east',  dir: new THREE.Vector3(Math.cos(RAMP_ANGLE), Math.sin(RAMP_ANGLE), 0),  offset: new THREE.Vector3(half, 1.2, 0), isExtender: false, isLevelOut: false },
-
       { id: 'west',  dir: new THREE.Vector3(-Math.cos(RAMP_ANGLE), Math.sin(RAMP_ANGLE), 0), offset: new THREE.Vector3(-half, 1.2, 0), isExtender: false, isLevelOut: false },
-
       { id: 'up',    dir: new THREE.Vector3(0, 1, 0), offset: new THREE.Vector3(0, 2.4, 0), isExtender: false, isLevelOut: false }
-
     ];
-
   }
-
-
 
   configs.forEach(cfg => {
-
     const gun = createShotgunHandle(cfg.dir, color, cfg.id, cfg.isExtender, cfg.isLevelOut);
-
     gun.position.copy(pos).add(cfg.offset);
-
     gun.userData.originalLocalPos.copy(gun.position);
-
     scene.add(gun);
-
     shotgunHandles.push(gun);
-
   });
-
 }
-
-
 
 function updatePanelVisualMode(panel) {
-
   const pType = panel.userData.panelType;
-
   if (pType === 'ramp') {
-
     panel.material.color.setHex(0x52361b);
-
   } else if (pType === 'wall_x' || pType === 'wall_z') {
-
     panel.material.color.setHex(0x1e2e4a);
-
   } else {
-
     const mode = panel.userData.buildMode || 1;
-
     if (mode === 1) panel.material.color.setHex(0x1e3a1e);
-
     else if (mode === 2) panel.material.color.setHex(0x1e2e4a);
-
     else if (mode === 3) panel.material.color.setHex(0x4a2a12);
-
   }
-
   renderPanelHandles(panel);
-
 }
-
-
 
 function selectPanel(panel) {
-
+  if (!panel || panel.userData.ownerIndex !== myPlayerIndex) return;
   activeBasePanel = panel;
-
   if (!panel.userData.buildMode) panel.userData.buildMode = 1;
-
   updatePanelVisualMode(panel);
-
 }
-
-
 
 function cyclePanelMode(delta) {
-
-  if (!activeBasePanel) return;
-
+  if (!activeBasePanel || activeBasePanel.userData.ownerIndex !== myPlayerIndex) return;
   const pType = activeBasePanel.userData.panelType;
-
   if (pType === 'ramp' || pType === 'wall_x' || pType === 'wall_z') return;
-
   let mode = activeBasePanel.userData.buildMode || 1;
-
   if (delta > 0) mode = mode === 3 ? 1 : mode + 1;
-
   else mode = mode === 1 ? 3 : mode - 1;
-
   activeBasePanel.userData.buildMode = mode;
-
   updatePanelVisualMode(activeBasePanel);
-
 }
 
-
-
-function placePanel(type, position, rotation, isRemote = false, customId = null, forwardDir = null, isRoot = false) {
-
+function placePanel(type, position, rotation, isRemote = false, customId = null, forwardDir = null, isRoot = false, owner = null) {
   let matKey = type.startsWith('wall') ? 'wall' : type;
-
   const mat = panelMaterials[matKey].clone();
-
   let mesh;
 
-
+  const panelOwner = owner !== null ? owner : (isRemote ? (myPlayerIndex === 1 ? 2 : 1) : myPlayerIndex);
 
   if (type === 'ramp') {
-
     const geo = createAlignedRampGeometry(RAMP_DIAG);
-
     mesh = new THREE.Mesh(geo, mat);
-
     mesh.userData = {
-
       isPanel: true,
-
       panelType: 'ramp',
-
       rampSegments: 1,
-
       rampLength: RAMP_DIAG,
-
       id: customId || Math.random().toString(),
-
       permanent: true,
-
-      forwardDir: forwardDir ? forwardDir.clone() : new THREE.Vector3(0, 0, -1)
-
+      forwardDir: forwardDir ? forwardDir.clone() : new THREE.Vector3(0, 0, -1),
+      ownerIndex: panelOwner
     };
-
   } else {
-
     const geo = (panelGeometries[type] || panelGeometries.floor).clone();
-
     geo.computeBoundingBox();
-
     geo.computeBoundingSphere();
-
     mesh = new THREE.Mesh(geo, mat);
-
     mesh.userData = {
-
       isPanel: true,
-
       panelType: type,
-
       buildMode: 1,
-
       id: customId || Math.random().toString(),
-
       permanent: true,
-
-      isRootBase: isRoot
-
+      isRootBase: isRoot,
+      ownerIndex: panelOwner
     };
-
   }
-
-
 
   mesh.position.copy(position);
-
   mesh.rotation.copy(rotation);
 
-
-
   scene.add(mesh);
-
   worldPanels.push(mesh);
 
-
-
   if (!isRemote) {
-
     socket.emit('place_panel', {
-
       roomId: currentRoomId,
-
       type: type,
-
       id: mesh.userData.id,
-
       pos: { x: mesh.position.x, y: mesh.position.y, z: mesh.position.z },
-
       rot: { x: mesh.rotation.x, y: mesh.rotation.y, z: mesh.rotation.z }
-
     });
-
   }
-
   return mesh;
-
 }
-
-
 
 function extendRampDirectly(rampMesh, isRemote = false) {
-
+  if (rampMesh.userData.ownerIndex !== myPlayerIndex && !isRemote) return;
   const forward = getRampForwardVector(rampMesh);
 
-
-
   if (!isRemote) {
-
     const segs = rampMesh.userData.rampSegments || 1;
-
     const testZ = rampMesh.position.z + forward.z * (PANEL_SIZE * segs);
-
     if (!isWithinMyBuildingTerritory(testZ, PANEL_SIZE)) {
-
       statusText.innerText = "CANNOT EXTEND RAMP INTO ENEMY TERRITORY!";
-
       statusText.style.color = "#ff4444";
-
       setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2500);
-
       return;
-
     }
-
   }
-
-
 
   rampMesh.userData.rampSegments = (rampMesh.userData.rampSegments || 1) + 1;
-
   const segs = rampMesh.userData.rampSegments;
-
   const newLength = RAMP_DIAG * segs;
-
   rampMesh.userData.rampLength = newLength;
 
-
-
   rampMesh.geometry.dispose();
-
   rampMesh.geometry = createAlignedRampGeometry(newLength);
 
-
-
   if (!isRemote) {
-
     socket.emit('extend_ramp', {
-
       roomId: currentRoomId,
-
       id: rampMesh.userData.id,
-
       rampSegments: segs
-
     });
-
   }
 
-
-
-  renderPanelHandles(rampMesh);
-
+  if (activeBasePanel === rampMesh) {
+    renderPanelHandles(rampMesh);
+  }
 }
-
-
 
 function undoDemolishPanel(panel, isRemote = false) {
-
   if (!panel) return;
-
-
+  if (panel.userData.ownerIndex !== myPlayerIndex && !isRemote) return;
 
   if (panel.userData.isRootBase) {
-
     statusText.innerText = "ROOT BASE SQUARE CANNOT BE DEMOLISHED!";
-
     statusText.style.color = "#ff4444";
-
     setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2000);
-
     return;
-
   }
-
-
 
   if (panel.userData.panelType === 'ramp' && (panel.userData.rampSegments || 1) > 1) {
-
     panel.userData.rampSegments -= 1;
-
     const segs = panel.userData.rampSegments;
-
     const newLength = RAMP_DIAG * segs;
-
     panel.userData.rampLength = newLength;
 
-
-
     panel.geometry.dispose();
-
     panel.geometry = createAlignedRampGeometry(newLength);
 
-
-
     if (!isRemote) {
-
       socket.emit('shorten_ramp', {
-
         roomId: currentRoomId,
-
         id: panel.userData.id,
-
         rampSegments: segs
-
       });
-
     }
-
-    renderPanelHandles(panel);
-
+    if (activeBasePanel === panel) {
+      renderPanelHandles(panel);
+    }
   } else {
-
     const idToRemove = panel.userData.id;
-
     scene.remove(panel);
-
     const idx = worldPanels.indexOf(panel);
-
     if (idx !== -1) worldPanels.splice(idx, 1);
-
-
 
     if (activeBasePanel === panel) {
-
       clearShotgunHandles();
-
       activeBasePanel = null;
-
     }
-
-
 
     if (!isRemote) {
-
       socket.emit('remove_panel', {
-
         roomId: currentRoomId,
-
         id: idToRemove
-
       });
-
     }
-
-
 
     statusText.innerText = "PANEL DEMOLISHED & UNLOADED!";
-
     statusText.style.color = "#ff9900";
-
     setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2000);
-
   }
-
 }
-
-
 
 socket.on('opponent_remove_panel', (data) => {
-
   const p = worldPanels.find(x => x.userData.id === data.id);
-
   if (p) {
-
     scene.remove(p);
-
     const idx = worldPanels.indexOf(p);
-
     if (idx !== -1) worldPanels.splice(idx, 1);
-
     if (activeBasePanel === p) {
-
       clearShotgunHandles();
-
       activeBasePanel = null;
-
     }
-
   }
-
 });
-
-
 
 socket.on('opponent_extend_ramp', (data) => {
-
   const r = worldPanels.find(p => p.userData.id === data.id);
-
   if (r) {
-
     r.userData.rampSegments = data.rampSegments;
-
     const newLength = RAMP_DIAG * data.rampSegments;
-
     r.userData.rampLength = newLength;
-
     r.geometry.dispose();
-
     r.geometry = createAlignedRampGeometry(newLength);
-
-    renderPanelHandles(r);
-
+    if (activeBasePanel === r) {
+      renderPanelHandles(r);
+    }
   }
-
 });
-
-
 
 socket.on('opponent_shorten_ramp', (data) => {
-
   const r = worldPanels.find(p => p.userData.id === data.id);
-
   if (r) {
-
     r.userData.rampSegments = data.rampSegments;
-
     const newLength = RAMP_DIAG * data.rampSegments;
-
     r.userData.rampLength = newLength;
-
     r.geometry.dispose();
-
     r.geometry = createAlignedRampGeometry(newLength);
-
-    renderPanelHandles(r);
-
+    if (activeBasePanel === r) {
+      renderPanelHandles(r);
+    }
   }
-
 });
-
-
 
 socket.on('opponent_build', (data) => {
-
   if (!matchStarted) return;
-
+  const oppIndex = myPlayerIndex === 1 ? 2 : 1;
   placePanel(
-
     data.type,
-
     new THREE.Vector3(data.pos.x, data.pos.y, data.pos.z),
-
     new THREE.Euler(data.rot.x, data.rot.y, data.rot.z),
-
     true,
-
-    data.id
-
+    data.id,
+    null,
+    false,
+    data.ownerIndex || oppIndex
   );
-
 });
-
-
 
 function triggerBranchBuild(parentPanel, gunId) {
+  if (!parentPanel || parentPanel.userData.ownerIndex !== myPlayerIndex) return;
 
   if (gunId === 'ramp_extend' && parentPanel.userData.panelType === 'ramp') {
-
     extendRampDirectly(parentPanel);
-
     return;
-
   }
-
-
 
   if (gunId === 'ramp_level_flat' && parentPanel.userData.panelType === 'ramp') {
-
     const segs = parentPanel.userData.rampSegments || 1;
-
     const totalRise = WALL_HEIGHT * segs;
-
     const totalRun = PANEL_SIZE * segs;
-
     const forward = getRampForwardVector(parentPanel);
 
-
-
     const flatPos = parentPanel.position.clone()
-
       .addScaledVector(forward, totalRun + (PANEL_SIZE / 2));
-
     flatPos.y = parentPanel.position.y + totalRise;
 
-
-
     if (!isWithinMyBuildingTerritory(flatPos.z, PANEL_SIZE)) {
-
       statusText.innerText = "CANNOT BUILD INTO ENEMY TERRITORY!";
-
       statusText.style.color = "#ff4444";
-
       setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2500);
-
       return;
-
     }
-
-
 
     const levelFloor = placePanel('floor', flatPos, new THREE.Euler(0, 0, 0));
-
     activeBasePanel = levelFloor;
-
     selectPanel(levelFloor);
-
     return;
-
   }
-
-
 
   const pType = parentPanel.userData.panelType;
-
   const basePos = parentPanel.position.clone();
-
   let newPos = basePos.clone();
-
   let newRot = new THREE.Euler(0, 0, 0);
-
   let buildType = 'floor';
-
   let checkDepth = PANEL_SIZE;
-
   let rampDir = null;
 
-
-
   if (pType === 'wall_x') {
-
     buildType = 'wall_x';
-
     checkDepth = PANEL_THICKNESS;
-
     if (gunId === 'wall_up')    newPos.y += WALL_HEIGHT;
-
     if (gunId === 'wall_down')  newPos.y -= WALL_HEIGHT;
-
     if (gunId === 'wall_left')  newPos.x -= PANEL_SIZE;
-
     if (gunId === 'wall_right') newPos.x += PANEL_SIZE;
-
   } 
-
   else if (pType === 'wall_z') {
-
     buildType = 'wall_z';
-
     checkDepth = PANEL_SIZE;
-
     if (gunId === 'wall_up')    newPos.y += WALL_HEIGHT;
-
     if (gunId === 'wall_down')  newPos.y -= WALL_HEIGHT;
-
     if (gunId === 'wall_left')  newPos.z -= PANEL_SIZE;
-
     if (gunId === 'wall_right') newPos.z += PANEL_SIZE;
-
   }
-
   else if (gunId === 'spawn_wall_north') {
-
     buildType = 'wall_x';
-
     newPos.y += (WALL_HEIGHT / 2);
-
     newPos.z -= (PANEL_SIZE / 2);
-
     checkDepth = PANEL_THICKNESS;
-
   } 
-
   else if (gunId === 'spawn_wall_south') {
-
     buildType = 'wall_x';
-
     newPos.y += (WALL_HEIGHT / 2);
-
     newPos.z -= (PANEL_SIZE / 2);
-
     checkDepth = PANEL_THICKNESS;
-
   } 
-
   else if (gunId === 'spawn_wall_east') {
-
     buildType = 'wall_z';
-
     newPos.y += (WALL_HEIGHT / 2);
-
     newPos.x += (PANEL_SIZE / 2);
-
     checkDepth = PANEL_SIZE;
-
   } 
-
   else if (gunId === 'spawn_wall_west') {
-
     buildType = 'wall_z';
-
     newPos.y += (WALL_HEIGHT / 2);
-
     newPos.x -= (PANEL_SIZE / 2);
-
     checkDepth = PANEL_SIZE;
-
   }
-
   else if (parentPanel.userData.buildMode === 1) {
-
     buildType = 'floor';
-
     if (gunId === 'north') newPos.z -= PANEL_SIZE;
-
     if (gunId === 'south') newPos.z += PANEL_SIZE;
-
     if (gunId === 'east')  newPos.x += PANEL_SIZE;
-
     if (gunId === 'west')  newPos.x -= PANEL_SIZE;
-
     if (gunId === 'up')    newPos.y += WALL_HEIGHT;
-
   } 
-
   else if (parentPanel.userData.buildMode === 3) {
-
     buildType = 'ramp';
-
     newPos.y = basePos.y;
 
-
-
     if (gunId === 'north') {
-
       newPos.z -= (PANEL_SIZE / 2);
-
       newRot.set(0, 0, 0);
-
       rampDir = new THREE.Vector3(0, 0, -1);
-
     } else if (gunId === 'south') {
-
       newPos.z += (PANEL_SIZE / 2);
-
       newRot.set(0, Math.PI, 0);
-
       rampDir = new THREE.Vector3(0, 0, 1);
-
     } else if (gunId === 'east') {
-
       newPos.x += (PANEL_SIZE / 2);
-
       newRot.set(0, -Math.PI / 2, 0);
-
       rampDir = new THREE.Vector3(1, 0, 0);
-
     } else if (gunId === 'west') {
-
       newPos.x -= (PANEL_SIZE / 2);
-
       newRot.set(0, Math.PI / 2, 0);
-
       rampDir = new THREE.Vector3(-1, 0, 0);
-
     } else if (gunId === 'up') {
-
       buildType = 'floor';
-
       newPos.y = basePos.y + WALL_HEIGHT;
-
     }
-
   }
-
-
 
   if (!isWithinMyBuildingTerritory(newPos.z, checkDepth)) {
-
     statusText.innerText = "CANNOT BUILD INTO ENEMY TERRITORY!";
-
     statusText.style.color = "#ff4444";
-
     setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2500);
-
     return;
-
   }
-
-
 
   const spawned = placePanel(buildType, newPos, newRot, false, null, rampDir);
-
   activeBasePanel = spawned;
-
   selectPanel(spawned);
-
 }
-
-
 
 let cannons = [];
-
 let opponentCannons = [];
-
 const activeProjectiles = [];
-
 const keys = {};
-
 const raycaster = new THREE.Raycaster();
-
 const mouse = new THREE.Vector2();
 
-
-
 const TRAJECTORY_POINTS = 40;
-
 const trajPositions = new Float32Array(TRAJECTORY_POINTS * 3);
-
 const trajGeo = new THREE.BufferGeometry();
-
 trajGeo.setAttribute('position', new THREE.BufferAttribute(trajPositions, 3));
-
 const trajMat = new THREE.LineDashedMaterial({
-
   color: 0x00ffcc,
-
   dashSize: 1.2,
-
   gapSize: 0.8,
-
   linewidth: 2
-
 });
-
 const trajectoryLine = new THREE.Line(trajGeo, trajMat);
-
 trajectoryLine.visible = false;
-
 scene.add(trajectoryLine);
 
-
-
 let isAimingCannon = false;
-
 let currentAimTarget = new THREE.Vector3();
 
-
-
 let mobileAimModeActive = false;
-
 const mobileAimToggle = document.getElementById('mobile-aim-toggle');
-
 const mobileDeselectBtn = document.getElementById('mobile-deselect-btn');
 
-
-
 function setMobileAimMode(active) {
-
   const selectedCannon = cannons.find(c => c.userData.selected);
-
   if (active && !selectedCannon) {
-
     mobileAimModeActive = false;
-
     mobileAimToggle.classList.remove('active');
-
     statusText.innerText = "SELECT A CANNON FIRST BEFORE AIMING!";
-
     statusText.style.color = "#ff4444";
-
     setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2000);
-
     return;
-
   }
-
-
 
   mobileAimModeActive = active;
-
   if (mobileAimModeActive) {
-
     mobileAimToggle.classList.add('active');
-
     statusText.innerText = "AIM MODE LOCKED: DRAG FIELD TO PREVIEW ARC, RELEASE TO FIRE!";
-
     statusText.style.color = "#ff4400";
-
   } else {
-
     mobileAimToggle.classList.remove('active');
-
     trajectoryLine.visible = false;
-
     isAimingCannon = false;
-
     updateStatusUI();
-
   }
-
 }
-
-
 
 mobileAimToggle.onclick = (e) => {
-
   e.preventDefault();
-
   e.stopPropagation();
-
   const selectedCannon = cannons.find(c => c.userData.selected);
-
   if (!selectedCannon) {
-
     statusText.innerText = "SELECT A CANNON FIRST BEFORE AIMING!";
-
     statusText.style.color = "#ff4444";
-
     setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2000);
-
     return;
-
   }
-
   setMobileAimMode(!mobileAimModeActive);
-
 };
-
-
 
 mobileDeselectBtn.onclick = (e) => {
-
   e.preventDefault();
-
   e.stopPropagation();
-
   deselectAllCannons();
-
 };
 
-
-
 function createCannon(x, z, mainColor, isOpp = false, customId = null, unitNumber = 1) {
-
   const cGroup = new THREE.Group();
-
   const barrelPivot = new THREE.Group();
-
   barrelPivot.position.y = 0.5;
 
-
-
   const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.5, 2.5), new THREE.MeshStandardMaterial({ color: 0x1a1a1a }));
-
   barrel.geometry.translate(0, 1.25, 0);
-
   barrel.rotation.x = Math.PI / 2;
-
   barrelPivot.add(barrel);
 
-
-
   const wheels = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 1.6), new THREE.MeshStandardMaterial({ color: mainColor }));
-
   wheels.rotation.z = Math.PI / 2;
-
   wheels.position.y = -0.2;
 
-
-
   cGroup.add(barrelPivot, wheels);
-
   cGroup.position.set(x, 0.8, z);
-
   cGroup.rotation.y = (z < 0) ? 0 : Math.PI;
 
-
-
   cGroup.userData = {
-
     selected: false,
-
     targetPos: new THREE.Vector3(x, 0.8, z),
-
     barrel, barrelPivot,
-
     angle: 0,
-
     startZ: z,
-
     id: customId || Math.random().toString(),
-
     unitNum: unitNumber,
-
     isOpponent: isOpp
-
   };
-
   scene.add(cGroup);
 
-
-
   if (isOpp) opponentCannons.push(cGroup);
-
   else cannons.push(cGroup);
-
   updateUnitCountsDisplay();
-
 }
-
-
 
 function updateUnitCountsDisplay() {
-
   const myUnitsEl = document.getElementById('my-units-count');
-
   const enemyUnitsEl = document.getElementById('enemy-units-count');
-
   if (myUnitsEl && enemyUnitsEl) {
-
     myUnitsEl.innerText = `Your Cannons: ${cannons.length}`;
-
     enemyUnitsEl.innerText = `Enemy Cannons: ${opponentCannons.length}`;
-
   }
-
 }
-
-
 
 function deselectAllCannons() {
-
   cannons.forEach(c => {
-
     c.userData.selected = false;
-
     c.userData.barrel.material.emissive.set(0x000000);
-
   });
-
   trajectoryLine.visible = false;
-
   isAimingCannon = false;
-
   setMobileAimMode(false);
-
   updateStatusUI();
-
 }
-
-
 
 function updateStatusUI() {
-
   if (!matchStarted) return;
 
-
-
   if (!myBasePanelPlaced) {
-
     statusText.innerText = "★ OBJECTIVE 1: TAP/CLICK YOUR SIDE OF THE GRASS TO BUILD YOUR STARTING BASE SQUARE! ★";
-
     statusText.style.color = "#ffd700";
-
     return;
-
   }
-
-
 
   let selectedNum = null;
-
   cannons.forEach(can => {
-
     can.userData.barrel.material.emissive.set(can.userData.selected ? 0x00ff00 : 0x000000);
-
     if (can.userData.selected) selectedNum = can.userData.unitNum;
-
   });
-
-
 
   if (selectedNum !== null) {
-
     mobileDeselectBtn.classList.add('active');
-
     mobileAimToggle.classList.remove('disabled');
-
   } else {
-
     mobileDeselectBtn.classList.remove('active');
-
     mobileAimToggle.classList.add('disabled');
-
     mobileAimToggle.classList.remove('active');
-
     mobileAimModeActive = false;
-
   }
-
-
 
   if (statusText.innerText !== "STATUS: MATCH STARTED!") {
-
     if (selectedNum !== null) {
-
       statusText.innerText = mobileAimModeActive
-
         ? `CANNON #${selectedNum} [AIM LOCKED]: DRAG TO AIM & RELEASE TO FIRE!`
-
         : `ACTIVE COMMAND: CANNON #${selectedNum} [TAP FIELD TO MARCH | TAP AIM BUTTON TO FIRE]`;
-
     } else {
-
       statusText.innerText = "STATUS: STANDBY (SELECT PANELS TO BUILD WITH SHOTGUNS | CLICK CANNON TO MOVE)";
-
       statusText.style.color = "#00ff00";
-
     }
-
   }
-
 }
-
-
 
 function calculateBallistics(sourceCan, target) {
-
   const start = new THREE.Vector3(0, 2.5, 0);
-
   sourceCan.userData.barrelPivot.localToWorld(start);
 
-
-
   const maxAllowedRange = Math.abs(sourceCan.userData.startZ || 120) * 1.5;
-
   const dx = target.x - start.x, dz = target.z - start.z, dy = target.y - start.y;
-
   const horizontalDist = Math.sqrt(dx * dx + dz * dz);
-
   const clampedDist = Math.min(horizontalDist, maxAllowedRange);
-
   const ratio = clampedDist / (horizontalDist || 1);
-
   const realisticTargetX = start.x + dx * ratio;
-
   const realisticTargetZ = start.z + dz * ratio;
-
   const finalDx = realisticTargetX - start.x;
-
   const finalDz = realisticTargetZ - start.z;
-
   const finalDist = Math.sqrt(finalDx * finalDx + finalDz * finalDz);
-
   const gravity = -0.012;
-
   const targetTime = 60 + (finalDist * 0.5);
-
   const vx = finalDx / targetTime;
-
   const vz = finalDz / targetTime;
-
   const vy = (dy - (0.5 * gravity * Math.pow(targetTime, 2))) / targetTime;
 
-
-
   return { start, vx, vy, vz, gravity, targetTime };
-
 }
-
-
 
 function updateTrajectoryArc(sourceCan, target) {
-
   const originalRot = sourceCan.quaternion.clone();
-
   sourceCan.lookAt(target.x, sourceCan.position.y, target.z);
 
-
-
   const muzzlePos = new THREE.Vector3(0, 2.5, 0);
-
   sourceCan.userData.barrelPivot.localToWorld(muzzlePos);
 
-
-
   const allWalls = [...worldPanels.filter(p => p.userData.panelType.startsWith('wall')), ...gameWalls];
-
   const muzzleSphere = new THREE.Sphere(muzzlePos, 0.4);
-
   let touchesWall = false;
-
   for (let w of allWalls) {
-
     if (new THREE.Box3().setFromObject(w).intersectsSphere(muzzleSphere)) {
-
       touchesWall = true;
-
       break;
-
     }
-
   }
-
-
 
   if (touchesWall) {
-
     sourceCan.quaternion.copy(originalRot);
-
     trajectoryLine.visible = false;
-
     statusText.innerText = "BARREL BLOCKED BY WALL!";
-
     statusText.style.color = "#ff4444";
-
     return;
-
   }
-
-
 
   const localTarget = sourceCan.worldToLocal(target.clone());
-
   sourceCan.userData.angle = Math.atan2(localTarget.y, Math.sqrt(localTarget.x**2 + localTarget.z**2));
 
-
-
   const b = calculateBallistics(sourceCan, target);
-
   const posAttr = trajectoryLine.geometry.attributes.position;
-
   const stepTime = b.targetTime / (TRAJECTORY_POINTS - 1);
 
-
-
   for (let i = 0; i < TRAJECTORY_POINTS; i++) {
-
     const t = i * stepTime;
-
     const px = b.start.x + b.vx * t;
-
     const py = b.start.y + b.vy * t + 0.5 * b.gravity * (t * t);
-
     const pz = b.start.z + b.vz * t;
-
     posAttr.setXYZ(i, px, py, pz);
-
   }
-
   posAttr.needsUpdate = true;
-
   trajectoryLine.computeLineDistances();
-
   trajectoryLine.visible = true;
-
 }
-
-
 
 function spawnProjectile(sourceCan, target, isRemote = false) {
-
   if (!matchStarted || matchOver) return;
 
-
-
   const muzzleCheck = new THREE.Vector3(0, 2.5, 0);
-
   sourceCan.userData.barrelPivot.localToWorld(muzzleCheck);
 
-
-
   const allWalls = [...worldPanels.filter(p => p.userData.panelType.startsWith('wall')), ...gameWalls];
-
   const muzzleSphere = new THREE.Sphere(muzzleCheck, 0.4);
-
   for (let w of allWalls) {
-
     if (new THREE.Box3().setFromObject(w).intersectsSphere(muzzleSphere)) {
-
       statusText.innerText = "CANNOT FIRE: BARREL IS OBSTRUCTED!";
-
       statusText.style.color = "#ff4444";
-
       setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2000);
-
       return;
-
     }
-
   }
-
-
 
   const b = calculateBallistics(sourceCan, target);
-
   const obj = new THREE.Mesh(new THREE.SphereGeometry(0.6), new THREE.MeshStandardMaterial({ color: 0xff4400, emissive: 0xffaa00 }));
-
   obj.position.copy(b.start);
 
-
-
   scene.add(obj);
-
   activeProjectiles.push({
-
     mesh: obj,
-
     velocity: new THREE.Vector3(b.vx, b.vy, b.vz),
-
     gravity: b.gravity,
-
     life: 0,
-
     maxLife: 600,
-
     isRemote
-
   });
-
-
 
   if (!isRemote) {
-
     socket.emit('fire_projectile', { roomId: currentRoomId, id: sourceCan.userData.id, target: { x: target.x, y: target.y, z: target.z } });
-
   }
-
 }
-
-
 
 socket.on('opponent_move', (data) => {
-
   if (!matchStarted) return;
-
   opponentCannons.forEach(can => {
-
     if (can.userData.id === data.id) {
-
       can.userData.targetPos.set(data.tx, can.position.y, data.tz);
-
     }
-
   });
-
 });
-
-
 
 socket.on('opponent_fire', (data) => {
-
   if (!matchStarted) return;
-
   opponentCannons.forEach(can => {
-
     if (can.userData.id === data.id) {
-
       spawnProjectile(can, new THREE.Vector3(data.target.x, data.target.y, data.target.z), true);
-
     }
-
   });
-
 });
-
-
 
 socket.on('opponent_destroy', (data) => {
-
   [...cannons, ...opponentCannons].forEach(can => {
-
     if (can.userData.id === data.id) {
-
       scene.remove(can);
-
       cannons = cannons.filter(c => c.userData.id !== data.id);
-
       opponentCannons = opponentCannons.filter(c => c.userData.id !== data.id);
-
       updateStatusUI();
-
       updateUnitCountsDisplay();
-
       checkWinCondition();
-
     }
-
   });
-
 });
 
-
-
 function checkWinCondition() {
-
   if (matchOver || !matchStarted) return;
-
   const myCount = cannons.length;
-
   const oppCount = opponentCannons.length;
 
-
-
   if (myCount === 0 || oppCount === 0) {
-
     const winnerIdx = myCount > 0 ? myPlayerIndex : (myPlayerIndex === 1 ? 2 : 1);
-
     socket.emit('check_game_over', {
-
       roomId: currentRoomId,
-
       winnerIndex: winnerIdx,
-
       p1Count: myPlayerIndex === 1 ? myCount : oppCount,
-
       p2Count: myPlayerIndex === 2 ? myCount : oppCount
-
     });
-
   }
-
 }
-
-
 
 const MAP_SCALE = 120 / boardSize;
-
 const MAP_CENTER = { x: 60, y: 60 };
 
-
-
 function toMap(x, z) {
-
   if (myPlayerIndex === 2) return { x: MAP_CENTER.x - x * MAP_SCALE, y: MAP_CENTER.y - z * MAP_SCALE };
-
   return { x: MAP_CENTER.x + x * MAP_SCALE, y: MAP_CENTER.y + z * MAP_SCALE };
-
 }
-
-
 
 function fromMap(mx, my) {
-
   if (myPlayerIndex === 2) return { x: -(mx - MAP_CENTER.x) / MAP_SCALE, z: -(my - MAP_CENTER.y) / MAP_SCALE };
-
   return { x: (mx - MAP_CENTER.x) / MAP_SCALE, z: (my - MAP_CENTER.y) / MAP_SCALE };
-
 }
-
-
 
 function updateMinimap() {
-
   ctx.clearRect(0, 0, 120, 120);
-
   ctx.fillStyle = '#3a5a2a'; ctx.fillRect(0, 0, 120, 120);
 
-
-
   const pRiver1 = toMap(-boardSize / 2, -riverWidth / 2);
-
   const pRiver2 = toMap(boardSize / 2, riverWidth / 2);
-
   ctx.fillStyle = '#0077be';
-
   ctx.fillRect(Math.min(pRiver1.x, pRiver2.x), Math.min(pRiver1.y, pRiver2.y), Math.abs(pRiver2.x - pRiver1.x), Math.abs(pRiver2.y - pRiver1.y));
 
-
-
   const pMid1 = toMap(-boardSize / 2, 0);
-
   const pMid2 = toMap(boardSize / 2, 0);
-
   ctx.strokeStyle = '#ffd700';
-
   ctx.lineWidth = 1;
-
   ctx.beginPath();
-
   ctx.moveTo(pMid1.x, pMid1.y);
-
   ctx.lineTo(pMid2.x, pMid2.y);
-
   ctx.stroke();
 
-
-
   ctx.fillStyle = '#5c4033';
-
   bridgeXPositions.forEach(bx => {
-
     const p1 = toMap(bx - bridgeWidth / 2, -bridgeLength / 2);
-
     const p2 = toMap(bx + bridgeWidth / 2, bridgeLength / 2);
-
     ctx.fillRect(Math.min(p1.x, p2.x), Math.min(p1.y, p2.y), Math.abs(p2.x - p1.x), Math.abs(p2.y - p1.y));
-
   });
-
-
 
   worldPanels.forEach(p => {
-
     const pp = toMap(p.position.x, p.position.z);
-
     ctx.fillStyle = p.userData.panelType === 'ramp' ? '#f97316' : '#64748b';
-
     ctx.fillRect(pp.x - 2, pp.y - 2, 4, 4);
-
   });
-
-
 
   cannons.forEach(can => {
-
     const cp = toMap(can.position.x, can.position.z);
-
     ctx.beginPath(); ctx.arc(cp.x, cp.y, 3, 0, Math.PI * 2);
-
     ctx.fillStyle = can.userData.selected ? '#00ff00' : '#00aaff'; ctx.fill();
-
   });
-
-
 
   opponentCannons.forEach(can => {
-
     const cp = toMap(can.position.x, can.position.z);
-
     ctx.beginPath(); ctx.arc(cp.x, cp.y, 3, 0, Math.PI * 2);
-
     ctx.fillStyle = '#ffaa00'; ctx.fill();
-
   });
-
 }
 
-
-
 function handlePointerDown(clientX, clientY, isSecondary = false) {
-
   if (!matchStarted || matchOver) return false;
 
-
-
   mouse.x = (clientX / window.innerWidth) * 2 - 1;
-
   mouse.y = -(clientY / window.innerHeight) * 2 + 1;
-
   raycaster.setFromCamera(mouse, camera);
 
-
-
   if (!myBasePanelPlaced) {
-
     const groundHits = raycaster.intersectObject(ground, false);
-
     if (groundHits.length > 0) {
-
       const pt = groundHits[0].point;
-
       const snapX = Math.round(pt.x / PANEL_SIZE) * PANEL_SIZE;
-
       const snapZ = Math.round(pt.z / PANEL_SIZE) * PANEL_SIZE;
 
-
-
       if (isWithinMyBuildingTerritory(snapZ, PANEL_SIZE)) {
-
-        const rootSquare = placePanel('floor', new THREE.Vector3(snapX, PANEL_THICKNESS / 2, snapZ), new THREE.Euler(0, 0, 0), false, null, null, true);
-
+        const rootSquare = placePanel('floor', new THREE.Vector3(snapX, PANEL_THICKNESS / 2, snapZ), new THREE.Euler(0, 0, 0), false, null, null, true, myPlayerIndex);
         myBasePanelPlaced = true;
-
         selectPanel(rootSquare);
-
         updateStatusUI();
-
         return true;
-
       } else {
-
         statusText.innerText = "MUST PLACE BASE SQUARE ON YOUR SIDE OF THE RIVER!";
-
         statusText.style.color = "#ff4444";
-
         setTimeout(() => updateStatusUI(), 2000);
-
         return false;
-
       }
-
     }
-
     return false;
-
   }
-
-
 
   const selectedCannon = cannons.find(c => c.userData.selected);
 
-
-
   if (isSecondary || (mobileAimModeActive && selectedCannon)) {
-
     if (selectedCannon) {
-
       const combatHits = raycaster.intersectObjects([ground, river, ...bridges, ...worldPanels, ...gameWalls, ...opponentCannons], true);
-
       if (combatHits.length > 0) {
-
         isAimingCannon = true;
-
         currentAimTarget.copy(combatHits[0].point);
-
         updateTrajectoryArc(selectedCannon, currentAimTarget);
-
         return true;
-
       }
-
     }
-
-
 
     const panelHits = raycaster.intersectObjects(worldPanels, false);
-
-    if (panelHits.length > 0) {
-
+    if (panelHits.length > 0 && panelHits[0].object.userData.ownerIndex === myPlayerIndex) {
       selectPanel(panelHits[0].object);
-
       return true;
-
     }
-
     return false;
-
   }
-
-
 
   const gunIntersects = raycaster.intersectObjects(shotgunHandles, true);
-
   if (gunIntersects.length > 0) {
-
     let hitObj = gunIntersects[0].object;
-
     while (hitObj.parent && !hitObj.userData.isShotgunHandle) hitObj = hitObj.parent;
-
-    if (hitObj.userData.isShotgunHandle && activeBasePanel) {
-
+    if (hitObj.userData.isShotgunHandle && activeBasePanel && activeBasePanel.userData.ownerIndex === myPlayerIndex) {
       pumpingShotgun = hitObj;
-
       pumpStage = 'idle';
 
-
-
       const gunWorldPos = pumpingShotgun.position.clone();
-
       const dirEndpoint = gunWorldPos.clone().add(pumpingShotgun.userData.dirVector.clone().multiplyScalar(4));
 
-
-
       const sStart = gunWorldPos.project(camera);
-
       const sEnd = dirEndpoint.project(camera);
 
-
-
       pumpScreenStart.set(clientX, clientY);
-
       pumpScreenDir.set(
-
         (sEnd.x - sStart.x) * window.innerWidth / 2,
-
         -(sEnd.y - sStart.y) * window.innerHeight / 2
-
       );
 
-
-
       if (pumpScreenDir.lengthSq() > 0.001) {
-
         pumpScreenDir.normalize();
-
       } else {
-
         pumpScreenDir.set(0, -1);
-
       }
-
-
 
       pumpHud.style.display = 'block';
-
       pumpText.innerText = "PULL BACK TO COCK... (RELEASE OR SLAM FORWARD TO FIRE)";
-
       pumpText.style.color = "#ffd700";
-
       pumpBar.style.width = '0%';
-
       pumpBar.style.background = '#ffd700';
-
       return true;
-
     }
-
   }
-
-
 
   let clickedCannon = null;
-
   for (let can of cannons) {
-
     if (raycaster.intersectObject(can, true).length > 0) {
-
       clickedCannon = can;
-
       break;
-
     }
-
   }
-
-
 
   if (clickedCannon) {
-
     const isAlreadySelected = clickedCannon.userData.selected;
-
     cannons.forEach(c => c.userData.selected = false);
-
     clickedCannon.userData.selected = !isAlreadySelected;
-
     
-
     setMobileAimMode(false);
-
     clearShotgunHandles();
-
     activeBasePanel = null;
-
     updateStatusUI();
-
     return true;
-
   }
-
-
 
   const walkableHits = raycaster.intersectObjects([ground, ...worldPanels, ...bridges], true);
-
   if (walkableHits.length > 0) {
-
     const pt = walkableHits[0].point;
-
     const hitObj = walkableHits[0].object;
 
-
-
     if (selectedCannon) {
-
       selectedCannon.userData.targetPos.set(pt.x, selectedCannon.position.y, pt.z);
-
       socket.emit('player_move', { roomId: currentRoomId, id: selectedCannon.userData.id, tx: pt.x, tz: pt.z });
-
       return true;
-
     } else if (hitObj.userData && hitObj.userData.isPanel) {
-
-      selectPanel(hitObj);
-
-      return true;
-
-    } else {
-
-      if (!activeBasePanel) {
-
-        clearShotgunHandles();
-
-        updateStatusUI();
-
+      if (hitObj.userData.ownerIndex === myPlayerIndex) {
+        selectPanel(hitObj);
       }
-
+      return true;
+    } else {
+      if (!activeBasePanel) {
+        clearShotgunHandles();
+        updateStatusUI();
+      }
     }
-
   }
-
   return false;
-
 }
-
-
 
 function handlePointerMove(clientX, clientY) {
-
   mouse.x = (clientX / window.innerWidth) * 2 - 1;
-
   mouse.y = -(clientY / window.innerHeight) * 2 + 1;
 
-
-
   if (isAimingCannon) {
-
     raycaster.setFromCamera(mouse, camera);
-
     const combatHits = raycaster.intersectObjects([ground, river, ...bridges, ...worldPanels, ...gameWalls, ...opponentCannons], true);
-
     const selectedCannon = cannons.find(c => c.userData.selected);
-
     if (combatHits.length > 0 && selectedCannon) {
-
       currentAimTarget.copy(combatHits[0].point);
-
       updateTrajectoryArc(selectedCannon, currentAimTarget);
-
     }
-
   }
 
-
-
-  if (pumpingShotgun && activeBasePanel) {
-
+  if (pumpingShotgun && activeBasePanel && activeBasePanel.userData.ownerIndex === myPlayerIndex) {
     const mouseDelta = new THREE.Vector2(clientX - pumpScreenStart.x, clientY - pumpScreenStart.y);
-
     const dragAlongAxis = mouseDelta.dot(pumpScreenDir);
-
     const PUMP_STROKE = 50;
 
-
-
     const pumpSlide = pumpingShotgun.userData.pumpSlide;
-
     const shellGroup = pumpingShotgun.userData.shellGroup;
-
     const initialY = pumpingShotgun.userData.initialPumpY;
 
-
-
     if (pumpStage === 'idle' && dragAlongAxis < -8) {
-
       pumpStage = 'pulling_back';
-
     }
-
-
 
     if (pumpStage === 'pulling_back') {
-
       const pullBackAmt = Math.min(1.0, Math.max(0.0, -dragAlongAxis / PUMP_STROKE));
-
       pumpSlide.position.y = initialY - (pullBackAmt * 1.1);
 
-
-
       const shellScale = Math.min(1.0, pullBackAmt * 1.5);
-
       shellGroup.scale.set(shellScale, shellScale, shellScale);
-
       shellGroup.position.set(0, 0.4 + (pullBackAmt * 0.2), -0.1 + (pullBackAmt * 0.2));
 
-
-
       pumpBar.style.width = `${pullBackAmt * 50}%`;
-
       pumpBar.style.background = '#ffd700';
-
       pumpText.innerText = "COCKING SPRING... (PULL ALL THE WAY BACK)";
-
       pumpText.style.color = "#ffd700";
 
-
-
       if (pullBackAmt >= 1.0) {
-
         pumpStage = 'pull_back_primed';
-
         pumpScreenStart.set(clientX, clientY);
-
         pumpText.innerText = "★ READY! RELEASE TO FIRE - OR - SLAM FORWARD! ★";
-
         pumpText.style.color = "#00ffcc";
-
         pumpBar.style.background = '#00ffcc';
-
         pumpBar.style.width = '50%';
-
       }
-
     } else if (pumpStage === 'pull_back_primed') {
-
       const pushForwardAmt = Math.min(1.0, Math.max(0.0, dragAlongAxis / PUMP_STROKE));
-
       pumpSlide.position.y = (initialY - 1.1) + (pushForwardAmt * 1.1);
 
-
-
       pumpBar.style.width = `${50 + (pushForwardAmt * 50)}%`;
-
       pumpBar.style.background = '#00ff00';
-
       pumpText.innerText = "SLAM FORWARD TO LOCK & FIRE!";
-
       pumpText.style.color = "#00ff00";
 
-
-
       if (pushForwardAmt >= 1.0) {
-
         const firedGunId = pumpingShotgun.userData.arrowId;
-
         const muzzlePos = pumpingShotgun.position.clone().add(pumpingShotgun.userData.dirVector.clone().multiplyScalar(3.2));
-
         spawnShotgunBlast(muzzlePos, pumpingShotgun.userData.dirVector, false);
 
-
-
         pumpingShotgun.userData.recoilTimer = 1.0;
-
         pumpingShotgun.userData.flash.material.opacity = 1.0;
-
         triggerBranchBuild(activeBasePanel, firedGunId);
 
-
-
         pumpSlide.position.y = initialY;
-
         shellGroup.scale.set(0.001, 0.001, 0.001);
-
         pumpingShotgun = null;
-
         pumpStage = 'idle';
-
         pumpHud.style.display = 'none';
-
         return;
-
       }
-
     }
-
-
 
     else if (pumpStage === 'idle' && dragAlongAxis > 8) {
-
       pumpStage = 'pushing_forward';
-
     }
-
-
 
     if (pumpStage === 'pushing_forward') {
-
       const pushAmt = Math.min(1.0, Math.max(0.0, dragAlongAxis / PUMP_STROKE));
-
       pumpSlide.position.y = initialY + (pushAmt * 0.8);
 
-
-
       pumpBar.style.width = `${pushAmt * 50}%`;
-
       pumpBar.style.background = '#ff8800';
-
       pumpText.innerText = "REVERSE CLEARING... (PUSH ALL THE WAY FORWARD)";
-
       pumpText.style.color = "#ff8800";
 
-
-
       if (pushAmt >= 1.0) {
-
         pumpStage = 'push_forward_primed';
-
         pumpScreenStart.set(clientX, clientY);
-
         pumpText.innerText = "⚠ READY! RELEASE OR PULL BACK TO DEMOLISH & UNLOAD! ⚠";
-
         pumpText.style.color = "#ff3300";
-
         pumpBar.style.background = '#ff0033';
-
         pumpBar.style.width = '50%';
-
       }
-
     } else if (pumpStage === 'push_forward_primed') {
-
       const pullBackAmt = Math.min(1.0, Math.max(0.0, -dragAlongAxis / PUMP_STROKE));
-
       pumpSlide.position.y = (initialY + 0.8) - (pullBackAmt * 0.8);
 
-
-
       pumpBar.style.width = `${50 + (pullBackAmt * 50)}%`;
-
       pumpBar.style.background = '#ff0033';
-
       pumpText.innerText = "RACK BACK TO DEMOLISH & UNLOAD!";
-
       pumpText.style.color = "#ff3300";
 
-
-
       if (pullBackAmt >= 1.0) {
-
         const muzzlePos = pumpingShotgun.position.clone().add(pumpingShotgun.userData.dirVector.clone().multiplyScalar(3.2));
-
         spawnShotgunBlast(muzzlePos, pumpingShotgun.userData.dirVector, true);
 
-
-
         const ejectPos = pumpingShotgun.position.clone().add(new THREE.Vector3(0, 0.5, 0));
-
         spawnEjectedShell(ejectPos, pumpingShotgun.userData.dirVector);
 
-
-
         pumpingShotgun.userData.recoilTimer = 1.0;
-
         pumpingShotgun.userData.flash.material.opacity = 1.0;
-
         undoDemolishPanel(activeBasePanel);
 
-
-
         pumpSlide.position.y = initialY;
-
         shellGroup.scale.set(0.001, 0.001, 0.001);
-
         pumpingShotgun = null;
-
         pumpStage = 'idle';
-
         pumpHud.style.display = 'none';
-
         return;
-
       }
-
     }
-
   }
-
 }
-
-
 
 function handlePointerUp() {
-
   if (isAimingCannon) {
-
     const selectedCannon = cannons.find(c => c.userData.selected);
-
     if (selectedCannon) {
-
       spawnProjectile(selectedCannon, currentAimTarget);
-
     }
-
     isAimingCannon = false;
-
     trajectoryLine.visible = false;
-
     return;
-
   }
 
-
-
-  if (pumpingShotgun) {
-
+  if (pumpingShotgun && activeBasePanel && activeBasePanel.userData.ownerIndex === myPlayerIndex) {
     if (pumpStage === 'pull_back_primed') {
-
       const firedGunId = pumpingShotgun.userData.arrowId;
-
       const muzzlePos = pumpingShotgun.position.clone().add(pumpingShotgun.userData.dirVector.clone().multiplyScalar(3.2));
-
       spawnShotgunBlast(muzzlePos, pumpingShotgun.userData.dirVector, false);
 
-
-
       pumpingShotgun.userData.recoilTimer = 1.0;
-
       pumpingShotgun.userData.flash.material.opacity = 1.0;
-
       triggerBranchBuild(activeBasePanel, firedGunId);
-
     } else if (pumpStage === 'push_forward_primed') {
-
       const muzzlePos = pumpingShotgun.position.clone().add(pumpingShotgun.userData.dirVector.clone().multiplyScalar(3.2));
-
       spawnShotgunBlast(muzzlePos, pumpingShotgun.userData.dirVector, true);
 
-
-
       const ejectPos = pumpingShotgun.position.clone().add(new THREE.Vector3(0, 0.5, 0));
-
       spawnEjectedShell(ejectPos, pumpingShotgun.userData.dirVector);
 
-
-
       pumpingShotgun.userData.recoilTimer = 1.0;
-
       pumpingShotgun.userData.flash.material.opacity = 1.0;
-
       undoDemolishPanel(activeBasePanel);
-
     }
 
-
-
     pumpingShotgun.userData.pumpSlide.position.y = pumpingShotgun.userData.initialPumpY;
-
     pumpingShotgun.userData.shellGroup.scale.set(0.001, 0.001, 0.001);
-
     pumpingShotgun.position.copy(pumpingShotgun.userData.originalLocalPos);
-
     pumpingShotgun = null;
-
     pumpStage = 'idle';
-
     pumpHud.style.display = 'none';
-
   }
-
 }
-
-
 
 let lastTouchTime = 0;
 
-
-
 window.onmousedown = (e) => {
-
   if (Date.now() - lastTouchTime < 500) return;
-
   if (e.target.closest('#ui') || e.target.closest('#lobby-screen') || e.target.closest('#camera-altitude-control') || e.target.closest('#mobile-dpad') || e.target.closest('#mobile-aim-toggle') || e.target.closest('#mobile-deselect-btn') || e.target.closest('#mobile-build-slider') || e.target.closest('#panel-lookpad')) return;
-
-
 
   if (e.target === minimapCanvas && e.button === 0) {
-
     const rect = minimapCanvas.getBoundingClientRect();
-
     const world = fromMap(e.clientX - rect.left, e.clientY - rect.top);
-
     const selected = cannons.find(c => c.userData.selected);
-
     if (selected) {
-
       selected.userData.targetPos.set(world.x, selected.position.y, world.z);
-
       socket.emit('player_move', { roomId: currentRoomId, id: selected.userData.id, tx: world.x, tz: world.z });
-
     } else {
-
       camera.position.set(world.x, camera.position.y, world.z);
-
     }
-
     return;
-
   }
-
-
 
   handlePointerDown(e.clientX, e.clientY, e.button === 2);
-
 };
-
-
 
 window.onmousemove = (e) => {
-
   if (Date.now() - lastTouchTime < 500) return;
-
   handlePointerMove(e.clientX, e.clientY);
-
 };
-
-
 
 window.onmouseup = (e) => {
-
   if (Date.now() - lastTouchTime < 500) return;
-
   handlePointerUp();
-
 };
-
-
 
 let touchStartPos = { x: 0, y: 0 };
-
 let touchLastPos = { x: 0, y: 0 };
-
 let touchTotalDist = 0;
-
 let isTouchLooking = false;
-
 let activeTouchId = null;
-
 let touchHandledOnDown = false;
 
-
-
 window.addEventListener('touchstart', (e) => {
-
   lastTouchTime = Date.now();
-
   if (e.target.closest('#ui') || e.target.closest('#lobby-screen') || e.target.closest('#camera-altitude-control') || e.target.closest('#mobile-dpad') || e.target.closest('#mobile-aim-toggle') || e.target.closest('#mobile-deselect-btn') || e.target.closest('#mobile-build-slider') || e.target.closest('#panel-lookpad')) return;
 
-
-
   const t = e.touches[0];
-
   activeTouchId = t.identifier;
-
   touchStartPos.x = t.clientX;
-
   touchStartPos.y = t.clientY;
-
   touchLastPos.x = t.clientX;
-
   touchLastPos.y = t.clientY;
-
   touchTotalDist = 0;
-
   isTouchLooking = false;
-
   touchHandledOnDown = false;
-
-
 
   mouse.x = (t.clientX / window.innerWidth) * 2 - 1;
-
   mouse.y = -(t.clientY / window.innerHeight) * 2 + 1;
-
   raycaster.setFromCamera(mouse, camera);
 
-
-
   const gunHits = raycaster.intersectObjects(shotgunHandles, true);
-
   if (gunHits.length > 0 || mobileAimModeActive) {
-
     handlePointerDown(t.clientX, t.clientY, false);
-
     touchHandledOnDown = true;
-
   } else {
-
     if (!activeBasePanel) {
-
       isTouchLooking = true;
-
     }
-
   }
-
 }, { passive: false });
-
-
 
 window.addEventListener('touchmove', (e) => {
-
   lastTouchTime = Date.now();
-
   for (let i = 0; i < e.touches.length; i++) {
-
     const t = e.touches[i];
-
     if (t.identifier === activeTouchId) {
-
       const dx = t.clientX - touchLastPos.x;
-
       const dy = t.clientY - touchLastPos.y;
-
       touchTotalDist += Math.hypot(dx, dy);
 
-
-
       if (isTouchLooking && !pumpingShotgun && !isAimingCannon) {
-
         camera.rotation.y -= dx * 0.005;
-
         camera.rotation.x = Math.max(-Math.PI / 3, Math.min(Math.PI / 4, camera.rotation.x - dy * 0.004));
-
         camera.rotation.z = 0;
-
       } else {
-
         handlePointerMove(t.clientX, t.clientY);
-
       }
 
-
-
       touchLastPos.x = t.clientX;
-
       touchLastPos.y = t.clientY;
-
       break;
-
     }
-
   }
-
 }, { passive: false });
 
-
-
 window.addEventListener('touchend', (e) => {
-
   lastTouchTime = Date.now();
 
-
-
   if (!touchHandledOnDown && touchTotalDist < 15 && !pumpingShotgun && !isAimingCannon) {
-
     handlePointerDown(touchStartPos.x, touchStartPos.y, false);
-
   }
-
-
 
   if (pumpingShotgun || isAimingCannon) {
-
     handlePointerUp();
-
   }
-
   isTouchLooking = false;
-
   activeTouchId = null;
-
   touchHandledOnDown = false;
-
 });
 
-
-
 const dpadUp = document.getElementById('dpad-up');
-
 const dpadDown = document.getElementById('dpad-down');
-
 const dpadLeft = document.getElementById('dpad-left');
-
 const dpadRight = document.getElementById('dpad-right');
 
-
-
 function bindDpad(elem, keyName) {
-
   elem.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); keys[keyName] = true; });
-
   elem.addEventListener('touchend', (e) => { e.preventDefault(); e.stopPropagation(); keys[keyName] = false; });
-
 }
-
 bindDpad(dpadUp, 'w');
-
 bindDpad(dpadDown, 's');
-
 bindDpad(dpadLeft, 'a');
-
 bindDpad(dpadRight, 'd');
 
-
-
 window.onwheel = (e) => {
-
   if (activeBasePanel) {
-
     cyclePanelMode(e.deltaY);
-
     return;
-
   }
-
   camera.fov = Math.min(Math.max(camera.fov + e.deltaY * 0.05, 15), 100);
-
   camera.updateProjectionMatrix();
-
 };
-
-
 
 window.onkeydown = (e) => { 
-
   const k = e.key.toLowerCase();
-
   keys[k] = true;
 
-
-
   if (e.key === 'ArrowLeft') keys['arrowleft'] = true;
-
   if (e.key === 'ArrowRight') keys['arrowright'] = true;
 
-
-
   if (e.key === 'Escape') {
-
     deselectAllCannons();
-
     clearShotgunHandles();
-
     activeBasePanel = null;
-
   }
-
 };
-
-
 
 window.onkeyup = (e) => { 
-
   const k = e.key.toLowerCase();
-
   keys[k] = false;
-
   if (e.key === 'ArrowLeft') keys['arrowleft'] = false;
-
   if (e.key === 'ArrowRight') keys['arrowright'] = false;
-
 };
-
-
 
 window.onblur = () => { for (let k in keys) keys[k] = false; };
-
 window.oncontextmenu = (e) => e.preventDefault();
-
 window.onresize = () => {
-
   camera.aspect = window.innerWidth / window.innerHeight;
-
   camera.updateProjectionMatrix();
-
   renderer.setSize(window.innerWidth, window.innerHeight);
-
 };
 
-
-
 function animate() {
-
   requestAnimationFrame(animate);
 
-
-
   const dt = Math.min(clock.getDelta(), 0.1);
-
   const dt60 = dt * 60;
 
-
-
   clouds.forEach(c => {
-
     c.mesh.position.x += c.speed * dt60;
-
     if (c.mesh.position.x > 700) {
-
       c.mesh.position.x = -700;
-
       c.mesh.position.z = Math.random() * 1200 - 600;
-
     }
-
   });
 
-
-
   for (let i = shotgunShards.length - 1; i >= 0; i--) {
-
     const s = shotgunShards[i];
-
     s.mesh.position.addScaledVector(s.velocity, dt60);
-
     s.velocity.y -= 0.015 * dt60;
-
     s.velocity.multiplyScalar(Math.pow(0.92, dt60));
-
     s.mesh.rotation.x += s.rotSpeed.x * dt60;
-
     s.mesh.rotation.y += s.rotSpeed.y * dt60;
-
     s.mesh.rotation.z += s.rotSpeed.z * dt60;
 
-
-
     s.life += dt60;
-
     const progress = s.life / s.maxLife;
-
     const scale = Math.max(0.001, 1.0 - progress);
-
     s.mesh.scale.set(scale, scale, scale);
 
-
-
     if (s.life >= s.maxLife) {
-
       scene.remove(s.mesh);
-
       shotgunShards.splice(i, 1);
-
     }
-
   }
-
-
 
   for (let i = ejectedShells.length - 1; i >= 0; i--) {
-
     const shell = ejectedShells[i];
-
     shell.mesh.position.addScaledVector(shell.velocity, dt60);
-
     shell.velocity.y -= 0.02 * dt60;
-
     shell.velocity.multiplyScalar(Math.pow(0.96, dt60));
 
-
-
     shell.mesh.rotation.x += shell.rotSpeed.x * dt60;
-
     shell.mesh.rotation.y += shell.rotSpeed.y * dt60;
-
     shell.mesh.rotation.z += shell.rotSpeed.z * dt60;
 
-
-
     if (shell.mesh.position.y <= 0.2) {
-
       shell.mesh.position.y = 0.2;
-
       shell.velocity.set(0, 0, 0);
-
       shell.rotSpeed.set(0, 0, 0);
-
     }
-
-
 
     shell.life += dt60;
-
     if (shell.life >= shell.maxLife - 20) {
-
       const fadeProgress = (shell.life - (shell.maxLife - 20)) / 20;
-
       shell.mesh.scale.setScalar(Math.max(0.001, 1.0 - fadeProgress));
-
     }
-
-
 
     if (shell.life >= shell.maxLife) {
-
       scene.remove(shell.mesh);
-
       ejectedShells.splice(i, 1);
-
     }
-
   }
 
-
-
   if (matchStarted && !matchOver) {
-
     if (keys['e']) setAltitude(targetCameraAltitude + 1.2 * dt60);
-
     if (keys['c']) setAltitude(targetCameraAltitude - 1.2 * dt60);
-
-
 
     camera.position.y += (targetCameraAltitude - camera.position.y) * 0.15 * dt60;
 
-
-
     const turnSpeed = 0.03 * dt60;
-
     if (keys['a'] || keys['arrowleft']) camera.rotation.y += turnSpeed;
-
     if (keys['d'] || keys['arrowright']) camera.rotation.y -= turnSpeed;
-
-
 
     camera.rotation.z = 0;
 
-
-
     const camSpeed = 1.2 * dt60;
-
     const moveVector = new THREE.Vector3(0, 0, 0);
 
-
-
     if (keys['w']) moveVector.z -= camSpeed;
-
     if (keys['s']) moveVector.z += camSpeed;
 
-
-
     if (moveVector.length() > 0) {
-
       const forwardYawQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), camera.rotation.y);
-
       const nextPos = camera.position.clone().add(moveVector.applyQuaternion(forwardYawQuat));
-
       const edgeLimit = halfBoard - 5;
-
       if (Math.abs(nextPos.x) <= edgeLimit && Math.abs(nextPos.z) <= edgeLimit) {
-
         camera.position.x = nextPos.x;
-
         camera.position.z = nextPos.z;
-
       }
-
     }
 
-
-
     shotgunHandles.forEach(gun => {
-
       if (gun.userData.recoilTimer > 0) {
-
         gun.userData.recoilTimer = Math.max(0, gun.userData.recoilTimer - dt * 6);
-
         const kick = gun.userData.dirVector.clone().multiplyScalar(-gun.userData.recoilTimer * 0.8);
-
         gun.position.copy(gun.userData.originalLocalPos).add(kick);
-
       }
-
       if (gun.userData.flash.material.opacity > 0) {
-
         gun.userData.flash.material.opacity = Math.max(0, gun.userData.flash.material.opacity - dt * 10);
-
       }
-
     });
-
-
 
     const allWallObstacles = [...worldPanels.filter(p => p.userData.panelType.startsWith('wall')), ...gameWalls];
 
-
-
     function checkSphereWallCollision(sphereCenter, radius) {
-
       const testSphere = new THREE.Sphere(sphereCenter, radius);
-
       for (let w of allWallObstacles) {
-
         const box = new THREE.Box3().setFromObject(w);
-
         if (box.intersectsSphere(testSphere)) return true;
-
       }
-
       return false;
-
     }
-
-
 
     ([...cannons, ...opponentCannons]).forEach(can => {
-
       const forwardDir = new THREE.Vector3(0, 0, 1).applyQuaternion(can.quaternion).normalize();
-
       
-
       const muzzlePos = new THREE.Vector3(0, 2.5, 0);
-
       can.userData.barrelPivot.localToWorld(muzzlePos);
 
-
-
       let pushTries = 0;
-
       while ((checkSphereWallCollision(muzzlePos, 0.4) || checkSphereWallCollision(can.position, 1.2)) && pushTries < 15) {
-
         can.position.addScaledVector(forwardDir, -0.2);
-
         can.userData.targetPos.copy(can.position);
-
         muzzlePos.set(0, 2.5, 0);
-
         can.userData.barrelPivot.localToWorld(muzzlePos);
-
         pushTries++;
-
       }
-
-
 
       can.userData.barrelPivot.rotation.x = -can.userData.angle;
-
       
-
       const planarDist = Math.hypot(can.userData.targetPos.x - can.position.x, can.userData.targetPos.z - can.position.z);
 
-
-
       if (planarDist > 0.1) {
-
         const moveDir = new THREE.Vector3(
-
           can.userData.targetPos.x - can.position.x,
-
           0,
-
           can.userData.targetPos.z - can.position.z
-
         ).normalize();
 
-
-
         const moveStep = Math.min(0.5 * dt60, planarDist);
-
         const nextX = can.position.x + moveDir.x * moveStep;
-
         const nextZ = can.position.z + moveDir.z * moveStep;
 
-
-
         const prospectivePos = new THREE.Vector3(nextX, can.position.y, nextZ);
-
         const prospectiveQuat = new THREE.Quaternion().setFromRotationMatrix(
-
           new THREE.Matrix4().lookAt(prospectivePos, prospectivePos.clone().add(moveDir), new THREE.Vector3(0, 1, 0))
-
         );
-
         
-
         const prospectiveMuzzle = prospectivePos.clone().add(
-
           new THREE.Vector3(0, 0.5, 2.6).applyQuaternion(prospectiveQuat)
-
         );
-
-
 
         const hitsWallAhead = checkSphereWallCollision(prospectiveMuzzle, 0.45) || 
-
-                            checkSphereWallCollision(prospectivePos, 1.25);
-
-
+                              checkSphereWallCollision(prospectivePos, 1.25);
 
         if (hitsWallAhead) {
-
           can.userData.targetPos.copy(can.position);
-
           return;
-
         }
-
-
 
         const probeOrigin = new THREE.Vector3(nextX, can.position.y + 3.0, nextZ);
-
         const probeRay = new THREE.Raycaster(probeOrigin, new THREE.Vector3(0, -1, 0), 0, 50.0);
-
         const hits = probeRay.intersectObjects([ground, ...worldPanels, ...bridges], true);
 
-
-
         let canStep = false;
-
         let targetY = can.position.y;
 
-
-
         let validSurfaceHit = null;
-
         for (let hit of hits) {
-
           const hitObj = hit.object;
-
           const surfaceY = hit.point.y + 0.8;
-
           const deltaY = surfaceY - can.position.y;
 
-
-
           if (hitObj.userData && hitObj.userData.panelType === 'ramp') {
-
             const rampBox = new THREE.Box3().setFromObject(hitObj);
-
             if (nextX < rampBox.min.x - 0.5 || nextX > rampBox.max.x + 0.5 || nextZ < rampBox.min.z - 0.5 || nextZ > rampBox.max.z + 0.5) {
-
               continue;
-
             }
-
-            // Block walking into the high/back underside of the ramp from ground level
-
             if (hit.point.y > can.position.y + 1.5) {
-
               break;
-
             }
-
           }
-
-
 
           if (deltaY <= 1.8 && deltaY >= -1.8) {
-
             validSurfaceHit = surfaceY;
-
             break;
-
           }
-
         }
-
-
 
         if (validSurfaceHit !== null) {
-
           canStep = true;
-
           targetY = validSurfaceHit;
-
         }
-
-
 
         if (canStep) {
-
           can.position.x = nextX;
-
           can.position.z = nextZ;
-
           can.position.y += (targetY - can.position.y) * 0.45 * dt60;
-
           can.lookAt(can.userData.targetPos.x, can.position.y, can.userData.targetPos.z);
-
         } else {
-
           can.userData.targetPos.x = can.position.x;
-
           can.userData.targetPos.z = can.position.z;
-
         }
-
-
 
         if (Math.abs(can.position.z) < (riverWidth / 2) - 1.5 && can.position.y < 2.0) {
-
           const onBridge = bridgeXPositions.some(bx => Math.abs(can.position.x - bx) <= (bridgeWidth / 2));
-
           if (!onBridge) {
-
             if (cannons.includes(can)) socket.emit('destroy_unit', { roomId: currentRoomId, id: can.userData.id });
-
             scene.remove(can);
-
             cannons = cannons.filter(c => c.userData.id !== can.userData.id);
-
             opponentCannons = opponentCannons.filter(c => c.userData.id !== can.userData.id);
-
             updateStatusUI();
-
             updateUnitCountsDisplay();
-
             checkWinCondition();
-
           }
-
         }
-
       }
-
     });
 
-
-
     for (let i = activeProjectiles.length - 1; i >= 0; i--) {
-
       const p = activeProjectiles[i];
-
       const prevPos = p.mesh.position.clone();
-
       const frameVel = p.velocity.clone().multiplyScalar(dt60);
 
-
-
       p.mesh.position.add(frameVel);
-
       p.velocity.y += p.gravity * dt60;
-
       p.life += dt60;
 
-
-
       const rayDir = p.velocity.clone().normalize();
-
       const rayLen = frameVel.length() + 0.3;
 
-
-
       const structRay = new THREE.Raycaster(prevPos, rayDir, 0, rayLen);
-
       const structHits = structRay.intersectObjects([...worldPanels, ...gameWalls, ...bridges], true);
-
       
-
       if (structHits.length > 0) {
-
         const hit = structHits[0];
-
         if (hit.face) {
-
           const normal = hit.face.normal.clone().applyQuaternion(hit.object.quaternion);
-
           p.velocity.reflect(normal).multiplyScalar(0.75);
-
           p.mesh.position.copy(hit.point).add(normal.multiplyScalar(0.2));
-
           continue;
-
         }
-
       }
-
-
 
       const targetCannons = p.isRemote ? cannons : opponentCannons;
-
       let hitTarget = null;
-
       for (let can of targetCannons) {
-
         if (p.mesh.position.distanceTo(can.position) < 2.5) {
-
           hitTarget = can;
-
           break;
-
         }
-
       }
-
-
 
       if (hitTarget) {
-
         if (!p.isRemote) socket.emit('destroy_unit', { roomId: currentRoomId, id: hitTarget.userData.id });
-
         scene.remove(hitTarget);
-
         cannons = cannons.filter(c => c.userData.id !== hitTarget.userData.id);
-
         opponentCannons = opponentCannons.filter(c => c.userData.id !== hitTarget.userData.id);
-
         updateStatusUI();
-
         updateUnitCountsDisplay();
-
         checkWinCondition();
 
-
-
         scene.remove(p.mesh);
-
         activeProjectiles.splice(i, 1);
-
         continue;
-
       }
-
-
 
       if (p.life > p.maxLife || p.mesh.position.y < 0.1) {
-
         scene.remove(p.mesh);
-
         activeProjectiles.splice(i, 1);
-
       }
-
     }
-
   }
 
-
-
   if (matchStarted) updateMinimap();
-
   renderer.render(scene, camera);
-
 }
 
-
-
 socket.on('lobbies_update', (lobbies) => {
-
   const grid = document.getElementById('lobbies-grid');
-
   if (!grid) return;
-
   grid.innerHTML = '';
 
-
-
   lobbies.forEach(lobby => {
-
     const isMyCurrentRoom = currentRoomId === lobby.id;
-
     const isFull = lobby.playerCount >= 2;
-
     const isInGame = lobby.status === 'in_game';
 
-
-
     const card = document.createElement('div');
-
     card.className = `arena-card ${isMyCurrentRoom ? 'active-room' : ''}`;
 
-
-
     let statusBadge = `<span class="arena-badge badge-open">Waiting (${lobby.playerCount}/2)</span>`;
-
     if (isInGame) statusBadge = `<span class="arena-badge badge-ingame">In Battle</span>`;
-
     else if (isFull) statusBadge = `<span class="arena-badge badge-ready">Full</span>`;
 
-
-
     const p1 = lobby.players[0];
-
     const p2 = lobby.players[1];
 
-
-
     const slot1Html = p1 
-
       ? `<div class="player-slot">
-
            <span class="slot-name ${p1.team === 'blue' ? 'slot-team-blue' : 'slot-team-dark'}">
-
              ${p1.id === socket.id ? '★ YOU' : 'PLAYER 1'}
-
            </span>
-
            <span class="ready-pill ${p1.ready ? 'pill-ready' : 'pill-waiting'}">${p1.ready ? 'READY' : 'WAITING'}</span>
-
          </div>`
-
       : `<div class="player-slot"><span class="slot-empty">Empty Garrison Slot</span></div>`;
-
-
 
     const slot2Html = p2 
-
       ? `<div class="player-slot">
-
            <span class="slot-name ${p2.team === 'blue' ? 'slot-team-blue' : 'slot-team-dark'}">
-
              ${p2.id === socket.id ? '★ YOU' : 'PLAYER 2'}
-
            </span>
-
            <span class="ready-pill ${p2.ready ? 'pill-ready' : 'pill-waiting'}">${p2.ready ? 'READY' : 'WAITING'}</span>
-
          </div>`
-
       : `<div class="player-slot"><span class="slot-empty">Empty Garrison Slot</span></div>`;
 
-
-
     let actionButtonsHtml = isMyCurrentRoom
-
       ? `<button class="btn-ready ${myReadyState ? 'is-ready' : ''}" id="btn-ready-${lobby.id}">${myReadyState ? '✓ READY' : 'CONFIRM READY'}</button>
-
          <button class="btn-leave" id="btn-leave-${lobby.id}">LEAVE</button>`
-
       : `<button class="btn-join" ${isInGame || isFull || currentRoomId !== null ? 'disabled' : ''} id="btn-join-${lobby.id}">
-
            ${isInGame ? 'IN BATTLE' : (isFull ? 'ARENA FULL' : 'JOIN ARENA')}
-
          </button>`;
 
-
-
     card.innerHTML = `
-
       <div>
-
         <div class="card-top"><span class="arena-name">${lobby.name}</span>${statusBadge}</div>
-
         <div class="player-slots">${slot1Html}${slot2Html}</div>
-
       </div>
-
       <div class="card-actions">${actionButtonsHtml}</div>
-
     `;
-
     grid.appendChild(card);
 
-
-
     const joinBtn = document.getElementById(`btn-join-${lobby.id}`);
-
     if (joinBtn) joinBtn.onclick = () => socket.emit('join_room', lobby.id);
 
-
-
     const readyBtn = document.getElementById(`btn-ready-${lobby.id}`);
-
     if (readyBtn) readyBtn.onclick = () => { socket.emit('toggle_ready', lobby.id); myReadyState = !myReadyState; };
 
-
-
     const leaveBtn = document.getElementById(`btn-leave-${lobby.id}`);
-
     if (leaveBtn) leaveBtn.onclick = () => socket.emit('leave_room');
-
   });
-
 });
-
-
 
 socket.on('room_joined', (data) => {
-
   currentRoomId = data.roomId;
-
   myPlayerIndex = data.playerIndex;
-
   myReadyState = false;
-
   myBasePanelPlaced = false;
-
 });
-
-
 
 socket.on('left_room_success', () => {
-
   currentRoomId = null;
-
   myReadyState = false;
-
   myBasePanelPlaced = false;
-
 });
-
-
 
 socket.on('lobby_error', (msg) => alert(msg));
-
 socket.on('build_error', (msg) => {
-
   statusText.innerText = msg;
-
   statusText.style.color = '#ff4444';
-
   setTimeout(() => updateStatusUI(), 2500);
-
 });
-
-
 
 socket.on('start_match_countdown', (data) => {
-
   myPlayerIndex = data.playerIndex;
-
   currentRoomId = data.roomId;
-
   myBasePanelPlaced = false;
 
-
-
   document.getElementById('lobby-screen').style.display = 'none';
-
   const countdownEl = document.getElementById('match-countdown');
-
   const countdownNum = document.getElementById('countdown-num');
-
   const roleText = document.getElementById('countdown-role-text');
 
-
-
   const roleString = myPlayerIndex === 1 ? "BLUE FORCES (South Keep)" : "DARK FORCES (North Keep)";
-
   roleText.innerText = `YOU ARE ${roleString.toUpperCase()}`;
-
   countdownEl.style.display = 'flex';
 
-
-
   let count = 3;
-
   countdownNum.innerText = count;
-
   const timer = setInterval(() => {
-
     count--;
-
     if (count > 0) {
-
       countdownNum.innerText = count;
-
     } else {
-
       clearInterval(timer);
-
       countdownEl.style.display = 'none';
-
       document.getElementById('ui').style.display = 'block';
-
       document.getElementById('minimap-container').style.display = 'block';
-
       altitudeControlBox.style.display = 'flex';
-
       document.getElementById('role-display').innerText = roleString;
 
-
-
       const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-
       if (isTouch) {
-
         document.getElementById('mobile-dpad').style.display = 'grid';
-
         document.getElementById('mobile-aim-toggle').style.display = 'flex';
-
         document.getElementById('mobile-deselect-btn').style.display = 'flex';
-
       }
-
-
 
       if (myPlayerIndex === 2) {
-
         setAltitude(5.0);
-
         camera.position.set(0, 5, -135);
-
         camera.rotation.set(0, Math.PI, 0);
-
       } else {
-
         setAltitude(5.0);
-
         camera.position.set(0, 5, 135);
-
         camera.rotation.set(0, 0, 0);
-
       }
-
-
 
       if (!gameInitialized) {
-
         gameInitialized = true;
-
         if (myPlayerIndex === 1) {
-
           for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), 120, 0x012169, false, `blue_${i+1}`, i+1);
-
           for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), -120, 0x222222, true, `dark_${i+1}`, i+1);
-
         } else {
-
           for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), -120, 0x222222, false, `dark_${i+1}`, i+1);
-
           for (let i = 0; i < 10; i++) createCannon(-22.5 + (i * 5), 120, 0x012169, true, `blue_${i+1}`, i+1);
-
         }
-
       }
-
       updateUnitCountsDisplay();
-
       updateStatusUI();
-
       matchStarted = true;
-
     }
-
   }, 1000);
-
 });
-
-
 
 socket.on('update_counts', (data) => {
-
   const statsEl = document.getElementById('server-stats');
-
   if (statsEl) statsEl.innerText = `Online: ${data.totalOnline} | Arena Match`;
-
 });
-
-
 
 socket.on('opponent_disconnected', () => {
-
   alert("Opponent disconnected!");
-
   location.reload();
-
 });
-
-
 
 socket.on('trigger_game_over', (data) => {
-
   matchOver = true;
-
   const modal = document.getElementById('game-over-modal');
-
   const title = document.getElementById('modal-title');
-
   const didIWin = data.winnerIndex === myPlayerIndex;
-
   title.innerText = didIWin ? "VICTORY ACHIEVED!" : "DEFEAT";
-
   title.style.color = didIWin ? "#00ff00" : "#ff4444";
-
   document.getElementById('stat-winner').innerText = data.winnerIndex === 1 ? "Blue Forces" : "Dark Forces";
-
   document.getElementById('stat-my-units').innerText = myPlayerIndex === 1 ? data.p1Count : data.p2Count;
-
   document.getElementById('stat-enemy-units').innerText = myPlayerIndex === 1 ? data.p2Count : data.p1Count;
-
   modal.style.display = 'flex';
-
 });
-
-
 
 socket.on('restart_game', () => location.reload());
 
-
-
 document.getElementById('restart-btn').onclick = () => {
-
   socket.emit('request_restart', { roomId: currentRoomId });
-
 };
 
-
-
 animate();
-
 </script>
-
 </body>
-
 </html>
