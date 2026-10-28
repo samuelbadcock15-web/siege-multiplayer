@@ -519,7 +519,8 @@ const ground = new THREE.Mesh(new THREE.PlaneGeometry(boardSize, boardSize), new
 ground.rotation.x = -Math.PI / 2;
 scene.add(ground);
 
-const riverWidth = 30;
+// River width set to 24: perfectly spans 2 panels (12 each side of the center line)
+const riverWidth = 24;
 const river = new THREE.Mesh(new THREE.PlaneGeometry(boardSize, riverWidth), new THREE.MeshStandardMaterial({ color: 0x0077be, transparent: true, opacity: 0.8 }));
 river.rotation.x = -Math.PI / 2;
 river.position.y = 0.01;
@@ -1013,10 +1014,17 @@ function extendRampDirectly(rampMesh, isRemote = false) {
   const forward = getRampForwardVector(rampMesh);
 
   if (!isRemote) {
-    const segs = rampMesh.userData.rampSegments || 1;
-    const testZ = rampMesh.position.z + forward.z * (PANEL_SIZE * segs);
-    if (!isWithinMyBuildingTerritory(testZ, PANEL_SIZE)) {
-      statusText.innerText = "CANNOT EXTEND RAMP INTO ENEMY TERRITORY!";
+    const nextSegs = (rampMesh.userData.rampSegments || 1) + 1;
+    // Check where the summit tip will land against the center line
+    const tipZ = rampMesh.position.z + forward.z * (PANEL_SIZE * nextSegs);
+    if (myPlayerIndex === 1 && tipZ < -0.001) {
+      statusText.innerText = "RAMP REACHED THE CENTER BORDER LINE!";
+      statusText.style.color = "#ff4444";
+      setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2500);
+      return;
+    }
+    if (myPlayerIndex === 2 && tipZ > 0.001) {
+      statusText.innerText = "RAMP REACHED THE CENTER BORDER LINE!";
       statusText.style.color = "#ff4444";
       setTimeout(() => { statusText.style.color = "#00ff00"; updateStatusUI(); }, 2500);
       return;
@@ -1660,8 +1668,12 @@ function handlePointerDown(clientX, clientY, isSecondary = false) {
     const groundHits = raycaster.intersectObject(ground, false);
     if (groundHits.length > 0) {
       const pt = groundHits[0].point;
+
+      // Half-grid offset snapping so panel edges line up precisely with Z = 0
       const snapX = Math.round(pt.x / PANEL_SIZE) * PANEL_SIZE;
-      const snapZ = Math.round(pt.z / PANEL_SIZE) * PANEL_SIZE;
+      const snapZ = myPlayerIndex === 1
+        ? (Math.floor(pt.z / PANEL_SIZE) * PANEL_SIZE + (PANEL_SIZE / 2))
+        : (Math.ceil(pt.z / PANEL_SIZE) * PANEL_SIZE - (PANEL_SIZE / 2));
 
       if (isWithinMyBuildingTerritory(snapZ, PANEL_SIZE)) {
         const rootSquare = placePanel('floor', new THREE.Vector3(snapX, PANEL_THICKNESS / 2, snapZ), new THREE.Euler(0, 0, 0), false, null, null, true, myPlayerIndex);
